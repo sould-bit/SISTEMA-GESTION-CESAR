@@ -1,0 +1,444 @@
+SISALCHI — Documento de Requisitos,
+Arquitectura y Plan de Desarrollo
+Versión: 1.0
+Autor: Jhon (cliente) / Equipo de desarrollo
+Resumen: Este documento consolida todos los acuerdos, decisiones de arquitectura, requerimientos
+funcionales y no funcionales, y la hoja de ruta ordenada por prioridades para el desarrollo del sistema
+SISALCHI — Sistema Integral de Pedidos y Control Interno para Salchipaperías.
+
+1.  Información general del proyecto
+    Nombre del sistema: SISALCHI — Sistema Integral de Pedidos y Control Interno para Salchipaperías
+    Objetivo: Construir un sistema que gestione pedidos (mesas, para llevar, domicilios), comandas para
+    cocina, control de domiciliarios, caja, inventario con recetas, reportes y asignación inteligente de
+    repartidores. La presentación para clientes será una PWA (React + TypeScript + Tailwind + Redux Toolkit).
+    Toda la lógica financiera y operativa crítica reside en el backend (FastAPI + SQLModel + PostgreSQL).
+    Alcance inicial: MVP desktop/tienda PWA + backend + módulo opcional de app nativa para
+    domiciliarios.
+2.  Arquitectura seleccionada (oficial)
+    2.1 Frontend
+    •
+    •
+    •
+    Stack: React + TypeScript + TailwindCSS + Redux Toolkit
+    Distribución: PWA desplegada en Vercel/Netlify/Cloudflare Pages
+    Responsabilidad: Capa de presentación; no contiene lógica crítica (no cálculos financieros ni
+    validaciones de inventario).
+    2.2 Backend
+    •
+    •
+    •
+    Stack: FastAPI + SQLModel + PostgreSQL
+    Responsabilidad: Única fuente de verdad; contiene toda la lógica de negocio, validaciones,
+    cálculos financieros, consecutivos, cuadres y auditoría.
+    Despliegue recomendado: VPS (Contabo/Hetzner/DigitalOcean) — plan básico desde ~5 USD/
+    mes.
+    2.3 App nativa (opcional)
+    •
+    •
+    Plataforma: Android nativa simple (o Flutter si se desea multi-plataforma en futuro)
+    Uso: Domiciliarios — login, recepción de pedidos, envío de ubicación, confirmación de entrega
+    con GPS y detección de proximidad al local.
+    1
+3.  Requerimientos resumen (funcionales principales)
+    (Resumido — el documento completo de requisitos se mantiene en la sección
+    Documents / Requisitos)
+4.
+5.
+6.
+7.
+8.
+9.
+10.
+11.
+12. Gestión de productos y recetas (receta obligatoria para que el descuento automático funcione).
+    Pedidos: Mesa (M-XXX), Para Llevar (L-XXX), Domicilio (D-XXX). Consecutivos en backend.
+    Comandas imprimibles para cocina (impresora térmica USB).
+    Control de domiciliarios: asignación manual/automática, registro de entregas, cuadre de turnos.
+    Inventario: insumos, unidades, entradas, movimientos, descuento automático por receta.
+    Caja y cierres: registro de métodos de pago, cuadre esperado vs real, reporte de diferencias.
+    Reportes: ventas, inventario, domiciliarios, consumo por producto.
+    Seguridad: roles (Administrador, Cajero, Cocina, Domiciliario), autenticación JWT.
+    Auditoría: logs de acciones críticas.
+13. Requerimientos no funcionales (resumen)
+    •
+    •
+    •
+    •
+    Sistema local-first: debe poder correr con base de datos local en VPS o incluso en LAN para
+    modo offline.
+    Rendimiento: respuesta < 300 ms para endpoints críticos; soportar 200 pedidos/día mínimo.
+    Seguridad: transportes via HTTPS; contraseñas hasheadas (bcrypt); roles y permisos.
+    Disponibilidad: backups regulares; recuperación ante corte de energía (persistencia de datos
+    locales).
+14. Modelo de datos (resumen de tablas clave)
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    •
+    usuarios
+    categorias
+    productos
+    recetas
+    receta_detalle
+    pedidos
+    detalle_pedidos
+    domiciliarios
+    domiciliarios_ubicacion
+    domiciliarios_estado
+    insumos
+    inventario_movimientos
+    pagos
+    cierres_caja
+    reportes
+    configuraciones
+    (El modelo ER detallado quedará en el anexo y se generará como diagrama ER en la siguiente tarea).
+    2
+15. Endpoints API (resumen esencial)
+    Nota: todos los endpoints que modifican dinero, inventario o estados críticos se ejecutan
+    en transacción y validan en backend.
+    Auth - POST /auth/token — obtener JWT - GET /auth/me — datos del usuario
+    Productos - GET /products - POST /products - PUT /products/{id} - DELETE /products/{id} - POST /
+    products/{id}/recipe — crear/actualizar receta
+    Pedidos - POST /orders — crear pedido (backend genera total y consecutivo) - GET /orders/{id} - GET /
+    orders?estado= - POST /orders/{id}/status — cambiar estado (server-side validation) - POST /orders/{id}/
+    assign — asignar domiciliario (manual)
+    Cocina - GET /kitchen/orders — pedidos por preparar - POST /kitchen/orders/{id}/start - POST /kitchen/
+    orders/{id}/ready
+    Inventario - GET /inventory - POST /inventory/entries — registrar entrada - POST /inventory/
+    movements — registro manual/ajuste - GET /inventory/report
+    Domiciliarios - POST /domiciliary/login - GET /domiciliary/me - GET /domiciliary/assigned - POST /
+    domiciliary/{id}/location — actualizar ubicación - POST /domiciliary/{id}/delivered — marcar entrega
+    (captura GPS)
+    Caja y reportes - GET /reports/daily - POST /cash/close — cierre de caja (backend calcula totales
+    esperados) - GET /reports/domiciliarios/{id}
+16. Reglas claves de diseño e integridad
+17.
+18.
+19.
+20.
+21. Backend como fuente de la verdad: Todos los cálculos financieros, de consecutivos y de
+    inventario se realizan y validan en el backend.
+    Transacciones SQL: Operaciones que afectan inventario + ventas deben realizarse como
+    transacción atómica.
+    Logs y auditoría: Cada cambio crítico (ajuste de inventario, cierre de caja, eliminación de
+    pedido) debe registrarse con usuario y motivo.
+    Validación de stock: Antes de confirmar venta, validar stock teórico y reservar insumos en la
+    misma transacción.
+    Concurrencia: Generación de consecutivos e inventario debe ser segura frente a concurrencia
+    (bloqueos o secuencias en DB).
+    7.5 Módulo WebSockets — Tiempo Real (NUEVO)
+    Objetivo: Proveer comunicación en tiempo real entre Caja, Cocina y Domiciliarios mediante Socket.IO.
+    Canales oficiales: - /kitchen-channel: Emite
+    newOrder ,
+    printComanda . - /dispatcher-channel: Emite
+    orderUpdated ,
+    orderCanceled ,
+    assignment ,
+    newDelivery ,
+    locationUpdate ,
+    deliveryComplete ,
+    domAvailable .
+    3
+    Características clave: 1. WebSockets solo informan, NO procesan lógica crítica. 2. Se usa Socket.IO
+    (python-socketio) para reconexión automática. 3. Cada domiciliario se une a una "room" identificada
+    (dom\_{id}) para recibir pedidos asignados. 4. Cocina se mantiene sincronizada sin refrescar. 5. Caja ve
+    actualizaciones de estados en vivo.
+    Entregables: Servidor WebSockets, integración con eventos del sistema, rooms para domiciliarios,
+    hooks para frontend.
+22. Flujo de desarrollo (orden y entregables)
+    A continuación presento la hoja de ruta y la prioridad de desarrollo dividida en 'Fases' para que el
+    equipo (o tú) pueda avanzar por entregables incrementales y probables sprints.
+    Fase 0 — Preparación del repositorio (entregable inmediato)
+    •
+    •
+    •
+    •
+    Inicializar monorepo con carpetas
+    backend/ y
+    frontend/ .
+    Configurar linter/prettier y CI básico (opcional).
+    Dockerfile para backend y configuración Vite para frontend.
+    Script de bootstrap (env, variables, README con cómo correr local).
+    Tiempo estimado (MVP): 1 día (preparación)
+    Fase 1 — Núcleo backend (Backend Core) — PRIORIDAD ALTA
+    Objetivo: Implementar la lógica crítica y endpoints base para operaciones.
+    Tareas: 1. Estructura de la DB y modelos (SQLModel) +
+    db.init_db() . 2. Auth JWT (endpoints /auth/
+    token y /auth/me). 3. CRUD Productos y Recetas (incluye validación de receta obligatoria si aplica). 4.
+    Inventario: tablas de insumos y movimientos. 5. Router
+    /orders completo: - Generación de
+    consecutivos M/L/D (segura con transacción). - Cálculo de total (precio producto + extras) en backend.
+    Descuento automático de inventario con comprobaciones de stock. - Estado inicial y eventos (pendiente
+    → en_preparacion → listo → entregado). 6. Endpoints para cocina (start/ready). 7. Unit tests básicos
+    para creación de pedido y ajuste de inventario.
+    Entregables: API funcional con Postman collection.
+    Prioridad: Crítica (sin esto nada funciona)
+    Fase 2 — Módulo Caja, Cierres y Reportes — PRIORIDAD ALTA
+    Objetivo: Cierre de flujo financiero y reportes que permiten cuadre.
+    Tareas: 1. Registrar pagos por pedido (efectivo, transferencia, datáfono). 2. Endpoint
+    POST /cash/
+    close que calcule esperado vs real y registre diferencias. 3. Reportes diarios: ventas por tipo, ventas
+    por categoría, productos top. 4. Reporte por domiciliario (pedidos, montos, diferencias).
+    Entregables: Endpoints de cierre y reportes + UI mínima en PWA para visualizar.
+    4
+    Fase 3 — Módulo Domiciliarios (Asignación y App nativa) — PRIORIDAD MEDIA
+    Objetivo: Control y cuadre de domiciliarios.
+    Tareas: 1. CRUD domiciliarios, login y estado. 2. Endpoints de ubicación y entrega con captura GPS. 3.
+    Lógica de asignación inteligente (activar/desactivar desde admin). 4. Endpoint para listar domiciliarios
+    disponibles. 5. Plantilla simple de app nativa (proof of concept) o documentación de API para la app.
+    Entregables: API con asignación inteligente, pruebas de asignación y ejemplo de app móvil ligera.
+    Fase 4 — Inventario avanzado y costes — PRIORIDAD MEDIA
+    Objetivo: Mejorar control de costos y consumos.
+    Tareas: 1. Costeo por receta (costo unitario por plato usando promedio ponderado de entradas). 2.
+    Alertas de stock mínimo y notificaciones. 3. Ajustes masivos, importación de insumos. 4. Reportes de
+    consumo y pérdidas.
+    Entregables: Reportes de Costo-Venta y alertas configurables.
+    Fase 5 — Frontend PWA (React + TS + Tailwind + Redux) — PRIORIDAD ALTA
+    (paralela)
+    Objetivo: Interfaz robusta que consuma la API (sin lógica crítica en cliente).
+    Tareas iniciales (ordenadas): 1. Estructura del proyecto y configuración (Vite + TS + Tailwind). 2.
+    Implementar slices de Redux: auth, products, orders, inventory, domiciliarios. 3. Pantallas: Login,
+    Dashboard, Products, Create Order (Mesa / Llevar / Domicilio), Kitchen View, Inventory, Reports,
+    Domiciliarios. 4. Integración de impresión (PDF o llamada a endpoint que retorne contenido para
+    imprimir en cocina). 5. PWA manifest y service worker.
+    Entregables: PWA desplegada en Vercel con conexión a backend de staging.
+    Fase 6 — QA, Documentación y Entrega al Cliente
+    Tareas: 1. Pruebas end-to-end (crear pedido, preparar, entregar, cierre de caja) con datos reales. 2.
+    Documentación de uso (manual de usuario para cajero, cocina y administrador). 3. Instalador (si se
+    desea modo offline en un PC del local) o guías para deploy en VPS. 4. Mínimo 1 sesión de capacitación
+    para el cliente.
+    Entregables: Sistema listo en producción y manuales.
+    5
+23. Orden de desarrollo sugerido (lista concreta de tickets)
+    A continuación lista de tickets (puedes pegarlos en tu gestor: Trello/Notion/Jira) por orden prioritario:
+24.
+25.
+26.
+27.
+28.
+29.
+30.
+31.
+32.
+33.
+34.
+35.
+36.
+37.
+38.
+39.
+40.
+41.
+42.
+43.
+44.
+45. INIT-REPO: Crear repositorio, .gitignore, README, estructura inicial.
+    DB-MODELS: Crear modelos SQLModel y script de migración/inicialización.
+    AUTH: Implementar JWT auth y seed admin user.
+    PRODUCTS-CRUD: Endpoints productos y recetas.
+    INVENTORY-BASIC: Insumos + movimientos + entradas.
+    ORDERS-BASIC: POST /orders con consecutivo y cálculo total (sin asignación domiciliario).
+    INVENTORY-DEDUCT: Descuento automático de insumos por receta al crear pedido.
+    KITCHEN-ENDPOINTS: start/ready endpoints.
+    PRINT-SIM: Endpoint que genere payload imprimible para comandas.
+    PAYMENTS: Registrar pagos por pedido.
+    CASH-CLOSE: Endpoint cierre de caja y reportes básicos.
+    REPORTS: Endpoints de reportes diarios y por domiciliario.
+    DOMICILIARY-BASIC: CRUD y login domiciliarios.
+    DOMICILIARY-LOCATION: Endpoints ubicación y delivered (con GPS validation).
+    ASSIGN-AI: Asignación inteligente automática.
+    FRONTEND-INIT: Crear proyecto React+TS+Tailwind+RTK.
+    FRONTEND-PAGES: Login, Products, CreateOrder, KitchenView.
+    FRONTEND-PRINTING: Integración de impresión de comandas.
+    INVENTORY-ADV: Costeo por receta y reportes de consumo.
+    QA: E2E tests y correcciones.
+    DEPLOY: VPS setup, CI/CD, dominio, TLS.
+    DOCS: Manuales y entrenamiento.
+46. Infraestructura y costos (resumen)
+    •
+    •
+    •
+    •
+    •
+    Frontend PWA: Hosting gratuito en Vercel/Netlify.
+    Backend + DB: VPS (Contabo/Hetzner/DigitalOcean) ≈ $4–7 USD/mes.
+    Dominio (opcional): ≈ $10–12 USD/año.
+    App nativa (opcional): coste de desarrollo aparte (pagar al desarrollador o usar Flutter para
+    cross-platform).
+    Backup y monitoring: considerar servicio adicional o scripts de backup (puede operar con cron
+
+- dump).
+  Plan de soporte sugerido para el cliente: cobrar COP 50.000–70.000 / mes por hosting y soporte.
+
+11. Guía de desarrollo (setup rápido)
+    Backend local:
+    cd backend
+    python-m venv .venv
+    source .venv/bin/activate # windows: .venv\Scripts\activate
+    6
+    pip install-r requirements.txt
+    uvicorn app.main:app--reload--port 8000
+    Frontend local:
+    cd frontend
+    npm install
+    npm run dev
+    Docker (opcional): - Build backend:
+    docker build -t sisalchi-backend ./backend - Run:
+    docker run -p 8000:8000 sisalchi-backend
+12. Criterios de aceptación por módulo (QA checklist corto)
+    •
+    •
+    •
+    •
+    •
+    Orders: Crear pedido devuelve consecutivo único generado por servidor; inventario se
+    descuenta; pedido aparece en kitchen view.
+    Inventory: Entrada de insumo incrementa stock; venta descuenta correctamente; alerta en
+    stock mínimo.
+    Domiciliarios: Login, recepción de pedido y entrega con GPS validado.
+    Caja: Cierre de caja muestra totales esperados; se registran diferencias.
+    Frontend: Todas las acciones críticas son invocadas vía API; cliente no calcula totales.
+13. Próximo paso inmediato (acción recomendada)
+    Comenzar la Fase 0 e inmediatamente arrancar la Fase 1: Backend Core. El primer ticket crítico a
+    implementar es: DB-MODELS y AUTH para poder seedear un usuario admin y empezar a crear
+    productos/recetas y pedidos.
+    Anexos y documentación complementaria
+    •
+    •
+    Menú del cliente (adjunto: Menú rincon.pdf)
+    Documentos previos: Requisitos detallados, flujos de uso, propuestas de hosting.
+    Fin del documento.
+14. Diagramas de Arquitectura y Flujos en Tiempo Real
+    14.1 Diagrama General de Arquitectura (Mermaid)
+    graph TD;
+    A[Cliente PWA - React] -- REST --> B[Backend FastAPI]
+    7
+    A -- WebSocket --> C[Socket.IO Server]
+    B -- SQL --> D[(PostgreSQL)]
+    B -- Emit eventos --> C
+    C -- Push tiempo real --> E[Pantalla Cocina]
+    C -- Push tiempo real --> F[App Domiciliario]
+    E -- peticiones REST --> B
+    F -- REST + WS --> B
+    14.2 Flujo Detallado: Pedido creado (Caja → Cocina)
+    sequenceDiagram
+    actor Cajero
+    participant Frontend as PWA
+    participant Backend as FastAPI
+    participant WS as Socket.IO
+    participant Cocina
+    Cajero->>Frontend: Crear pedido (UI)
+    Frontend->>Backend: POST /orders
+    Backend->>Backend: Validar stock + generar consecutivo
+    Backend->>Backend: Descontar inventario (transacción)
+    Backend->>WS: Emit "newOrder"
+    WS->>Cocina: Evento newOrder (tiempo real)
+    Backend-->>Frontend: Respuesta con id del pedido
+    14.3 Flujo Detallado: Estado del pedido (Pendiente → Preparación → Listo)
+    sequenceDiagram
+    participant Cocina
+    participant Backend
+    participant WS
+    participant Caja
+    Cocina->>Backend: POST /orders/{id}/status (en*preparacion)
+    Backend->>Backend: Validar transición
+    Backend->>WS: Emit "orderUpdated"
+    WS->>Caja: Actualización en vivo
+    WS->>Cocina: Sincronización entre pantallas
+    Cocina->>Backend: POST /orders/{id}/status (listo)
+    Backend->>WS: Emit "orderUpdated"
+    WS->>Caja: Pedido listo (tiempo real)
+    8
+    14.4 Flujo Detallado: Asignación de domiciliario (Caja → Domiciliario)
+    sequenceDiagram
+    actor Cajero
+    participant Backend
+    participant WS
+    participant Domiciliario
+    Cajero->>Backend: POST /orders/{id}/assign
+    Backend->>Backend: Validar domiciliario disponible
+    Backend->>WS: Emit "assignment" a room dom*{id}
+    WS->>Domiciliario: Notificación en tiempo real
+    14.5 Flujo Detallado: Entrega del pedido (Domiciliario → Caja)
+    sequenceDiagram
+    participant Domiciliario
+    participant Backend
+    participant WS
+    participant Caja
+    Domiciliario->>Backend: POST /deliver (con GPS)
+    Backend->>Backend: Validar ubicación
+    Backend->>WS: Emit "deliveryComplete"
+    WS->>Caja: Pedido entregado (tiempo real)
+    14.6 Diagrama: Estructura de WebSockets (Namespaces y Rooms)
+    graph LR;
+    subgraph Socket.IO Server
+    A[/kitchen-channel/]
+    B[/dispatcher-channel/]
+    end
+    A --> A1(Kitchen UI)
+    A --> A2(Caja - modo cocina)
+    B --> B1{Room: dom_1}
+    B --> B2{Room: dom_2}
+    B --> B3{Room: dom_n}
+    B1 --> R1[Domiciliario 1]
+    9
+    B2 --> R2[Domiciliario 2]
+    B3 --> Rn[Domiciliario n]
+    14.7 Eventos WebSocket Documentados
+    Canal /kitchen-channel
+    •
+    •
+    •
+    •
+    newOrder → Pedido creado
+    orderUpdated → Cambio de estado
+    orderCanceled → Pedido anulado
+    printComanda → Solicitud de impresión
+    Canal /dispatcher-channel
+    •
+    •
+    •
+    •
+    •
+    assignment → Pedido asignado a un domiciliario
+    newDelivery → Nuevo domicilio disponible
+    locationUpdate → Actualización de ubicación
+    deliveryComplete → Pedido entregado
+    domAvailable → Domiciliario cerca del negocio
+    14.8 Flujo de impresión (Caja → Cocina)
+    sequenceDiagram
+    participant Caja
+    participant Backend
+    participant WS
+    participant Cocina
+    Caja->>Backend: POST /print/{id}
+    Backend->>Backend: Generar payload imprimible
+    Backend->>WS: Emit "printComanda"
+    WS->>Cocina: Señal para imprimir
+    Cocina->>impresora: Impresión térmica
+    14.9 Resumen técnico de la integración WebSocket
+    •
+    •
+    •
+    •
+    •
+    •
+    Los WebSockets no manejan lógica crítica.
+    Solo sirven para notificar cambios.
+    Todas las pantallas se mantienen sincronizadas sin refrescar.
+    Los domiciliarios usan "rooms" privadas.
+    Cocina recibe pedidos al instante.
+    Caja ve cambios de estado en tiempo real.
+    10

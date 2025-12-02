@@ -1,0 +1,32 @@
+# Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+env/
+venv/
+.env
+*.log
+instance/
+.pytest_cache/
+
+# Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env.local
+.env.production
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

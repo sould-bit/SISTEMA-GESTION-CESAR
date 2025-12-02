@@ -1,1 +1,89 @@
-# SISTEMA-GESTION-CESAR
+# SISALCHI - Sistema Integral de Pedidos y Control Interno
+
+Sistema de gestión para salchipaperías que incluye pedidos, comandas, control de domiciliarios, caja, inventario y reportes.
+
+## 🏗️ Arquitectura
+
+### Backend
+- **Stack**: FastAPI + SQLModel + PostgreSQL
+- **Puerto**: 8000
+- **Responsabilidad**: Lógica de negocio, validaciones, cálculos financieros
+
+### Frontend
+- **Stack**: React + TypeScript + TailwindCSS + Redux Toolkit
+- **Puerto**: 5173 (desarrollo)
+- **Distribución**: PWA
+
+## 🚀 Inicio Rápido
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Docker (Backend)
+
+```bash
+docker build -t sisalchi-backend ./backend
+docker run -p 8000:8000 sisalchi-backend
+```
+
+## 📋 Fases de Desarrollo
+
+- ✅ **Fase 0**: Preparación del repositorio
+- 🔄 **Fase 1**: Núcleo backend (en progreso)
+- ⏳ **Fase 2**: Módulo Caja y Reportes
+- ⏳ **Fase 3**: Módulo Domiciliarios
+- ⏳ **Fase 4**: Inventario avanzado
+- ⏳ **Fase 5**: Frontend PWA completo
+- ⏳ **Fase 6**: QA y Documentación
+
+## 📚 Documentación
+
+Ver `docuemto de requisitos y desarrollo` para detalles completos de requisitos, arquitectura y plan de desarrollo.
+
+## 🔧 Tecnologías
+
+- **Backend**: FastAPI, SQLModel, PostgreSQL, JWT
+- **Frontend**: React 18, TypeScript, Vite, TailwindCSS, Redux Toolkit
+- **Tiempo Real**: Socket.IO
+- **Containerización**: Docker
+
+## 📝 Variables de Entorno
+
+### Backend (.env)
+```
+DATABASE_URL=postgresql://user:password@localhost/sisalchi
+SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+### Frontend (.env)
+```
+VITE_API_URL=http://localhost:8000
+```
+
+## 👥 Roles del Sistema
+
+- **Administrador**: Acceso completo
+- **Cajero**: Pedidos, pagos, cierres
+- **Cocina**: Comandas, preparación
+- **Domiciliario**: Entregas, ubicación
+
+## 📞 Soporte
+
+Contacto: [Información del desarrollador]

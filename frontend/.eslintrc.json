@@ -1,0 +1,6 @@
+{
+  "extends": ["@vitejs/plugin-react/recommended"],
+  "rules": {
+    "react-refresh/only-export-components": "warn"
+  }
+}
