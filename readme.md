@@ -22,3 +22,12 @@ Sistema de gestión para salchipaperías que incluye:
 - **Puerto**: 5173
 
 ## 📁 Estructura del Proyecto
+
+## 🚀 Estado del Proyecto
+
+- ✅ Fase 0: Estructura básica
+- ⏳ Fase 1: Backend (próximo)
+- ⏳ Fase 2: Frontend
+- ⏳ Fase 3: Integración
+
+## 📚 Documentación

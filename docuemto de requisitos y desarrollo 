@@ -14,6 +14,37 @@ SISALCHI — Sistema Integral de Pedidos y Control Interno para Salchipaperías.
     Toda la lógica financiera y operativa crítica reside en el backend (FastAPI + SQLModel + PostgreSQL).
     Alcance inicial: MVP desktop/tienda PWA + backend + módulo opcional de app nativa para
     domiciliarios.
+    
+Uso del sistema por parte de los clientes (PWA Cliente)
+
+La solución contempla una aplicación web tipo PWA para los clientes finales, a la cual podrán acceder desde un código QR ubicado en mesas, empaques o publicidad. Esta aplicación permitirá que los clientes realicen pedidos directamente, sin necesidad de escribir por WhatsApp ni esperar respuesta del negocio.
+
+Características principales de la PWA Cliente:
+
+Menú visual completamente administrable desde el panel del negocio.
+
+Selección de productos, extras, tamaños o notas.
+
+Elección del tipo de pedido: Mesa (con número de mesa), Para Llevar o Domicilio.
+
+Registro opcional de cliente (nombre, teléfono, dirección para domicilios).
+
+Envío del pedido directamente al backend → cocina → caja.
+
+Recepción de actualizaciones en tiempo real ("Tu pedido está en preparación", "Tu pedido está listo").
+
+Integración con pasarela de pagos en fases futuras.
+
+Impacto en los dolores del negocio:
+
+Elimina la dependencia de WhatsApp para recibir pedidos.
+
+Ahorra tiempo al personal y reduce errores en la toma de órdenes.
+
+Crea trazabilidad completa del pedido desde el cliente hasta la entrega.
+
+Permite operar más mesas con menos personal.
+
 2.  Arquitectura seleccionada (oficial)
     2.1 Frontend
     •
@@ -71,213 +102,378 @@ SISALCHI — Sistema Integral de Pedidos y Control Interno para Salchipaperías.
     Disponibilidad: backups regulares; recuperación ante corte de energía (persistencia de datos
     locales).
 14. Modelo de datos (resumen de tablas clave)
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    •
-    usuarios
-    categorias
-    productos
-    recetas
-    receta_detalle
-    pedidos
-    detalle_pedidos
-    domiciliarios
-    domiciliarios_ubicacion
-    domiciliarios_estado
-    insumos
-    inventario_movimientos
-    pagos
-    cierres_caja
-    reportes
-    configuraciones
-    (El modelo ER detallado quedará en el anexo y se generará como diagrama ER en la siguiente tarea).
-    2
-15. Endpoints API (resumen esencial)
-    Nota: todos los endpoints que modifican dinero, inventario o estados críticos se ejecutan
-    en transacción y validan en backend.
-    Auth - POST /auth/token — obtener JWT - GET /auth/me — datos del usuario
-    Productos - GET /products - POST /products - PUT /products/{id} - DELETE /products/{id} - POST /
-    products/{id}/recipe — crear/actualizar receta
-    Pedidos - POST /orders — crear pedido (backend genera total y consecutivo) - GET /orders/{id} - GET /
-    orders?estado= - POST /orders/{id}/status — cambiar estado (server-side validation) - POST /orders/{id}/
-    assign — asignar domiciliario (manual)
-    Cocina - GET /kitchen/orders — pedidos por preparar - POST /kitchen/orders/{id}/start - POST /kitchen/
-    orders/{id}/ready
-    Inventario - GET /inventory - POST /inventory/entries — registrar entrada - POST /inventory/
-    movements — registro manual/ajuste - GET /inventory/report
-    Domiciliarios - POST /domiciliary/login - GET /domiciliary/me - GET /domiciliary/assigned - POST /
-    domiciliary/{id}/location — actualizar ubicación - POST /domiciliary/{id}/delivered — marcar entrega
-    (captura GPS)
-    Caja y reportes - GET /reports/daily - POST /cash/close — cierre de caja (backend calcula totales
-    esperados) - GET /reports/domiciliarios/{id}
-16. Reglas claves de diseño e integridad
-17.
-18.
-19.
-20.
-21. Backend como fuente de la verdad: Todos los cálculos financieros, de consecutivos y de
-    inventario se realizan y validan en el backend.
-    Transacciones SQL: Operaciones que afectan inventario + ventas deben realizarse como
-    transacción atómica.
-    Logs y auditoría: Cada cambio crítico (ajuste de inventario, cierre de caja, eliminación de
-    pedido) debe registrarse con usuario y motivo.
-    Validación de stock: Antes de confirmar venta, validar stock teórico y reservar insumos en la
-    misma transacción.
-    Concurrencia: Generación de consecutivos e inventario debe ser segura frente a concurrencia
-    (bloqueos o secuencias en DB).
-    7.5 Módulo WebSockets — Tiempo Real (NUEVO)
-    Objetivo: Proveer comunicación en tiempo real entre Caja, Cocina y Domiciliarios mediante Socket.IO.
-    Canales oficiales: - /kitchen-channel: Emite
-    newOrder ,
-    printComanda . - /dispatcher-channel: Emite
-    orderUpdated ,
-    orderCanceled ,
-    assignment ,
-    newDelivery ,
-    locationUpdate ,
-    deliveryComplete ,
-    domAvailable .
-    3
-    Características clave: 1. WebSockets solo informan, NO procesan lógica crítica. 2. Se usa Socket.IO
-    (python-socketio) para reconexión automática. 3. Cada domiciliario se une a una "room" identificada
-    (dom\_{id}) para recibir pedidos asignados. 4. Cocina se mantiene sincronizada sin refrescar. 5. Caja ve
-    actualizaciones de estados en vivo.
-    Entregables: Servidor WebSockets, integración con eventos del sistema, rooms para domiciliarios,
-    hooks para frontend.
-22. Flujo de desarrollo (orden y entregables)
-    A continuación presento la hoja de ruta y la prioridad de desarrollo dividida en 'Fases' para que el
-    equipo (o tú) pueda avanzar por entregables incrementales y probables sprints.
-    Fase 0 — Preparación del repositorio (entregable inmediato)
-    •
-    •
-    •
-    •
-    Inicializar monorepo con carpetas
-    backend/ y
-    frontend/ .
-    Configurar linter/prettier y CI básico (opcional).
-    Dockerfile para backend y configuración Vite para frontend.
-    Script de bootstrap (env, variables, README con cómo correr local).
-    Tiempo estimado (MVP): 1 día (preparación)
-    Fase 1 — Núcleo backend (Backend Core) — PRIORIDAD ALTA
-    Objetivo: Implementar la lógica crítica y endpoints base para operaciones.
-    Tareas: 1. Estructura de la DB y modelos (SQLModel) +
-    db.init_db() . 2. Auth JWT (endpoints /auth/
-    token y /auth/me). 3. CRUD Productos y Recetas (incluye validación de receta obligatoria si aplica). 4.
-    Inventario: tablas de insumos y movimientos. 5. Router
-    /orders completo: - Generación de
-    consecutivos M/L/D (segura con transacción). - Cálculo de total (precio producto + extras) en backend.
-    Descuento automático de inventario con comprobaciones de stock. - Estado inicial y eventos (pendiente
-    → en_preparacion → listo → entregado). 6. Endpoints para cocina (start/ready). 7. Unit tests básicos
-    para creación de pedido y ajuste de inventario.
-    Entregables: API funcional con Postman collection.
-    Prioridad: Crítica (sin esto nada funciona)
-    Fase 2 — Módulo Caja, Cierres y Reportes — PRIORIDAD ALTA
-    Objetivo: Cierre de flujo financiero y reportes que permiten cuadre.
-    Tareas: 1. Registrar pagos por pedido (efectivo, transferencia, datáfono). 2. Endpoint
-    POST /cash/
-    close que calcule esperado vs real y registre diferencias. 3. Reportes diarios: ventas por tipo, ventas
-    por categoría, productos top. 4. Reporte por domiciliario (pedidos, montos, diferencias).
-    Entregables: Endpoints de cierre y reportes + UI mínima en PWA para visualizar.
-    4
-    Fase 3 — Módulo Domiciliarios (Asignación y App nativa) — PRIORIDAD MEDIA
-    Objetivo: Control y cuadre de domiciliarios.
-    Tareas: 1. CRUD domiciliarios, login y estado. 2. Endpoints de ubicación y entrega con captura GPS. 3.
-    Lógica de asignación inteligente (activar/desactivar desde admin). 4. Endpoint para listar domiciliarios
-    disponibles. 5. Plantilla simple de app nativa (proof of concept) o documentación de API para la app.
-    Entregables: API con asignación inteligente, pruebas de asignación y ejemplo de app móvil ligera.
-    Fase 4 — Inventario avanzado y costes — PRIORIDAD MEDIA
-    Objetivo: Mejorar control de costos y consumos.
-    Tareas: 1. Costeo por receta (costo unitario por plato usando promedio ponderado de entradas). 2.
-    Alertas de stock mínimo y notificaciones. 3. Ajustes masivos, importación de insumos. 4. Reportes de
-    consumo y pérdidas.
-    Entregables: Reportes de Costo-Venta y alertas configurables.
-    Fase 5 — Frontend PWA (React + TS + Tailwind + Redux) — PRIORIDAD ALTA
-    (paralela)
-    Objetivo: Interfaz robusta que consuma la API (sin lógica crítica en cliente).
-    Tareas iniciales (ordenadas): 1. Estructura del proyecto y configuración (Vite + TS + Tailwind). 2.
-    Implementar slices de Redux: auth, products, orders, inventory, domiciliarios. 3. Pantallas: Login,
-    Dashboard, Products, Create Order (Mesa / Llevar / Domicilio), Kitchen View, Inventory, Reports,
-    Domiciliarios. 4. Integración de impresión (PDF o llamada a endpoint que retorne contenido para
-    imprimir en cocina). 5. PWA manifest y service worker.
-    Entregables: PWA desplegada en Vercel con conexión a backend de staging.
-    Fase 6 — QA, Documentación y Entrega al Cliente
-    Tareas: 1. Pruebas end-to-end (crear pedido, preparar, entregar, cierre de caja) con datos reales. 2.
-    Documentación de uso (manual de usuario para cajero, cocina y administrador). 3. Instalador (si se
-    desea modo offline en un PC del local) o guías para deploy en VPS. 4. Mínimo 1 sesión de capacitación
-    para el cliente.
-    Entregables: Sistema listo en producción y manuales.
-    5
-23. Orden de desarrollo sugerido (lista concreta de tickets)
-    A continuación lista de tickets (puedes pegarlos en tu gestor: Trello/Notion/Jira) por orden prioritario:
-24.
-25.
-26.
-27.
-28.
-29.
-30.
-31.
-32.
-33.
-34.
-35.
-36.
-37.
-38.
-39.
-40.
-41.
-42.
-43.
-44.
-45. INIT-REPO: Crear repositorio, .gitignore, README, estructura inicial.
-    DB-MODELS: Crear modelos SQLModel y script de migración/inicialización.
-    AUTH: Implementar JWT auth y seed admin user.
-    PRODUCTS-CRUD: Endpoints productos y recetas.
-    INVENTORY-BASIC: Insumos + movimientos + entradas.
-    ORDERS-BASIC: POST /orders con consecutivo y cálculo total (sin asignación domiciliario).
-    INVENTORY-DEDUCT: Descuento automático de insumos por receta al crear pedido.
-    KITCHEN-ENDPOINTS: start/ready endpoints.
-    PRINT-SIM: Endpoint que genere payload imprimible para comandas.
-    PAYMENTS: Registrar pagos por pedido.
-    CASH-CLOSE: Endpoint cierre de caja y reportes básicos.
-    REPORTS: Endpoints de reportes diarios y por domiciliario.
-    DOMICILIARY-BASIC: CRUD y login domiciliarios.
-    DOMICILIARY-LOCATION: Endpoints ubicación y delivered (con GPS validation).
-    ASSIGN-AI: Asignación inteligente automática.
-    FRONTEND-INIT: Crear proyecto React+TS+Tailwind+RTK.
-    FRONTEND-PAGES: Login, Products, CreateOrder, KitchenView.
-    FRONTEND-PRINTING: Integración de impresión de comandas.
-    INVENTORY-ADV: Costeo por receta y reportes de consumo.
-    QA: E2E tests y correcciones.
-    DEPLOY: VPS setup, CI/CD, dominio, TLS.
-    DOCS: Manuales y entrenamiento.
-46. Infraestructura y costos (resumen)
-    •
-    •
-    •
-    •
-    •
-    Frontend PWA: Hosting gratuito en Vercel/Netlify.
-    Backend + DB: VPS (Contabo/Hetzner/DigitalOcean) ≈ $4–7 USD/mes.
-    Dominio (opcional): ≈ $10–12 USD/año.
-    App nativa (opcional): coste de desarrollo aparte (pagar al desarrollador o usar Flutter para
-    cross-platform).
-    Backup y monitoring: considerar servicio adicional o scripts de backup (puede operar con cron
+    🟥 1. Tabla: usuarios
+
+Usuarios del sistema (Administrador, Cajero, Cocina, Domiciliario).
+
+Campo Tipo Descripción
+id (PK) int identificador
+nombre varchar nombre completo
+usuario varchar unique login
+contraseña_hash varchar hash bcrypt
+rol enum(admin, cajero, cocina, domiciliario) rol del sistema
+activo bool si puede iniciar sesión
+creado_en timestamp fecha registro
+🟧 2. Tabla: categorias
+
+Categorías de productos.
+
+Campo Tipo
+id (PK) int
+nombre varchar
+🟨 3. Tabla: productos
+
+Productos del menú.
+
+Campo Tipo
+id (PK) int
+nombre varchar
+descripcion varchar
+precio numeric(12,2)
+categoria_id (FK) → categorias.id int
+activo bool
+
+Relación:
+
+1 categoría → muchos productos
+
+🟩 4. Tabla: insumos
+
+Insumos del inventario (papa, salchicha, aceite…).
+
+Campo Tipo
+id (PK) int
+nombre varchar
+unidad_medida varchar (ej: g, ml, unidades)
+stock_actual numeric
+stock_minimo numeric
+costo_promedio numeric(12,4)
+activo bool
+🟦 5. Tabla: recetas
+
+Una receta por producto.
+
+Campo Tipo
+id (PK) int
+producto_id (FK) → productos.id int
+descripcion text
+
+Relación:
+
+1 producto → 1 receta
+
+🟪 6. Tabla: receta_detalle
+
+Ingredientes con cantidad por producto.
+
+Campo Tipo
+id (PK) int
+receta_id (FK) → recetas.id int
+insumo_id (FK) → insumos.id int
+cantidad numeric
+
+Relaciones:
+
+N ingredientes → 1 receta
+
+Muchos ingredientes → muchos insumos
+
+🟫 7. Tabla: inventario_movimientos
+
+Movimientos de inventario (entradas, salidas, ajustes).
+
+Campo Tipo
+id (PK) int
+insumo_id (FK) int
+tipo enum(entrada, salida, ajuste)
+cantidad numeric
+costo_unitario numeric(12,4) NULL
+motivo varchar
+referencia varchar (id pedido o nota)
+usuario_id (FK) int
+creado_en timestamp
+🟥 8. Tabla: pedidos
+
+Pedidos principales.
+
+Campo Tipo
+id (PK) int
+consecutivo varchar unique (M-001, L-002, D-003)
+tipo enum(mesa, llevar, domicilio)
+mesa varchar NULL
+cliente_nombre varchar NULL
+cliente_telefono varchar NULL
+direccion varchar NULL
+estado enum(pendiente, en_preparacion, listo, entregado, cancelado)
+total numeric(12,2)
+domiciliario_id (FK) → usuarios.id int NULL
+creado_por (FK) → usuarios.id int
+creado_en timestamp
+actualizado_en timestamp
+🟧 9. Tabla: detalle_pedidos
+
+Productos específicos dentro del pedido.
+
+Campo Tipo
+id (PK) int
+pedido_id (FK) int
+producto_id (FK) int
+cantidad int
+precio_unitario numeric(12,2)
+subtotal numeric(12,2)
+🟨 10. Tabla: pagos
+
+Métodos de pago de cada pedido.
+
+Campo Tipo
+id (PK) int
+pedido_id (FK) int
+metodo enum(efectivo, transferencia, datáfono)
+monto numeric(12,2)
+referencia varchar NULL
+creado_en timestamp
+🟩 11. Tabla: cierres_caja
+
+Cierres de jornada por cajero.
+
+Campo Tipo
+id (PK) int
+usuario_id (FK) int
+total_esperado numeric
+total_real numeric
+diferencia numeric
+notas text NULL
+creado_en timestamp
+🟦 12. Tabla: domiciliarios_ubicacion
+
+Historial de ubicaciones GPS.
+
+Campo Tipo
+id (PK) int
+domiciliario_id (FK) int
+lat numeric
+lng numeric
+creado_en timestamp
+🟪 13. Tabla: domiciliarios_estado
+
+Estado del domiciliario.
+
+Campo Tipo
+id (PK) int
+domiciliario_id (FK) int
+estado enum(disponible, en_ruta, entregando, en_negocio)
+actualizado_en timestamp
+🟫 14. Tabla: configuraciones
+
+Parámetros del sistema.
+
+Campo Tipo
+id (PK) int
+clave varchar
+valor varchar
+🖨️ 15. Tabla: logs
+
+Auditoría de cambios críticos.
+
+Campo Tipo
+id (PK) int
+usuario_id (FK) int
+accion varchar
+entidad varchar
+entidad_id int
+detalle text
+creado_en timestamp
+🧠 RELACIONES (resumen visual)
+
+usuarios
+↳ crea pedidos, movimientos, cierres, logs
+
+categorias → productos → recetas → receta_detalle → insumos
+Cadena que permite descontar inventario automáticamente.
+
+pedidos → detalle_pedidos → productos
+
+pedidos → pagos
+
+pedidos → domiciliarios (solo si tipo = domicilio)
+
+domiciliarios_ubicacion, domiciliarios_estado
+↳ relacionados al usuario domiciliario.
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+usuarios
+categorias
+productos
+recetas
+receta_detalle
+pedidos
+detalle_pedidos
+domiciliarios
+domiciliarios_ubicacion
+domiciliarios_estado
+insumos
+inventario_movimientos
+pagos
+cierres_caja
+reportes
+configuraciones
+(El modelo ER detallado quedará en el anexo y se generará como diagrama ER en la siguiente tarea).
+2 15. Endpoints API (resumen esencial)
+Nota: todos los endpoints que modifican dinero, inventario o estados críticos se ejecutan
+en transacción y validan en backend.
+Auth - POST /auth/token — obtener JWT - GET /auth/me — datos del usuario
+Productos - GET /products - POST /products - PUT /products/{id} - DELETE /products/{id} - POST /
+products/{id}/recipe — crear/actualizar receta
+Pedidos - POST /orders — crear pedido (backend genera total y consecutivo) - GET /orders/{id} - GET /
+orders?estado= - POST /orders/{id}/status — cambiar estado (server-side validation) - POST /orders/{id}/
+assign — asignar domiciliario (manual)
+Cocina - GET /kitchen/orders — pedidos por preparar - POST /kitchen/orders/{id}/start - POST /kitchen/
+orders/{id}/ready
+Inventario - GET /inventory - POST /inventory/entries — registrar entrada - POST /inventory/
+movements — registro manual/ajuste - GET /inventory/report
+Domiciliarios - POST /domiciliary/login - GET /domiciliary/me - GET /domiciliary/assigned - POST /
+domiciliary/{id}/location — actualizar ubicación - POST /domiciliary/{id}/delivered — marcar entrega
+(captura GPS)
+Caja y reportes - GET /reports/daily - POST /cash/close — cierre de caja (backend calcula totales
+esperados) - GET /reports/domiciliarios/{id} 16. Reglas claves de diseño e integridad 17. 18. 19. 20. 21. Backend como fuente de la verdad: Todos los cálculos financieros, de consecutivos y de
+inventario se realizan y validan en el backend.
+Transacciones SQL: Operaciones que afectan inventario + ventas deben realizarse como
+transacción atómica.
+Logs y auditoría: Cada cambio crítico (ajuste de inventario, cierre de caja, eliminación de
+pedido) debe registrarse con usuario y motivo.
+Validación de stock: Antes de confirmar venta, validar stock teórico y reservar insumos en la
+misma transacción.
+Concurrencia: Generación de consecutivos e inventario debe ser segura frente a concurrencia
+(bloqueos o secuencias en DB).
+7.5 Módulo WebSockets — Tiempo Real (NUEVO)
+Objetivo: Proveer comunicación en tiempo real entre Caja, Cocina y Domiciliarios mediante Socket.IO.
+Canales oficiales: - /kitchen-channel: Emite
+newOrder ,
+printComanda . - /dispatcher-channel: Emite
+orderUpdated ,
+orderCanceled ,
+assignment ,
+newDelivery ,
+locationUpdate ,
+deliveryComplete ,
+domAvailable .
+3
+Características clave: 1. WebSockets solo informan, NO procesan lógica crítica. 2. Se usa Socket.IO
+(python-socketio) para reconexión automática. 3. Cada domiciliario se une a una "room" identificada
+(dom\_{id}) para recibir pedidos asignados. 4. Cocina se mantiene sincronizada sin refrescar. 5. Caja ve
+actualizaciones de estados en vivo.
+Entregables: Servidor WebSockets, integración con eventos del sistema, rooms para domiciliarios,
+hooks para frontend. 22. Flujo de desarrollo (orden y entregables)
+A continuación presento la hoja de ruta y la prioridad de desarrollo dividida en 'Fases' para que el
+equipo (o tú) pueda avanzar por entregables incrementales y probables sprints.
+Fase 0 — Preparación del repositorio (entregable inmediato)
+•
+•
+•
+•
+Inicializar monorepo con carpetas
+backend/ y
+frontend/ .
+Configurar linter/prettier y CI básico (opcional).
+Dockerfile para backend y configuración Vite para frontend.
+Script de bootstrap (env, variables, README con cómo correr local).
+Tiempo estimado (MVP): 1 día (preparación)
+Fase 1 — Núcleo backend (Backend Core) — PRIORIDAD ALTA
+Objetivo: Implementar la lógica crítica y endpoints base para operaciones.
+Tareas: 1. Estructura de la DB y modelos (SQLModel) +
+db.init_db() . 2. Auth JWT (endpoints /auth/
+token y /auth/me). 3. CRUD Productos y Recetas (incluye validación de receta obligatoria si aplica). 4.
+Inventario: tablas de insumos y movimientos. 5. Router
+/orders completo: - Generación de
+consecutivos M/L/D (segura con transacción). - Cálculo de total (precio producto + extras) en backend.
+Descuento automático de inventario con comprobaciones de stock. - Estado inicial y eventos (pendiente
+→ en_preparacion → listo → entregado). 6. Endpoints para cocina (start/ready). 7. Unit tests básicos
+para creación de pedido y ajuste de inventario.
+Entregables: API funcional con Postman collection.
+Prioridad: Crítica (sin esto nada funciona)
+Fase 2 — Módulo Caja, Cierres y Reportes — PRIORIDAD ALTA
+Objetivo: Cierre de flujo financiero y reportes que permiten cuadre.
+Tareas: 1. Registrar pagos por pedido (efectivo, transferencia, datáfono). 2. Endpoint
+POST /cash/
+close que calcule esperado vs real y registre diferencias. 3. Reportes diarios: ventas por tipo, ventas
+por categoría, productos top. 4. Reporte por domiciliario (pedidos, montos, diferencias).
+Entregables: Endpoints de cierre y reportes + UI mínima en PWA para visualizar.
+4
+Fase 3 — Módulo Domiciliarios (Asignación y App nativa) — PRIORIDAD MEDIA
+Objetivo: Control y cuadre de domiciliarios.
+Tareas: 1. CRUD domiciliarios, login y estado. 2. Endpoints de ubicación y entrega con captura GPS. 3.
+Lógica de asignación inteligente (activar/desactivar desde admin). 4. Endpoint para listar domiciliarios
+disponibles. 5. Plantilla simple de app nativa (proof of concept) o documentación de API para la app.
+Entregables: API con asignación inteligente, pruebas de asignación y ejemplo de app móvil ligera.
+Fase 4 — Inventario avanzado y costes — PRIORIDAD MEDIA
+Objetivo: Mejorar control de costos y consumos.
+Tareas: 1. Costeo por receta (costo unitario por plato usando promedio ponderado de entradas). 2.
+Alertas de stock mínimo y notificaciones. 3. Ajustes masivos, importación de insumos. 4. Reportes de
+consumo y pérdidas.
+Entregables: Reportes de Costo-Venta y alertas configurables.
+Fase 5 — Frontend PWA (React + TS + Tailwind + Redux) — PRIORIDAD ALTA
+(paralela)
+Objetivo: Interfaz robusta que consuma la API (sin lógica crítica en cliente).
+Tareas iniciales (ordenadas): 1. Estructura del proyecto y configuración (Vite + TS + Tailwind). 2.
+Implementar slices de Redux: auth, products, orders, inventory, domiciliarios. 3. Pantallas: Login,
+Dashboard, Products, Create Order (Mesa / Llevar / Domicilio), Kitchen View, Inventory, Reports,
+Domiciliarios. 4. Integración de impresión (PDF o llamada a endpoint que retorne contenido para
+imprimir en cocina). 5. PWA manifest y service worker.
+Entregables: PWA desplegada en Vercel con conexión a backend de staging.
+Fase 6 — QA, Documentación y Entrega al Cliente
+Tareas: 1. Pruebas end-to-end (crear pedido, preparar, entregar, cierre de caja) con datos reales. 2.
+Documentación de uso (manual de usuario para cajero, cocina y administrador). 3. Instalador (si se
+desea modo offline en un PC del local) o guías para deploy en VPS. 4. Mínimo 1 sesión de capacitación
+para el cliente.
+Entregables: Sistema listo en producción y manuales.
+5 23. Orden de desarrollo sugerido (lista concreta de tickets)
+A continuación lista de tickets (puedes pegarlos en tu gestor: Trello/Notion/Jira) por orden prioritario: 24. 25. 26. 27. 28. 29. 30. 31. 32. 33. 34. 35. 36. 37. 38. 39. 40. 41. 42. 43. 44. 45. INIT-REPO: Crear repositorio, .gitignore, README, estructura inicial.
+DB-MODELS: Crear modelos SQLModel y script de migración/inicialización.
+AUTH: Implementar JWT auth y seed admin user.
+PRODUCTS-CRUD: Endpoints productos y recetas.
+INVENTORY-BASIC: Insumos + movimientos + entradas.
+ORDERS-BASIC: POST /orders con consecutivo y cálculo total (sin asignación domiciliario).
+INVENTORY-DEDUCT: Descuento automático de insumos por receta al crear pedido.
+KITCHEN-ENDPOINTS: start/ready endpoints.
+PRINT-SIM: Endpoint que genere payload imprimible para comandas.
+PAYMENTS: Registrar pagos por pedido.
+CASH-CLOSE: Endpoint cierre de caja y reportes básicos.
+REPORTS: Endpoints de reportes diarios y por domiciliario.
+DOMICILIARY-BASIC: CRUD y login domiciliarios.
+DOMICILIARY-LOCATION: Endpoints ubicación y delivered (con GPS validation).
+ASSIGN-AI: Asignación inteligente automática.
+FRONTEND-INIT: Crear proyecto React+TS+Tailwind+RTK.
+FRONTEND-PAGES: Login, Products, CreateOrder, KitchenView.
+FRONTEND-PRINTING: Integración de impresión de comandas.
+INVENTORY-ADV: Costeo por receta y reportes de consumo.
+QA: E2E tests y correcciones.
+DEPLOY: VPS setup, CI/CD, dominio, TLS.
+DOCS: Manuales y entrenamiento. 46. Infraestructura y costos (resumen)
+•
+•
+•
+•
+•
+Frontend PWA: Hosting gratuito en Vercel/Netlify.
+Backend + DB: VPS (Contabo/Hetzner/DigitalOcean) ≈ $4–7 USD/mes.
+Dominio (opcional): ≈ $10–12 USD/año.
+App nativa (opcional): coste de desarrollo aparte (pagar al desarrollador o usar Flutter para
+cross-platform).
+Backup y monitoring: considerar servicio adicional o scripts de backup (puede operar con cron
 
 - dump).
   Plan de soporte sugerido para el cliente: cobrar COP 50.000–70.000 / mes por hosting y soporte.
