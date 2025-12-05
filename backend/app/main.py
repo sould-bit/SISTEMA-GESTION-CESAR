@@ -1,7 +1,13 @@
 from fastapi import FastAPI, Depends
-from sqlmodel import select, Session
-from .database import get_session
+from sqlmodel import select, Session, SQLModel
+from .database import get_session, engine 
+from .models.user import User   # importar modelos para que  SQLMODEL  los detecte 
 
+
+
+# funcion para crear tablas al inicio
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
 
 #crear instancias de fast 
 
@@ -10,6 +16,14 @@ app = FastAPI(
     description="SISTEMA INTEGRAL DE GESTION DE CESAR",
     version="0.0.1"
 )
+
+
+#Evento que se ejecuta al arramncar la app 
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+
+
 
 
 #RUTA RAIZ 
