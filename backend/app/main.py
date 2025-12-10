@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlmodel import select, Session, SQLModel
 from .database import get_session, engine 
-from .models.user import User   # importar modelos para que  SQLMODEL  los detecte 
+from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte 
 
 
 
