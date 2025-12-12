@@ -63,6 +63,108 @@ git branch -m main
 
 ---
 
+### **FASE 1.5: Configuración Profesional con Docker y Variables de Entorno** ⏱️ 1 día
+
+#### 🎯 Objetivos de Aprendizaje
+
+- Entender la importancia de las variables de entorno (`.env`)
+- Configurar servicios con Docker Compose
+- Separar configuración de código (12-Factor App)
+
+#### 📝 Conceptos que Aprenderás
+
+**1.5.1 - El Archivo `.env` (Variables de Entorno)**
+
+**¿Qué es?**
+Es un archivo de texto plano donde guardamos "secretos" y configuraciones que cambian según el entorno (tu PC, el servidor de pruebas, producción).
+
+**¿Por qué es vital?**
+1.  **Seguridad**: Nunca debes subir contraseñas a GitHub. El archivo `.env` siempre se agrega al `.gitignore`.
+2.  **Flexibilidad**: Puedes cambiar el usuario de la base de datos sin tocar el código Python.
+
+**Tu archivo `.env` (ubicado en la raíz del proyecto):**
+```env
+# Credenciales de Base de Datos
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=admin
+POSTGRES_DB=sisalchi
+
+# Conexión Backend -> BD
+DATABASE_URL=postgresql://postgres:admin@db:5432/sisalchi
+```
+
+**1.5.2 - Docker Compose: Orquestación de Servicios**
+
+En lugar de instalar PostgreSQL manualmente en tu Windows, usamos un contenedor.
+El archivo `docker-compose.yml` es el plano de arquitectura.
+
+-   **Servicios**: Las partes de tu app (db, backend, frontend).
+-   **Volúmenes**: Discos duros virtuales para que los datos no se borren al apagar el contenedor.
+-   **Redes**: Permiten que el `backend` hable con la `db` usando su nombre (`db`) en lugar de IPs complicadas.
+
+```yaml
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      # Docker lee estas variables automáticamente de tu archivo .env
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+```
+
+---
+
+### **FASE 1.5: Configuración Profesional con Docker y Variables de Entorno** ⏱️ 1 día
+
+#### 🎯 Objetivos de Aprendizaje
+
+- Entender la importancia de las variables de entorno (`.env`)
+- Configurar servicios con Docker Compose
+- Separar configuración de código (12-Factor App)
+
+#### 📝 Conceptos que Aprenderás
+
+**1.5.1 - El Archivo `.env` (Variables de Entorno)**
+
+**¿Qué es?**
+Es un archivo de texto plano donde guardamos "secretos" y configuraciones que cambian según el entorno (tu PC, el servidor de pruebas, producción).
+
+**¿Por qué es vital?**
+1.  **Seguridad**: Nunca debes subir contraseñas a GitHub. El archivo `.env` siempre se agrega al `.gitignore`.
+2.  **Flexibilidad**: Puedes cambiar el usuario de la base de datos sin tocar el código Python.
+
+**Tu archivo `.env` (ubicado en la raíz del proyecto):**
+```env
+# Credenciales de Base de Datos
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=admin
+POSTGRES_DB=sisalchi
+
+# Conexión Backend -> BD
+DATABASE_URL=postgresql://postgres:admin@db:5432/sisalchi
+```
+
+**1.5.2 - Docker Compose: Orquestación de Servicios**
+
+En lugar de instalar PostgreSQL manualmente en tu Windows, usamos un contenedor.
+El archivo `docker-compose.yml` es el plano de arquitectura.
+
+-   **Servicios**: Las partes de tu app (db, backend, frontend).
+-   **Volúmenes**: Discos duros virtuales para que los datos no se borren al apagar el contenedor.
+-   **Redes**: Permiten que el `backend` hable con la `db` usando su nombre (`db`) en lugar de IPs complicadas.
+
+```yaml
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      # Docker lee estas variables automáticamente de tu archivo .env
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+```
+
+---
+
 ### **FASE 1: Backend - Fundamentos con FastAPI** ⏱️ 3-5 días
 
 #### 🎯 Objetivos de Aprendizaje

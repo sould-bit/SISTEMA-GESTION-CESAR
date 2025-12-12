@@ -4,10 +4,10 @@ __pycache__/
 *$py.class
 *.so
 .Python
-.venv
-env/
+.v
+/
 venv/
-.env
+#.env
 *.log
 instance/
 .pytest_cache/
@@ -17,8 +17,8 @@ node_modules/
 dist/
 dist-ssr/
 *.local
-.env.local
-.env.production
+..local
+..production
 
 # IDEs
 .vscode/

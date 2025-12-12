@@ -22,7 +22,9 @@ def create_admin():
             email="admin@sisalchi.com",
             full_name="Administrador Sistema",
             role="admin",
-            hashed_password=pwd_context.hash("admin123")  # ¡Contraseña hasheada!
+            hashed_password=pwd_context.hash("admin123"),  # ¡Contraseña hasheada!
+            company_id=1,
+            branch_id=1
         )
 
 

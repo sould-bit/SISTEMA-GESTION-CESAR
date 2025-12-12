@@ -42,3 +42,51 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     )
     
     return encoded_jwt
+
+def decode_access_token(token: str) -> Optional[dict]:
+    """
+    Decodifica y valida un token JWT.
+    
+    Args:
+        token: Token JWT como string
+    
+    Returns:
+        Diccionario con los datos del token, o None si es inválido
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+        return payload
+    except JWTError:
+        return None
+
+def get_user_from_token(token: str) -> Optional[TokenData]:
+    """
+    Obtiene los datos del usuario desde un token JWT.
+    
+    Args:
+        token: Token JWT (puede venir con o sin "Bearer ")
+    
+    Returns:
+        TokenData con los datos del usuario, o None si es inválido
+    """
+    # Remover "Bearer " si está presente
+    if token.startswith("Bearer "):
+        token = token[7:]
+    
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    
+    # Convertir payload a TokenData
+    return TokenData(
+        user_id=payload.get("user_id"),
+        company_id=payload.get("company_id"),
+        branch_id=payload.get("branch_id"),
+        role=payload.get("role"),
+        plan=payload.get("plan"),
+        username=payload.get("username")
+    )

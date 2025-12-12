@@ -1,6 +1,6 @@
 #permite ver als bariavles de entorno automaticamente
 from pydantic_settings import BaseSettings
-
+from pathlib import Path
 
 class Settings(BaseSettings):
     """Clase que contiene la configuracion de la aplicacion"""
@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
+        env_file_encoding = 'utf-8'
 
 #instancia global de la configuracion
 settings = Settings()

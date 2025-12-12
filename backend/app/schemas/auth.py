@@ -9,6 +9,11 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     """datos contenidos del token"""
     username: Optional[str] = None
+    user_id: int
+    company_id: int
+    branch_id: Optional[int] = None
+    role: str
+    plan: str
 
 class LoginRequest(BaseModel):
     """datos para iniciar sesion"""
@@ -18,7 +23,7 @@ class LoginRequest(BaseModel):
 
     class Config: # DOCUMENTACION DE LA CLASE
         """configuracion de la clase"""
-        json_eschema_extra  = {
+        json_schema_extra  = {
             "example": {
                 "username": "admin",
                 "password": "admin123"
