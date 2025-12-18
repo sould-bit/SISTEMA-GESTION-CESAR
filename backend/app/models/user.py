@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, Index
 
 class User(SQLModel, table=True):
     """
@@ -12,6 +12,7 @@ class User(SQLModel, table=True):
     # El usuario debe ser único POR COMPAÑÍA (dos empresas pueden tener un empleado "juan")
     __table_args__ = (
         UniqueConstraint("company_id", "username", name="unique_username_per_company"),
+        Index("idx_users_login", "company_id", "username", "is_active"),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)

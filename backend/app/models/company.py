@@ -1,6 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Index 
 
 class Company(SQLModel, table=True):
     """
@@ -8,6 +9,10 @@ class Company(SQLModel, table=True):
     Representa a cada cliente del SaaS (ej: 'El Rincón', 'Salchipapas de la 80').
     """
     __tablename__ = "companies"
+ 
+    __table_args__ = (
+    Index("idx_companies_active", "is_active"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=200, description="Nombre comercial")

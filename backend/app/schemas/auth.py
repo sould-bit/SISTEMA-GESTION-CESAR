@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+
 
 class Token(BaseModel):
     """respuesta con el token JWT"""
@@ -8,10 +8,10 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     """datos contenidos del token"""
-    username: Optional[str] = None
+    username: str | None
     user_id: int
     company_id: int
-    branch_id: Optional[int] = None
+    branch_id: int | None
     role: str
     plan: str
 
@@ -19,6 +19,7 @@ class LoginRequest(BaseModel):
     """datos para iniciar sesion"""
     username: str
     password: str
+    company_slug: str
 
 
     class Config: # DOCUMENTACION DE LA CLASE
@@ -36,9 +37,19 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: str
-    full_name: Optional[str]
+    full_name: str | None
     role: str
     is_active: bool
+    company_id: int
+    branch_id: int | None
 
     class Config:
         from_attributes = True # permite convertir desde modelos SQLmodel
+    
+
+class TokenVerification(BaseModel):
+    """schema para verificar el token"""
+    valid: bool
+    user_id: int
+    username: str
+    company_id: int

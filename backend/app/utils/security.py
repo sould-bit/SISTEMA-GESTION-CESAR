@@ -3,6 +3,8 @@ from passlib.context import CryptContext
 from typing import Optional
 from jose import JWTError, jwt
 from app.config import settings
+from app.schemas.auth import TokenData
+
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -81,6 +83,11 @@ def get_user_from_token(token: str) -> Optional[TokenData]:
     if payload is None:
         return None
     
+     # Validar que tenga los campos requeridos
+    required_fields = ["user_id", "company_id", "role", "plan"]
+    if not all(field in payload for field in required_fields):
+        return None 
+
     # Convertir payload a TokenData
     return TokenData(
         user_id=payload.get("user_id"),

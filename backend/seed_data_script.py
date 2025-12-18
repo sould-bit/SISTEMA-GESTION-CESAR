@@ -1,36 +1,38 @@
 # backend/seed_data.py
 """
 Script de Seed para poblar la base de datos con datos iniciales.
-Usa las Factories de Factory Boy para generar datos realistas.
+Versión ASYNC para la nueva arquitectura.
 
 Ejecución: python seed_data.py
 """
-from sqlmodel import SQLModel, Session, select
-from app.database import engine
+import asyncio
+from sqlmodel import SQLModel, select
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 from app.models import Company, Branch, Subscription, User
-from factories import (
-    CompanyFactory, 
-    BranchFactory, 
-    SubscriptionFactory, 
-    UserFactory,
-    create_and_save,
-    pwd_context
-)
+from app.config import settings
+from app.utils.security import get_password_hash
+from datetime import datetime, timedelta
 
 
-def seed_database():
+async def seed_database():
     """Función principal de seeding."""
     print("🚀 Iniciando Seed de Base de Datos...")
     
-    # Paso 1: Crear las tablas si no existen
-    print("📦 Creando tablas...")
-    SQLModel.metadata.create_all(engine)
-    
-    with Session(engine) as session:
+    # Crear engine async
+    engine = create_async_engine(
+        settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
+        echo=False
+    )
+
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with async_session() as session:
         # =====================================================
         # VERIFICAR SI YA HAY DATOS (Idempotencia)
         # =====================================================
-        existing_company = session.exec(select(Company)).first()
+        result = await session.execute(select(Company))
+        existing_company = result.scalar_one_or_none()
         if existing_company:
             print("⚠️  Ya existen datos en la base de datos. Seed cancelado.")
             print("   Si deseas reiniciar, ejecuta: docker-compose down -v")
@@ -40,7 +42,7 @@ def seed_database():
         # EMPRESA 1: El Rincón (tu cliente principal)
         # =====================================================
         print("\n🏢 Creando Empresa 1: El Rincón...")
-        
+
         # Crear la empresa manualmente (datos específicos, no aleatorios)
         empresa_rincon = Company(
             name="El Rincón de las Salchipapas",
@@ -54,19 +56,23 @@ def seed_database():
             is_active=True
         )
         session.add(empresa_rincon)
-        session.commit()
-        session.refresh(empresa_rincon)
+        await session.commit()
+        await session.refresh(empresa_rincon)
         print(f"   ✅ Empresa creada: {empresa_rincon.name} (ID: {empresa_rincon.id})")
-        
+
         # Suscripción para El Rincón
-        sub_rincon = create_and_save(SubscriptionFactory, session, 
-            company=None,  # Evitar SubFactory
+        sub_rincon = Subscription(
             company_id=empresa_rincon.id,
             plan="premium",
-            amount=100000
+            status="active",
+            amount=100000,
+            currency="COP"
         )
+        session.add(sub_rincon)
+        await session.commit()
+        await session.refresh(sub_rincon)
         print(f"   ✅ Suscripción: {sub_rincon.plan} - ${sub_rincon.amount:,.0f} COP")
-        
+
         # Sucursales de El Rincón
         sucursal_principal = Branch(
             company_id=empresa_rincon.id,

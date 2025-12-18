@@ -7,11 +7,13 @@ __pycache__/
 .v
 /
 venv/
-#.env
+.env
 *.log
 instance/
 .pytest_cache/
-
+/docuemntos de desarrollo
+./docuemntos de desarrollo
+C:\Users\jp151\lab\el_rincon\SISTEMA-GESTION-CESAR\docuemntos de desarrollo
 # Frontend
 node_modules/
 dist/

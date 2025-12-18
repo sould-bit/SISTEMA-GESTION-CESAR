@@ -49,6 +49,19 @@ SECRET_KEY=mi-clave-secreta-super-larga
 DATABASE_URL = postgresql://...  # Error: espacios causan problemas
 ```
 
+**Problemas comunes con `.env`:**
+- **Encoding:** Los archivos `.env` deben estar guardados en **UTF-8** sin BOM (Byte Order Mark)
+- **Caracteres especiales:** Si las contraseñas contienen caracteres especiales, pueden causar problemas de encoding
+- **Variables no definidas:** Si una variable de entorno no está definida, puede causar errores inesperados
+
+**Solución para problemas de encoding:**
+```bash
+# Verificar el encoding del archivo .env
+file -I backend/.env  # En Linux/Mac
+# O en Python:
+python -c "import chardet; print(chardet.detect(open('.env', 'rb').read()))"
+```
+
 **Codificación importante:**
 - El archivo `.env` **DEBE** estar guardado en **UTF-8 sin BOM**
 - En Windows, al guardar en VS Code, seleccionar "UTF-8" (NO "UTF-8 with BOM")
@@ -235,6 +248,185 @@ def get_orders(session: Session = Depends(get_session)):
 - Código reutilizable
 - Fácil de testear
 - Separación de responsabilidades
+
+---
+
+## 7. Autenticación JWT en FastAPI
+
+**Definición:**
+Sistema de autenticación basado en JSON Web Tokens (JWT) que permite verificar la identidad de usuarios sin almacenar sesiones en el servidor.
+
+**¿Por qué JWT?**
+- **Sin estado**: El servidor no guarda sesiones, todo está en el token
+- **Escalable**: Funciona bien en sistemas distribuidos
+- **Seguro**: Los tokens son firmados y pueden expirar
+- **Flexible**: Puedes incluir información adicional en el token
+
+### 7.1 Componentes del sistema
+
+#### **1. Modelos y Schemas**
+```python
+# Modelo de BD (SQLModel)
+class User(SQLModel, table=True):
+    id: int
+    username: str
+    hashed_password: str
+    company_id: int  # Multi-tenant
+    role: str
+
+# Schemas para API
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class TokenData(BaseModel):
+    user_id: int
+    company_id: int
+    role: str
+```
+
+#### **2. Funciones de seguridad**
+```python
+from passlib.context import CryptContext
+from jose import jwt
+
+pwd_context = CryptContext(schemes=["bcrypt"])
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(data: dict) -> str:
+    encoded_jwt = jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def decode_token(token: str) -> TokenData:
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return TokenData(**payload)
+```
+
+#### **3. Dependencias de FastAPI**
+```python
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Extrae usuario del token JWT"""
+    try:
+        payload = decode_token(token)
+        user = get_user_by_id(payload.user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario no encontrado")
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+```
+
+### 7.2 Flujo completo de autenticación
+
+```
+1. POST /auth/login
+   Body: {"username": "admin", "password": "123"}
+
+2. Backend:
+   - Busca usuario por username
+   - Verifica contraseña con bcrypt
+   - Genera token JWT con datos del usuario
+
+3. Response: {"access_token": "eyJ...", "token_type": "bearer"}
+
+4. Cliente envía token en header:
+   Authorization: Bearer eyJ...
+
+5. Cada endpoint protegido usa Depends(get_current_user)
+```
+
+### 7.3 Multi-Tenant en autenticación
+
+**Problema:** ¿Cómo aislar usuarios entre compañías?
+
+**Solución:** Incluir `company_id` en el token JWT
+
+```python
+# Al crear token
+token_data = {
+    "user_id": user.id,
+    "company_id": user.company_id,  # CRÍTICO para aislamiento
+    "branch_id": user.branch_id,
+    "role": user.role
+}
+token = create_access_token(token_data)
+
+# Al verificar token
+current_user = get_current_user(token)
+# current_user.company_id se usa para filtrar queries
+```
+
+**Middleware de aislamiento:**
+```python
+def verify_company_access(company_id: int, current_user: User):
+    if current_user.company_id != company_id:
+        raise HTTPException(403, "Acceso denegado")
+```
+
+### 7.4 Endpoints de autenticación típicos
+
+```python
+@router.post("/login", response_model=Token)
+async def login(login_data: LoginRequest, session: Session = Depends(get_session)):
+    # 1. Buscar usuario
+    user = session.exec(select(User).where(
+        User.username == login_data.username,
+        User.is_active == True
+    )).first()
+
+    # 2. Verificar contraseña
+    if not user or not verify_password(login_data.password, user.hashed_password):
+        raise HTTPException(401, "Credenciales inválidas")
+
+    # 3. Crear token
+    token_data = {
+        "user_id": user.id,
+        "company_id": user.company_id,
+        "role": user.role,
+        "exp": datetime.utcnow() + timedelta(minutes=30)
+    }
+    token = create_access_token(token_data)
+
+    return {"access_token": token, "token_type": "bearer"}
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return current_user
+```
+
+### 7.5 Consideraciones de seguridad
+
+1. **Nunca almacenes contraseñas en texto plano**
+2. **Usa HTTPS en producción**
+3. **Configura tiempo de expiración razonable**
+4. **Invalida tokens en logout** (aunque JWT es stateless)
+5. **Rota las claves secretas periódicamente**
+
+### 7.6 Debugging de autenticación
+
+**Errores comunes:**
+- `401 Unauthorized`: Token expirado o inválido
+- `403 Forbidden`: Usuario no tiene permisos
+- `500 Internal Server Error`: Problema con decode del token
+
+**Herramientas útiles:**
+```bash
+# Decodificar token manualmente (para debugging)
+import jwt
+payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+print(payload)
+```
 
 ---
 

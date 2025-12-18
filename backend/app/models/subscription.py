@@ -1,13 +1,16 @@
 from typing import Optional
 from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
-
+from sqlalchemy import Index
 class Subscription(SQLModel, table=True):
     """
     Modelo de Suscripción.
     Controla el plan y la facturación del negocio.
     """
     __tablename__ = "subscriptions"
+    __table_args__ = (
+    Index("idx_subscriptions_status", "status", "current_period_end"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     company_id: int = Field(foreign_key="companies.id", index=True)

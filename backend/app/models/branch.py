@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, Index
 
 class Branch(SQLModel, table=True):
     """
@@ -12,6 +12,7 @@ class Branch(SQLModel, table=True):
     
     # Restricción única: No pueden haber dos sucursales con el mismo código en la misma compañía
     __table_args__ = (
+        Index("idx_branches_active", "company_id", "is_active"),
         UniqueConstraint("company_id", "code", name="unique_branch_code_per_company"),
     )
 
