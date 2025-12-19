@@ -10,6 +10,7 @@ Conceptos clave:
 - Validation: Schemas Pydantic para entrada/salida
 """
 
+from unicodedata import category
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,8 +19,12 @@ from typing import List
 from app.database import get_session
 from app.models.category import Category
 from app.models.user import User
-from app.routers.auth import get_current_user
-from app.schemas.category import CategoryRead, CategoryCreate, CategoryUpdate
+from app.dependencies import (
+    get_current_user,
+    verify_current_user_company,  # ✅ Nueva: retorna company_id del usuario
+    verify_company_access         # ✅ Original: valida acceso específico
+) 
+from app.schemas.category import CategoryRead, CategoryCreate, CategoryUpdate 
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -61,29 +66,46 @@ async def get_categories(
 @router.post("/", response_model=CategoryRead)
 async def create_category(
     category_data: CategoryCreate,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    company_id: int = Depends(verify_current_user_company),  # ✅ Retorna int del usuario
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
 ):
     """
-    ➕ CREAR NUEVA CATEGORÍA
+    ➕ CREAR NUEVA CATEGORÍA CON SEGURIDAD MULTI-TENANT
 
-    Crea una categoría para la empresa del usuario.
-    Se asigna automáticamente el company_id.
+    Crea una categoría para la empresa del usuario autenticado.
+    El company_id se obtiene automáticamente del usuario (NO del body)
+    para prevenir que usuarios creen categorías en empresas ajenas.
+
+    SEGURIDAD: Tres capas de protección
+    1. ✅ Autenticación: Usuario debe estar logueado
+    2. ✅ Multi-tenant: company_id viene del contexto del usuario
+    3. ✅ Asignación automática: No se puede manipular desde el cliente
 
     Args:
-        category_data: Datos de la nueva categoría
-        session: Sesión de BD asíncrona
-        current_user: Usuario autenticado
+        category_data: Datos de la nueva categoría (name, description, is_active)
+        company_id: ID de empresa obtenido del usuario autenticado (automático)
+        current_user: Usuario autenticado (automático)
+        session: Sesión de BD asíncrona (automática)
 
     Returns:
-        CategoryRead: Categoría creada
+        CategoryRead: Categoría creada con ID asignado
+
+    Raises:
+        HTTPException 401: Si el usuario no está autenticado
+        SQLAlchemyError: Si hay problemas con la base de datos
     """
-    # Crear instancia del modelo
+
+    # ✅ SEGURIDAD: company_id viene de verify_current_user_company()
+    # No hay verificación manual porque company_id ya es confiable
+    # (viene del usuario autenticado, no del body del request)
+
+    # Crear instancia del modelo con company_id seguro
     category = Category(
         name=category_data.name,
         description=category_data.description,
         is_active=category_data.is_active,
-        company_id=current_user.company_id  # Asignar empresa automáticamente
+        company_id=company_id  # ✅ Viene de verify_current_user_company() (seguro)
     )
 
     # Guardar en BD

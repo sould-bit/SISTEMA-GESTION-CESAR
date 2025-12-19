@@ -47,10 +47,53 @@ PLAN_LIMIT_EXCEEDED = HTTPException(
 )
 
 # ============================================
-# DEPENDENCIA: VERIFICAR ACCESO A EMPRESA
+# DEPENDENCIA: OBTENER COMPANY_ID DEL USUARIO (PARA CREACIÓN)
 # ============================================
 
-async def verify_company_acces(
+async def verify_current_user_company(
+    current_user: User = Depends(get_current_user)
+) -> int:
+    """
+    🔐 VERIFICACIÓN PARA ENDPOINTS DE CREACIÓN - RETORNA COMPANY_ID
+
+    Esta dependencia es para endpoints donde el company_id NO viene del body
+    del request (por seguridad), sino del usuario autenticado.
+
+    EJEMPLO DE USO:
+    ```python
+    @router.post("/categories")
+    async def create_category(
+        category_data: CategoryCreate,
+        company_id: int = Depends(verify_current_user_company),  # ← Retorna int
+        session: AsyncSession = Depends(get_session)
+    ):
+        # company_id ya es seguro (viene del usuario autenticado)
+        category = Category(
+            name=category_data.name,
+            company_id=company_id  # ← Seguro, no del body
+        )
+    ```
+
+    DIFERENCIA con verify_company_access:
+    - verify_company_access: Valida que company_id == user.company_id (retorna bool)
+    - verify_current_user_company: Retorna user.company_id directamente (retorna int)
+
+    Args:
+        current_user: Usuario inyectado por get_current_user()
+
+    Returns:
+        int: company_id del usuario autenticado
+
+    Raises:
+        No lanza excepciones (si el usuario está autenticado, tiene company_id)
+    """
+    return current_user.company_id
+
+# ============================================
+# DEPENDENCIA: VERIFICAR ACCESO A EMPRESA (PARA CONSULTAS)
+# ============================================
+
+async def verify_company_access(
     company_id :int, 
     current_user: User = Depends(get_current_user)
 )-> bool:

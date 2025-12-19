@@ -2,12 +2,12 @@ from datetime import datetime
 from sqlmodel import SQLModel
 
 
-# base campos compartidos 
+# base campos compartidos
 class CategoryBase(SQLModel):
     """base campos compartidos"""
-    name:str
+    name: str
     description: str | None
-    is_active: bool
+    is_active: bool = True  # ✅ Valor por defecto
 
 #  create : lo que recibimos del cliente 
 
