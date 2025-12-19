@@ -11,9 +11,10 @@ Conceptos clave:
 """
 
 from unicodedata import category
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from typing import List
 
 from app.database import get_session
@@ -92,13 +93,35 @@ async def create_category(
         CategoryRead: Categoría creada con ID asignado
 
     Raises:
+        HTTPException 400: Si ya existe una categoría con el mismo nombre
         HTTPException 401: Si el usuario no está autenticado
-        SQLAlchemyError: Si hay problemas con la base de datos
+        HTTPException 500: Si hay errores internos del servidor
     """
 
     # ✅ SEGURIDAD: company_id viene de verify_current_user_company()
     # No hay verificación manual porque company_id ya es confiable
     # (viene del usuario autenticado, no del body del request)
+
+    # 🔍 Verificar si ya existe una categoría con el mismo nombre
+    try:
+        result = await session.execute(
+            select(Category).where(
+                Category.company_id == company_id,
+                Category.name == category_data.name
+            )
+        )
+        existing_category = result.scalar_one_or_none()
+        print(f"DEBUG: Checking for existing category '{category_data.name}' in company {company_id}: {existing_category is not None}")
+
+        if existing_category:
+            print(f"DEBUG: Category already exists: {existing_category.name}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Ya existe una categoría con el nombre '{category_data.name}' en esta empresa"
+            )
+    except Exception as e:
+        print(f"DEBUG: Error in existence check: {e}")
+        raise
 
     # Crear instancia del modelo con company_id seguro
     category = Category(
@@ -108,12 +131,41 @@ async def create_category(
         company_id=company_id  # ✅ Viene de verify_current_user_company() (seguro)
     )
 
-    # Guardar en BD
-    session.add(category)
-    await session.commit()
-    await session.refresh(category)
+    # Guardar en BD con manejo de errores
+    try:
+        session.add(category)
+        await session.commit()
+        await session.refresh(category)
+        return category
 
-    return category
+    except IntegrityError as e:
+        # Revertir la transacción en caso de error
+        await session.rollback()
+        print(f"DEBUG: IntegrityError caught: {str(e)}")
+
+        # Verificar si es una violación de unicidad
+        if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+            print("DEBUG: Raising 400 for duplicate constraint")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Ya existe una categoría con el nombre '{category_data.name}' en esta empresa"
+            )
+        else:
+            # Otro tipo de error de integridad
+            print("DEBUG: Raising 500 for other integrity error")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error interno del servidor al crear la categoría"
+            )
+
+    except Exception as e:
+        # Revertir cualquier otro error
+        await session.rollback()
+        print(f"DEBUG: Unexpected error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error inesperado al crear la categoría: {str(e)}"
+        )
 
 # ============================================
 # ENDPOINT: OBTENER CATEGORÍA POR ID
