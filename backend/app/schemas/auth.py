@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Token(BaseModel):
@@ -37,6 +37,8 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     """Datos del usuario para respuestas (sin contraseña)"""
 
+    model_config = ConfigDict(from_attributes=True)  # permite convertir desde modelos SQLModel
+
     id: int
     username: str
     email: str
@@ -45,9 +47,6 @@ class UserResponse(BaseModel):
     is_active: bool
     company_id: int
     branch_id: int | None
-
-    class Config:
-        from_attributes = True # permite convertir desde modelos SQLmodel
     
 
 class TokenVerification(BaseModel):

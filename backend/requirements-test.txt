@@ -1,0 +1,18 @@
+# Testing dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+httpx>=0.25.0  # Para tests de integración HTTP
+faker>=19.0.0  # Para datos de prueba
+factory-boy>=3.2.0  # Para factories de modelos
+
+# Coverage reporting
+coverage>=7.3.0
+pytest-html>=4.1.0
+
+# Development tools
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.5.0
