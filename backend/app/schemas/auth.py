@@ -17,19 +17,22 @@ class TokenData(BaseModel):
 
 class LoginRequest(BaseModel):
     """datos para iniciar sesion"""
+
+    model_config  = {
+            "example": {
+                "username": "admin",
+                "password": "admin123", 
+                "company_slug": "salchipapa-burguer"
+            }
+        }
+
     username: str
     password: str
     company_slug: str
 
 
-    class Config: # DOCUMENTACION DE LA CLASE
-        """configuracion de la clase"""
-        json_schema_extra  = {
-            "example": {
-                "username": "admin",
-                "password": "admin123"
-            }
-        }
+   
+        
 
 class UserResponse(BaseModel):
     """Datos del usuario para respuestas (sin contraseña)"""

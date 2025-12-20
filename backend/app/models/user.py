@@ -7,6 +7,18 @@ class User(SQLModel, table=True):
     """
     Modelo de Usuario Multi-Tenant.
     """
+    model_config = {
+            "example": {
+                "username": "cajero1",
+                "email": "cajero@sisalchi.com",
+                "full_name": "Juan Pérez",
+                "role": "cajero",
+                "company_id": 1,
+                "branch_id": 1
+            }
+        }
+
+
     __tablename__ = "users"
     
     # El usuario debe ser único POR COMPAÑÍA (dos empresas pueden tener un empleado "juan")
@@ -27,6 +39,7 @@ class User(SQLModel, table=True):
     full_name: Optional[str] = Field(default=None, max_length=100)
     
     role: str = Field(default="cajero", max_length=20) 
+    
     is_active: bool = Field(default=True)
     
     # CAMPOS DE AUDITORÍA
@@ -38,14 +51,5 @@ class User(SQLModel, table=True):
     company: "Company" = Relationship()
     branch: Optional["Branch"] = Relationship()
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "username": "cajero1",
-                "email": "cajero@sisalchi.com",
-                "full_name": "Juan Pérez",
-                "role": "cajero",
-                "company_id": 1,
-                "branch_id": 1
-            }
-        }
+    
+       
