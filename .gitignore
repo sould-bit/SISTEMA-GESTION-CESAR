@@ -32,3 +32,7 @@ dist-ssr/
 # OS
 .DS_Store
 Thumbs.db
+
+temp_category.json
+temp_login.json
+testsprite_tests/tmp/config.json

@@ -16,19 +16,20 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 from app.database import get_session
-from app.models import User, Company
+from app.models import User
 from app.schemas.auth import(
     LoginRequest,
     Token,
     TokenData,
     UserResponse,
     TokenVerification
-) 
-from app.utils.security import verify_password, create_access_token, decode_access_token
+)
+from app.utils.security import decode_access_token
 from app.config import settings
+from app.services import AuthService
 
 from logging import getLogger
 
@@ -57,6 +58,17 @@ INACTIVE_USER_EXCEPTION = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail="Usuario inactivo"
 )
+
+# ============================================
+# DEPENDENCIAS DE SERVICIOS
+# ============================================
+def get_auth_service(session: AsyncSession = Depends(get_session)) -> AuthService:
+    """
+    🛠️ DEPENDENCIA: INYECTAR AUTH SERVICE
+
+    Proporciona una instancia del AuthService con la sesión de BD.
+    """
+    return AuthService(session)
 
 # ============================================
 # DEPENDENCIA: GET CURRENT USER
@@ -128,77 +140,34 @@ async def get_current_user(
 @router.post("/login", response_model=Token)
 async def login(
     login_data: LoginRequest,
-    session: AsyncSession = Depends(get_session)
+    auth_service: AuthService = Depends(get_auth_service)
 ):
     """
     🔑 INICIAR SESIÓN (Generar Token JWT)
+
+    Utiliza el AuthService para manejar toda la lógica de autenticación.
     """
-    # 1. Buscar empresa
-    result = await session.execute(select(Company).where(Company.slug == login_data.company_slug))
-    company = result.scalar_one_or_none()
-    if not company or not company.is_active:
-        raise HTTPException(status_code=404, detail="Empresa no encontrada o inactiva")
-
-    # 2. Buscar usuario EN esa empresa
-    statement = select(User).where(
-        User.username == login_data.username,
-        User.company_id == company.id  # <--- FILTRO CLAVE
-    )
-    result = await session.execute(statement)
-    user = result.scalar_one_or_none()
-
-    # 2. Validar existencia y contraseña
-    if not user or not verify_password(login_data.password, user.hashed_password):
-        logger.warning(f"🔒 Intento de login fallido para: {login_data.username}")
-        raise CREDENTIALS_EXCEPTION
-    
-    # 3. Validar estado activo
-    if not user.is_active:
-        raise INACTIVE_USER_EXCEPTION
-
-    # 4. Generar Token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    # Datos extra para el frontend
-    token_payload = {
-        "sub": str(user.id),
-        "user_id": user.id,
-        "username": user.username,
-        "company_id": user.company_id,
-        "role": user.role,
-        "plan": user.company.plan if user.company else "free"
-    }
-
-    access_token = create_access_token(
-        data=token_payload,
-        expires_delta=access_token_expires
-    )
-
-    logger.info(f"✅ Login exitoso: {user.username} (Empresa: {user.company_id})")
-
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer"
-    }
+    return await auth_service.authenticate_user(login_data)
 # ============================================
 # ENDPOINT: GET CURRENT USER INFO
 # ============================================
-
-
 @router.get("/me", response_model=UserResponse)
-async def read_users_me(current_user :User = Depends(get_current_user)):
+async def read_users_me(
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+):
     """
     👤 OBTENER DATOS DEL USUARIO ACTUAL
-    
+
     Este es un endpoint PROTEGIDO que requiere autenticación.
     Solo se ejecuta si el token es válido.
-    
+
     Ejemplo de uso:
     ```bash
     curl -X GET "http://localhost:8000/auth/me" \
       -H "Authorization: Bearer TU_TOKEN_AQUI"
     ```
-    
+
     Respuesta:
     {
         "id": 1,
@@ -210,43 +179,36 @@ async def read_users_me(current_user :User = Depends(get_current_user)):
         "company_id": 1,
         "branch_id": 1
     }
-    
+
     Args:
         current_user: Usuario inyectado por get_current_user
-    
+        auth_service: Servicio de autenticación
+
     Returns:
         UserResponse: Datos del usuario (sin contraseña)
     """
-
-    return UserResponse(
-        id=current_user.id,
-        username=current_user.username,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        role=current_user.role,
-        is_active=current_user.is_active,
-        company_id=current_user.company_id,
-        branch_id=current_user.branch_id
-    )
+    return await auth_service.get_current_user_info(current_user)
 
 # ============================================
 # ENDPOINT: VERIFY TOKEN
 # ============================================
-
 @router.get("/verify", response_model=TokenVerification)
-async def verify_token(current_user: User =Depends(get_current_user)):
+async def verify_token(
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+):
     """
     ✅ VERIFICAR SI EL TOKEN ES VÁLIDO
-    
+
     Endpoint simple para que el frontend verifique si el usuario
     aún está autenticado (útil al refrescar la página).
-    
+
     Ejemplo de uso:
     ```bash
     curl -X GET "http://localhost:8000/auth/verify" \
       -H "Authorization: Bearer TU_TOKEN_AQUI"
     ```
-    
+
     Respuesta exitosa:
     {
         "valid": true,
@@ -254,99 +216,75 @@ async def verify_token(current_user: User =Depends(get_current_user)):
         "username": "admin",
         "company_id": 1
     }
-    
+
     Error (token inválido):
     {
         "detail": "Token inválido o expirado"
     }
-    
+
     Args:
         current_user: Usuario inyectado por get_current_user
-    
+        auth_service: Servicio de autenticación
+
     Returns:
-        dict: Confirmación de validez
+        TokenVerification: Confirmación de validez
     """
-#
-    return TokenVerification(
-        valid=True,
-        user_id=current_user.id,
-        username=current_user.username,
-        company_id=current_user.company_id
-    )
+    return await auth_service.verify_user_token(current_user)
 
     # ============================================
 # ENDPOINT: REFRESH TOKEN (BONUS)
 # ============================================
-
 @router.post("/refresh", response_model=Token)
-async def refresh_token(current_user: User = Depends(get_current_user)):
+async def refresh_token(
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+):
     """
     🔄 REFRESCAR TOKEN
-    
+
     Genera un nuevo token para el usuario actual.
     Útil cuando el token está por expirar.
-    
+
     Ejemplo de uso:
     ```bash
     curl -X POST "http://localhost:8000/auth/refresh" \
       -H "Authorization: Bearer TU_TOKEN_ACTUAL"
     ```
-    
+
     Args:
         current_user: Usuario inyectado por get_current_user
-    
+        auth_service: Servicio de autenticación
+
     Returns:
         Token: Nuevo token JWT
     """
-    # Preparar datos para el nuevo token
-    token_data = {
-        "user_id": current_user.id,
-        "company_id": current_user.company_id,
-        "branch_id": current_user.branch_id,
-        "role": current_user.role,
-        "username": current_user.username,
-        "plan": current_user.company.plan if current_user.company else "free"
-    }
-
-    access_token = create_access_token(
-        data=token_data,
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-
-    logger.info(f"✅ Token refrescado para: {current_user.username}")
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return await auth_service.refresh_user_token(current_user)
 
 # ============================================
 # ENDPOINT: LOGOUT (BONUS - Opcional)
 # ============================================
-
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user)):
+async def logout(
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+):
     """
     🚪 LOGOUT
-    
+
     En JWT stateless, el logout es principalmente del lado del frontend
     (eliminar el token del localStorage).
-    
+
     Este endpoint es más para logging/auditoría.
-    
+
     Para implementar logout real, necesitarías:
     - Una blacklist de tokens en Redis
     - O tokens con ID único que puedas invalidar
-    
+
     Args:
         current_user: Usuario inyectado por get_current_user
-    
+        auth_service: Servicio de autenticación
+
     Returns:
         dict: Confirmación de logout
     """
-    
-    print(f"👋 Logout: {current_user.username}")
-    
-    return {
-        "message": "Logout exitoso",
-        "detail": "Elimina el token del cliente"
-    }
+    return await auth_service.logout_user(current_user)
