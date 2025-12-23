@@ -1,7 +1,8 @@
 from datetime import datetime , timedelta
 from passlib.context import CryptContext
-from typing import Optional
+from typing import Optional, List
 from jose import JWTError, jwt
+from uuid import UUID
 from app.config import settings
 from app.schemas.auth import TokenData
 
@@ -17,18 +18,38 @@ def get_password_hash(password: str)-> str:
     """genera un hash de la contraseña"""
     return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(
+    data: dict,
+    expires_delta: Optional[timedelta] = None,
+    permissions: Optional[List[str]] = None,
+    role_id: Optional[UUID] = None,
+    role_code: Optional[str] = None
+) -> str:
     """
-    Crea un token JWT.
+    Crea un token JWT con soporte para permisos RBAC.
     
     Args:
         data: Datos a incluir en el token (ej: {"sub": "admin"})
         expires_delta: Tiempo de expiración
+        permissions: Lista de códigos de permisos del usuario (v3.3)
+        role_id: UUID del rol del usuario (v3.3)
+        role_code: Código del rol del usuario (v3.3)
     
     Returns:
         Token JWT como string
     """
     to_encode = data.copy()
+    
+    # Agregar permisos si se proporcionan (v3.3)
+    if permissions:
+        to_encode["permissions"] = permissions
+    
+    # Agregar role_id y role_code si se proporcionan (v3.3)
+    if role_id:
+        to_encode["role_id"] = str(role_id)  # Convertir UUID a string
+    
+    if role_code:
+        to_encode["role_code"] = role_code
     
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -69,6 +90,8 @@ def get_user_from_token(token: str) -> Optional[TokenData]:
     """
     Obtiene los datos del usuario desde un token JWT.
     
+    Actualizado en v3.3 para incluir permisos del sistema RBAC.
+    
     Args:
         token: Token JWT (puede venir con o sin "Bearer ")
     
@@ -93,7 +116,11 @@ def get_user_from_token(token: str) -> Optional[TokenData]:
         user_id=payload.get("user_id"),
         company_id=payload.get("company_id"),
         branch_id=payload.get("branch_id"),
-        role=payload.get("role"),
+        role=payload.get("role"),  # Legacy
         plan=payload.get("plan"),
-        username=payload.get("username")
+        username=payload.get("username"),
+        # NUEVO: Sistema RBAC (v3.3)
+        role_id=payload.get("role_id"),
+        role_code=payload.get("role_code"),
+        permissions=payload.get("permissions", [])
     )

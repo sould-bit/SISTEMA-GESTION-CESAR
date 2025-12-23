@@ -32,7 +32,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 from sqlmodel import SQLModel
-from app.models import User, Company, Branch, Subscription, Category  # Tus modelos
+from app.models import User, Company, Branch, Subscription, Category, role, role_permission, permission, permission_category  # Tus modelos
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata

@@ -211,6 +211,8 @@ class AuthService:
     async def _get_user_by_credentials(self, username: str, company_id: int) -> Optional[User]:
         """
         👤 BUSCAR USUARIO POR CREDENCIALES
+        
+        Actualizado en v3.3 para cargar relación con rol.
 
         Args:
             username: Nombre de usuario
@@ -219,10 +221,17 @@ class AuthService:
         Returns:
             User or None: Usuario si existe en la empresa
         """
+        from sqlalchemy.orm import selectinload
+        
         result = await self.db.execute(
-            select(User).where(
+            select(User)
+            .where(
                 User.username == username,
                 User.company_id == company_id
+            )
+            .options(
+                selectinload(User.user_role),  # Cargar rol para permisos
+                selectinload(User.company)     # Cargar empresa para plan
             )
         )
         return result.scalar_one_or_none()
@@ -230,15 +239,43 @@ class AuthService:
     async def _generate_user_token(self, user: User) -> Token:
         """
         🎫 GENERAR TOKEN JWT PARA USUARIO
+        
+        Actualizado en v3.3 para incluir permisos del sistema RBAC.
 
         Args:
             user: Usuario para el cual generar el token
 
         Returns:
-            Token: Token JWT con información del usuario
+            Token: Token JWT con información del usuario y permisos
         """
         # Calcular expiración
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+        # Cargar permisos del usuario (v3.3)
+        permissions = []
+        role_id = None
+        role_code = None
+        
+        if user.role_id:
+            from app.services.permission_service import PermissionService
+            permission_service = PermissionService(self.db)
+            
+            try:
+                # Obtener códigos de permisos
+                permissions = await permission_service.get_user_permission_codes(
+                    user_id=user.id,
+                    company_id=user.company_id
+                )
+                
+                # Obtener información del rol
+                if user.user_role:
+                    role_id = user.role_id
+                    role_code = user.user_role.code
+                    
+                logger.info(f"✅ Cargados {len(permissions)} permisos para {user.username}")
+            except Exception as e:
+                logger.warning(f"⚠️ Error cargando permisos para {user.username}: {e}")
+                # Continuar sin permisos en caso de error
 
         # Payload del token con información multi-tenant
         token_payload = {
@@ -247,17 +284,21 @@ class AuthService:
             "username": user.username,
             "company_id": user.company_id,
             "branch_id": user.branch_id,
-            "role": user.role,
+            "role": user.role,  # Legacy
             "plan": user.company.plan if user.company else "trial"
         }
 
-        # Generar token
+        # Generar token con permisos (v3.3)
         access_token = create_access_token(
             data=token_payload,
-            expires_delta=access_token_expires
+            expires_delta=access_token_expires,
+            permissions=permissions,
+            role_id=role_id,
+            role_code=role_code
         )
 
         return Token(
             access_token=access_token,
             token_type="bearer"
         )
+

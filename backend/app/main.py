@@ -1,33 +1,121 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select, Session, SQLModel
-from .database import get_session, engine 
-from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte 
-from .routers import auth, category
-
-import logging
-logging.basicConfig(level=logging.INFO)
+from .database import get_session, engine
+from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte
+from .routers import auth, category, rbac
+from .core.logging_config import get_rbac_logger
+from .core.exceptions import RBACException, create_rbac_exception_handler
+import time
+import os
 
 # funcion para crear tablas al inicio
 #def create_db_and_tables(): 3comentado para darle control total a alembic
 #   SQLModel.metadata.create_all(engine)
 
-#crear instancias de fast 
+# Configurar logging
+logger = get_rbac_logger("app.api")
 
+# Crear instancia de FastAPI con configuración avanzada
 app = FastAPI(
-    title="API de gestion de cesar",
-    description="SISTEMA INTEGRAL DE GESTION DE CESAR",
-    version="0.0.1"
+    title="API de Gestión de César",
+    description="SISTEMA INTEGRAL DE GESTIÓN DE CÉSAR - RBAC Avanzado",
+    version="0.0.2",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
+# Middleware de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:8080"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Middleware de logging personalizado
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Middleware para logging detallado de requests."""
+    start_time = time.time()
+
+    # Log de entrada
+    logger.info(
+        "Request started",
+        extra={
+            "method": request.method,
+            "url": str(request.url),
+            "client_ip": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent"),
+            "path": request.url.path,
+            "query_params": str(request.query_params)
+        }
+    )
+
+    try:
+        response = await call_next(request)
+
+        # Calcular duración
+        duration = time.time() - start_time
+
+        # Log de respuesta exitosa
+        logger.info(
+            "Request completed",
+            extra={
+                "method": request.method,
+                "url": str(request.url),
+                "status_code": response.status_code,
+                "duration_ms": round(duration * 1000, 2),
+                "path": request.url.path
+            }
+        )
+
+        return response
+
+    except Exception as e:
+        # Calcular duración
+        duration = time.time() - start_time
+
+        # Log de error
+        logger.error(
+            "Request failed",
+            extra={
+                "method": request.method,
+                "url": str(request.url),
+                "duration_ms": round(duration * 1000, 2),
+                "error": str(e),
+                "path": request.url.path
+            },
+            exc_info=True
+        )
+        raise
+
+# Incluir routers
 app.include_router(auth.router)
 app.include_router(category.router)
+app.include_router(rbac.router)
+
+# Handler global para excepciones RBAC
+app.add_exception_handler(RBACException, create_rbac_exception_handler())
 
 
-#Evento que se ejecuta al arramncar la app 
+# Evento que se ejecuta al arrancar la app
 @app.on_event("startup")
 async def on_startup():
-    #create_db_and_tables()
-    logging.info("Aplicacion iniciada - Async mode")
+    """Inicialización de la aplicación."""
+    # create_db_and_tables()  # Comentado: usar Alembic
+
+    logger.info(
+        "Aplicación iniciada - Sistema RBAC Avanzado",
+        extra={
+            "version": "0.0.2",
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "log_level": os.getenv("LOG_LEVEL", "INFO"),
+            "features": ["RBAC", "JWT", "PostgreSQL", "FastAPI"]
+        }
+    )
 
 
 

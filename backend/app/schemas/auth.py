@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+from typing import List, Optional
+from uuid import UUID
 
 
 class Token(BaseModel):
@@ -7,13 +9,22 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    """datos contenidos del token"""
+    """
+    Datos contenidos del token JWT.
+    
+    Actualizado en v3.3 para incluir permisos del sistema RBAC.
+    """
     username: str | None
     user_id: int
     company_id: int
     branch_id: int | None
-    role: str
+    role: str  # DEPRECADO: Usar role_code
     plan: str
+    
+    # NUEVO: Sistema RBAC (v3.3)
+    role_id: UUID | None = None
+    role_code: str | None = None
+    permissions: List[str] = []  # Lista de códigos de permisos
 
 class LoginRequest(BaseModel):
     """datos para iniciar sesion"""
