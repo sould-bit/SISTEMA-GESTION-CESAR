@@ -1,0 +1,88 @@
+{
+  "permissions": [
+    {
+      "name": "Ver Usuarios",
+      "code": "users.read",
+      "resource": "users",
+      "action": "read",
+      "description": "Permite ver lista de usuarios"
+    },
+    {
+      "name": "Crear Usuarios",
+      "code": "users.create",
+      "resource": "users",
+      "action": "create",
+      "description": "Permite crear nuevos usuarios"
+    },
+    {
+      "name": "Editar Usuarios",
+      "code": "users.update",
+      "resource": "users",
+      "action": "update",
+      "description": "Permite modificar usuarios existentes"
+    },
+    {
+      "name": "Eliminar Usuarios",
+      "code": "users.delete",
+      "resource": "users",
+      "action": "delete",
+      "description": "Permite eliminar usuarios"
+    },
+    {
+      "name": "Ver Productos",
+      "code": "products.read",
+      "resource": "products",
+      "action": "read",
+      "description": "Permite ver lista de productos"
+    },
+    {
+      "name": "Crear Productos",
+      "code": "products.create",
+      "resource": "products",
+      "action": "create",
+      "description": "Permite crear nuevos productos"
+    },
+    {
+      "name": "Editar Productos",
+      "code": "products.update",
+      "resource": "products",
+      "action": "update",
+      "description": "Permite modificar productos existentes"
+    },
+    {
+      "name": "Ver Pedidos",
+      "code": "orders.read",
+      "resource": "orders",
+      "action": "read",
+      "description": "Permite ver pedidos"
+    },
+    {
+      "name": "Crear Pedidos",
+      "code": "orders.create",
+      "resource": "orders",
+      "action": "create",
+      "description": "Permite crear nuevos pedidos"
+    },
+    {
+      "name": "Actualizar Pedidos",
+      "code": "orders.update",
+      "resource": "orders",
+      "action": "update",
+      "description": "Permite modificar estado de pedidos"
+    },
+    {
+      "name": "Ver Reportes",
+      "code": "reports.read",
+      "resource": "reports",
+      "action": "read",
+      "description": "Permite ver reportes del sistema"
+    },
+    {
+      "name": "Cerrar Caja",
+      "code": "cash.close",
+      "resource": "cash",
+      "action": "close",
+      "description": "Permite cerrar caja diaria"
+    }
+  ]
+}
