@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import UniqueConstraint, Index
 from uuid import UUID, uuid4
@@ -75,7 +75,7 @@ class RolePermission(SQLModel, table=True):
         """Verifica si el permiso ha expirado."""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     @property
     def is_active(self) -> bool:

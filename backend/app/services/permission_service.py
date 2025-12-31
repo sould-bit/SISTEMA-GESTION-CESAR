@@ -10,7 +10,7 @@ Este servicio maneja:
 
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -48,7 +48,7 @@ class PermissionService:
         Ejemplo:
             has_perm = await service.check_permission(1, "products.create", 1)
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Intentar obtener desde cache primero
@@ -58,7 +58,7 @@ class PermissionService:
                 # Cache hit
                 has_permission = permission_code in cached_permissions
 
-                duration = (datetime.utcnow() - start_time).total_seconds() * 1000
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
                 log_permission_check(
                     user_id=user_id,
@@ -87,7 +87,7 @@ class PermissionService:
             permission_codes = [p.code for p in user_permissions]
             has_permission = permission_code in permission_codes
 
-            duration = (datetime.utcnow() - start_time).total_seconds() * 1000
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             # Log de la verificación desde DB
             log_permission_check(
@@ -142,7 +142,7 @@ class PermissionService:
 
         except Exception as e:
             # Log de error en verificación de permisos
-            duration = (datetime.utcnow() - start_time).total_seconds() * 1000
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             log_security_event(
                 event="permission_check_error",
@@ -484,7 +484,7 @@ class PermissionService:
             if field in allowed_fields and value is not None:
                 setattr(permission, field, value)
         
-        permission.updated_at = datetime.utcnow()
+        permission.updated_at = datetime.now(timezone.utc)
         
         await self.session.commit()
         await self.session.refresh(permission)
@@ -517,7 +517,7 @@ class PermissionService:
         
         # Soft delete
         permission.is_active = False
-        permission.updated_at = datetime.utcnow()
+        permission.updated_at = datetime.now(timezone.utc)
         
         await self.session.commit()
         

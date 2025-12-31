@@ -1,0 +1,36 @@
+{
+  "roles": [
+    {
+      "name": "Administrador",
+      "code": "admin",
+      "hierarchy_level": 100,
+      "description": "Acceso completo al sistema",
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "name": "Cajero",
+      "code": "cashier",
+      "hierarchy_level": 50,
+      "description": "Operaciones de caja y ventas",
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "name": "Cocinero",
+      "code": "kitchen",
+      "hierarchy_level": 30,
+      "description": "Acceso a cocina y preparación",
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "name": "Domiciliario",
+      "code": "delivery",
+      "hierarchy_level": 20,
+      "description": "Gestión de entregas y pedidos",
+      "is_system": true,
+      "is_active": true
+    }
+  ]
+}

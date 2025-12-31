@@ -4,6 +4,15 @@
 Esta clase base proporciona operaciones CRUD comunes con filtros automáticos
 de multi-tenant para garantizar el aislamiento de datos entre empresas.
 
+✅ get_by_id(id, company_id) - Con filtro multi-tenant
+✅ get_by_id_or_404(id, company_id) - Con manejo de errores
+✅ list(company_id, skip, limit) - Listado paginado
+✅ create(data) - Crear nuevo producto
+✅ update(id, company_id, data) - Actualizar existente
+✅ delete(id, company_id, soft_delete=True) - Soft delete
+✅ exists(id, company_id) - Verificar existencia
+✅ count(company_id) - Contar registros
+
 Características:
 - ✅ Filtros multi-tenant automáticos
 - ✅ Operaciones CRUD genéricas

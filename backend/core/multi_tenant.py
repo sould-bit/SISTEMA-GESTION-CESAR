@@ -18,7 +18,7 @@ from datetime import datetime
 from select import select
 from fastapi import HTTPException, status, Depends
 
-from app.routers.auth import get_current_user
+from app.auth_deps import get_current_user
 from app.models import User, Company, Branch, Subscription
 
 from sqlalchemy.ext.asyncio import AsyncSession

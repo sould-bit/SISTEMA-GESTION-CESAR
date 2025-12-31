@@ -33,7 +33,7 @@ def run_command(cmd: list, description: str) -> bool:
     try:
         result = subprocess.run(
             cmd,
-            cwd=Path(__file__).parent,
+            cwd=Path(__file__).parent.parent,
             capture_output=False,
             text=True
         )
