@@ -3,6 +3,7 @@ from .company import Company
 from .branch import Branch
 from .subscription import Subscription
 from .category import Category
+from .product import Product
 
 # Sistema de Permisos y Roles (v3.3)
 from .permission_category import PermissionCategory

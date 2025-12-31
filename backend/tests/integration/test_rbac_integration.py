@@ -20,8 +20,9 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Agregar el directorio actual al path para importar módulos
+# Agregar el directorio actual y scripts al path
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
 from test_rbac import test_rbac_system
 from run_tests import run_command

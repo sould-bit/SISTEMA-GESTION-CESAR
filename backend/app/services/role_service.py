@@ -10,7 +10,7 @@ Este servicio maneja:
 
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
@@ -165,7 +165,7 @@ class RoleService:
             if field in allowed_fields and value is not None:
                 setattr(role, field, value)
         
-        role.updated_at = datetime.utcnow()
+        role.updated_at = datetime.now(timezone.utc)
         
         await self.session.commit()
         await self.session.refresh(role)
@@ -215,7 +215,7 @@ class RoleService:
         
         # Soft delete
         role.is_active = False
-        role.updated_at = datetime.utcnow()
+        role.updated_at = datetime.now(timezone.utc)
         
         await self.session.commit()
         
@@ -334,7 +334,7 @@ class RoleService:
         try:
             # Asignar rol
             user.role_id = role_id
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(timezone.utc)
 
             await self.session.commit()
             await self.session.refresh(user)

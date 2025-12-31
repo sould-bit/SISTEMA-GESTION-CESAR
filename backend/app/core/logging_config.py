@@ -12,7 +12,7 @@ import logging
 import logging.config
 from pathlib import Path
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import sys
 from pythonjsonlogger import jsonlogger
@@ -26,7 +26,7 @@ class RBACJsonFormatter(jsonlogger.JsonFormatter):
         super().add_fields(log_record, record, message_dict)
 
         # Agregar timestamp en formato ISO
-        log_record.timestamp = datetime.utcnow().isoformat()
+        log_record.timestamp = datetime.now(timezone.utc).isoformat()
 
         # Agregar nivel de log como string
         log_record.level = record.levelname

@@ -1,0 +1,18 @@
+{
+  "companies": [
+    {
+      "name": "Restaurante FastOps",
+      "code": "fastops",
+      "description": "Sistema de gestión para restaurante",
+      "is_active": true,
+      "subscription_plan": "premium"
+    },
+    {
+      "name": "Café Central",
+      "code": "cafe_central",
+      "description": "Cafetería con servicio express",
+      "is_active": true,
+      "subscription_plan": "basic"
+    }
+  ]
+}

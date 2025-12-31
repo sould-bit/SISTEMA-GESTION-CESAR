@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str  # URL de la base de datos
     
+    # Redis Cache
+    REDIS_URL: str = "redis://localhost:6379/0"  # URL de Redis (default para desarrollo local)
+    
     # Security
     SECRET_KEY: str  # Clave para la encriptacion
     ALGORITHM: str = "HS256"  # Algoritmo de encriptacion

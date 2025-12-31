@@ -32,4 +32,4 @@ class Category(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(default=None)
 
     # Relaciones (Futuro: Productos)
-    # products: List["Product"] = Relationship(back_populates="category")
+    products: List["Product"] = Relationship(back_populates="category")

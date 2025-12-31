@@ -20,6 +20,7 @@ import asyncio
 import argparse
 from pathlib import Path
 from typing import Dict, List, Any
+from sqlalchemy import select
 
 # Agregar backend al path
 import sys
@@ -28,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.database import get_session
 from app.models import (
     Company, User, Role, Permission, PermissionCategory,
-    RolePermission
+    RolePermission, Category, Product
 )
 from app.services.auth_service import AuthService
 from app.services.role_service import RoleService
@@ -62,9 +63,21 @@ class MasterSeeder:
 
     async def get_or_create_company(self, company_data: Dict[str, Any]) -> Company:
         """Obtiene o crea una compañía"""
+        print(f"DEBUG: Processing company: {company_data.get('name', 'Unknown')}")
+        
+        # Map 'code' to 'slug' if present
+        if "code" in company_data and "slug" not in company_data:
+            company_data["slug"] = company_data.pop("code")
+
+        # Map 'subscription_plan' to 'plan'
+        if "subscription_plan" in company_data and "plan" not in company_data:
+            company_data["plan"] = company_data.pop("subscription_plan")
+
+        print(f"DEBUG: Final company_data: {company_data}")
+
         # Buscar compañía existente
         result = await self.session.execute(
-            self.session.query(Company).filter(Company.code == company_data["code"])
+            select(Company).filter(Company.slug == company_data["slug"])
         )
         company = result.scalar_one_or_none()
 
@@ -84,14 +97,14 @@ class MasterSeeder:
 
         for company_data in data["companies"]:
             company = await self.get_or_create_company(company_data)
-            if company.code == self.company_code:
+            if company.slug == self.company_code:
                 default_company = company
 
         if not default_company:
             # Si no existe la compañía especificada, crear una básica
             default_company = await self.get_or_create_company({
                 "name": f"Empresa {self.company_code.title()}",
-                "code": self.company_code,
+                "slug": self.company_code,
                 "description": f"Compañía por defecto para {self.company_code}",
                 "is_active": True,
                 "subscription_plan": "premium"
@@ -109,7 +122,7 @@ class MasterSeeder:
 
             # Verificar si ya existe
             result = await self.session.execute(
-                self.session.query(PermissionCategory).filter(
+                select(PermissionCategory).filter(
                     PermissionCategory.code == category_data["code"],
                     PermissionCategory.company_id == company.id
                 )
@@ -142,7 +155,7 @@ class MasterSeeder:
 
             # Verificar si ya existe
             result = await self.session.execute(
-                self.session.query(Permission).filter(
+                select(Permission).filter(
                     Permission.code == permission_data["code"],
                     Permission.company_id == company.id
                 )
@@ -169,7 +182,7 @@ class MasterSeeder:
 
             # Verificar si ya existe
             result = await self.session.execute(
-                self.session.query(Role).filter(
+                select(Role).filter(
                     Role.code == role_data["code"],
                     Role.company_id == company.id
                 )
@@ -209,7 +222,7 @@ class MasterSeeder:
 
                 # Verificar si ya existe la asignación
                 result = await self.session.execute(
-                    self.session.query(RolePermission).filter(
+                    select(RolePermission).filter(
                         RolePermission.role_id == role.id,
                         RolePermission.permission_id == permission.id
                     )
@@ -238,7 +251,7 @@ class MasterSeeder:
             role_code = user_data_copy.pop("role_code")
             company_code_in_user = user_data_copy.pop("company_code")
 
-            if company_code_in_user != company.code:
+            if company_code_in_user != company.slug:
                 continue  # Saltar usuarios de otras compañías
 
             if role_code not in roles:
@@ -247,7 +260,7 @@ class MasterSeeder:
 
             # Verificar si el usuario ya existe
             result = await self.session.execute(
-                self.session.query(User).filter(
+                select(User).filter(
                     User.username == user_data["username"],
                     User.company_id == company.id
                 )
@@ -260,7 +273,7 @@ class MasterSeeder:
                 user_data_copy["role_id"] = roles[role_code].id
 
                 # Hash de contraseña
-                from app.core.security import get_password_hash
+                from app.utils.security import get_password_hash
                 user_data_copy["hashed_password"] = get_password_hash(user_data_copy.pop("password"))
 
                 user = User(**user_data_copy)
@@ -271,9 +284,74 @@ class MasterSeeder:
 
         await self.session.commit()
 
+    async def seed_product_categories(self, company: Company) -> Dict[str, Category]:
+        """Carga categorías de productos"""
+        try:
+            data = await self.load_json("categories.json")
+        except FileNotFoundError:
+            print("ℹ️  No se encontró categories.json, saltando...")
+            return {}
+
+        categories = {}
+        for cat_data in data["categories"]:
+            cat_data["company_id"] = company.id
+
+            result = await self.session.execute(
+                select(Category).filter(
+                    Category.name == cat_data["name"],
+                    Category.company_id == company.id
+                )
+            )
+            category = result.scalar_one_or_none()
+
+            if not category:
+                category = Category(**cat_data)
+                self.session.add(category)
+                print(f"✅ Categoría de producto creada: {category.name}")
+            else:
+                print(f"ℹ️  Categoría de producto ya existe: {cat_data['name']}")
+            
+            categories[category.name] = category
+
+        await self.session.commit()
+        return categories
+
+    async def seed_products(self, company: Company, categories: Dict[str, Category]):
+        """Carga productos"""
+        try:
+            data = await self.load_json("products.json")
+        except FileNotFoundError:
+            print("ℹ️  No se encontró products.json, saltando...")
+            return
+
+        for prod_data in data["products"]:
+            cat_name = prod_data.pop("category_name", None)
+            prod_data["company_id"] = company.id
+            
+            if cat_name in categories:
+                prod_data["category_id"] = categories[cat_name].id
+
+            result = await self.session.execute(
+                select(Product).filter(
+                    Product.name == prod_data["name"],
+                    Product.company_id == company.id
+                )
+            )
+            product = result.scalar_one_or_none()
+
+            if not product:
+                product = Product(**prod_data)
+                self.session.add(product)
+                print(f"✅ Producto creado: {product.name}")
+            else:
+                print(f"ℹ️  Producto ya existe: {prod_data['name']}")
+
+        await self.session.commit()
+
     async def run(self, dry_run: bool = False, reset: bool = False):
         """Ejecuta el seeding completo"""
-        print("🌱 Iniciando Master Seed..."        print(f"📁 Directorio de datos: {self.data_dir}")
+        print("🌱 Iniciando Master Seed...")
+        print(f"📁 Directorio de datos: {self.data_dir}")
         print(f"🏢 Compañía: {self.company_code}")
         print(f"🔍 Dry run: {dry_run}")
         print(f"🔄 Reset: {reset}")
@@ -300,13 +378,21 @@ class MasterSeeder:
             print("👥 Creando roles...")
             roles = await self.seed_roles(company)
 
-            # 5. Asignaciones rol-permiso
+            # 5. Usuarios
+            print("👤 Creando usuarios...")
+            await self.seed_users(company, roles)
+
+            # 6. Asignaciones rol-permiso
             print("🔗 Asignando permisos a roles...")
             await self.seed_role_permissions(roles, permissions)
 
-            # 6. Usuarios
-            print("👤 Creando usuarios...")
-            await self.seed_users(company, roles)
+            # 7. Categorías de productos
+            print("📂 Creando categorías de productos...")
+            prod_categories = await self.seed_product_categories(company)
+
+            # 8. Productos
+            print("🍎 Creando productos...")
+            await self.seed_products(company, prod_categories)
 
             if not dry_run:
                 await self.session.commit()
@@ -315,6 +401,8 @@ class MasterSeeder:
                 print("🔍 Dry run completado - no se guardaron cambios")
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"❌ Error durante el seeding: {e}")
             await self.session.rollback()
             raise
@@ -329,9 +417,10 @@ async def main():
 
     args = parser.parse_args()
 
-    async with get_session() as session:
+    async for session in get_session():
         seeder = MasterSeeder(session, args.company)
         await seeder.run(dry_run=args.dry_run, reset=args.reset)
+        break
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ Este módulo proporciona:
 import json
 import redis.asyncio as redis
 from typing import Optional, List, Dict, Any, Union
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 import asyncio
 import logging
 
@@ -415,7 +415,7 @@ class RBACCache:
         metrics["redis_connected"] = self._is_connected
 
         # Timestamp
-        metrics["timestamp"] = datetime.utcnow().isoformat()
+        metrics["timestamp"] = datetime.now(timezone.utc).isoformat()
 
         return metrics
 
@@ -430,7 +430,7 @@ class RBACCache:
             "service": "rbac_cache",
             "status": "healthy",
             "redis_connected": False,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         try:
@@ -507,3 +507,220 @@ async def close_rbac_cache():
     if _rbac_cache_instance:
         await _rbac_cache_instance.close()
         _rbac_cache_instance = None
+
+
+# ============================================
+# 🛒 CACHE DE PRODUCTOS
+# ============================================
+
+class ProductCache:
+    """
+    Sistema de cache Redis para productos.
+    
+    Prefijos:
+    - products:list:{company_id} → Lista de productos
+    - products:detail:{company_id}:{product_id} → Detalle de producto
+    - categories:active:{company_id} → Categorías activas
+    """
+    
+    PREFIX_LIST = "products:list"
+    PREFIX_DETAIL = "products:detail"
+    PREFIX_CATEGORIES = "categories:active"
+    
+    DEFAULT_TTL = 300  # 5 minutos
+    
+    def __init__(self):
+        self._cache = get_rbac_cache()  # Reutilizar conexión existente
+    
+    async def get_list(self, company_id: int) -> Optional[List[Dict[str, Any]]]:
+        """Obtener lista de productos cacheada"""
+        client = self._cache._redis_client
+        if not client or not self._cache._is_connected:
+            if not await self._cache._ensure_connection():
+                return None
+            client = self._cache._redis_client
+        
+        try:
+            key = f"{self.PREFIX_LIST}:{company_id}"
+            data = await client.get(key)
+            if data:
+                self._cache._record_metric("hits")
+                return json.loads(data)
+            self._cache._record_metric("misses")
+            return None
+        except Exception as e:
+            self._cache._record_metric("errors")
+            self._cache.logger.warning(f"Error leyendo cache productos: {e}")
+            return None
+    
+    async def set_list(
+        self, 
+        company_id: int, 
+        products: List[Dict[str, Any]], 
+        ttl: int = DEFAULT_TTL
+    ) -> bool:
+        """Guardar lista de productos en cache"""
+        if not await self._cache._ensure_connection():
+            return False
+        
+        try:
+            client = await self._cache._get_client()
+            key = f"{self.PREFIX_LIST}:{company_id}"
+            data = json.dumps(products, default=str)
+            await client.setex(key, ttl, data)
+            self._cache._record_metric("sets")
+            self._cache.logger.debug(f"Cache SET: {key} (TTL: {ttl}s)")
+            return True
+        except Exception as e:
+            self._cache._record_metric("errors")
+            self._cache.logger.warning(f"Error escribiendo cache productos: {e}")
+            return False
+    
+    async def get_detail(
+        self, 
+        company_id: int, 
+        product_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Obtener detalle de producto cacheado"""
+        if not await self._cache._ensure_connection():
+            return None
+        
+        try:
+            client = await self._cache._get_client()
+            key = f"{self.PREFIX_DETAIL}:{company_id}:{product_id}"
+            data = await client.get(key)
+            if data:
+                self._cache._record_metric("hits")
+                return json.loads(data)
+            self._cache._record_metric("misses")
+            return None
+        except Exception as e:
+            self._cache._record_metric("errors")
+            return None
+    
+    async def set_detail(
+        self, 
+        company_id: int, 
+        product_id: int, 
+        product: Dict[str, Any],
+        ttl: int = DEFAULT_TTL
+    ) -> bool:
+        """Guardar detalle de producto en cache"""
+        if not await self._cache._ensure_connection():
+            return False
+        
+        try:
+            client = await self._cache._get_client()
+            key = f"{self.PREFIX_DETAIL}:{company_id}:{product_id}"
+            data = json.dumps(product, default=str)
+            await client.setex(key, ttl, data)
+            self._cache._record_metric("sets")
+            return True
+        except Exception as e:
+            self._cache._record_metric("errors")
+            return False
+    
+    async def invalidate_company(self, company_id: int) -> int:
+        """
+        Invalidar todo el cache de productos de una empresa.
+        """
+        if not await self._cache._ensure_connection():
+            return 0
+        
+        try:
+            client = await self._cache._get_client()
+            deleted = 0
+            
+            # Invalidar lista
+            list_key = f"{self.PREFIX_LIST}:{company_id}"
+            deleted += await client.delete(list_key)
+            
+            # Invalidar detalles (usando scan para evitar bloqueo)
+            pattern = f"{self.PREFIX_DETAIL}:{company_id}:*"
+            keys = await client.keys(pattern)
+            if keys:
+                deleted += await client.delete(*keys)
+            
+            # Invalidar categorías
+            cat_key = f"{self.PREFIX_CATEGORIES}:{company_id}"
+            deleted += await client.delete(cat_key)
+            
+            self._cache.metrics["invalidations"] += deleted
+            self._cache.logger.info(f"Cache productos invalidado: empresa {company_id}, {deleted} keys")
+            return deleted
+        except Exception as e:
+            self._cache._record_metric("errors")
+            self._cache.logger.warning(f"Error invalidando cache productos: {e}")
+            return 0
+    
+    async def invalidate_product(self, company_id: int, product_id: int) -> int:
+        """Invalidar cache de un producto específico"""
+        if not await self._cache._ensure_connection():
+            return 0
+        
+        try:
+            client = await self._cache._get_client()
+            deleted = 0
+            
+            # Invalidar lista (contiene el producto)
+            list_key = f"{self.PREFIX_LIST}:{company_id}"
+            deleted += await client.delete(list_key)
+            
+            # Invalidar detalle
+            detail_key = f"{self.PREFIX_DETAIL}:{company_id}:{product_id}"
+            deleted += await client.delete(detail_key)
+            
+            self._cache.metrics["invalidations"] += deleted
+            return deleted
+        except Exception as e:
+            self._cache._record_metric("errors")
+            return 0
+
+
+# Instancia global de ProductCache
+_product_cache_instance: Optional[ProductCache] = None
+
+
+def get_product_cache() -> ProductCache:
+    """Factory para obtener instancia del cache de productos."""
+    global _product_cache_instance
+    
+    if _product_cache_instance is None:
+        _product_cache_instance = ProductCache()
+    
+    return _product_cache_instance
+
+
+# ============================================
+# 🎯 HOOK PARA CACHE INVALIDATOR
+# ============================================
+
+async def redis_product_cache_hook(
+    event: str, 
+    company_id: int, 
+    metadata: dict
+):
+    """
+    Hook para CacheInvalidator de ProductService.
+    
+    Registrar este hook en ProductService para invalidar
+    cache automáticamente cuando cambian productos.
+    
+    Events:
+    - product_created
+    - product_updated
+    - product_deleted
+    - category_changed
+    """
+    cache = get_product_cache()
+    
+    if event in ("product_created", "product_deleted", "category_changed"):
+        await cache.invalidate_company(company_id)
+    
+    elif event == "product_updated":
+        product_id = metadata.get("product_id")
+        if product_id:
+            await cache.invalidate_product(company_id, product_id)
+        else:
+            await cache.invalidate_company(company_id)
+

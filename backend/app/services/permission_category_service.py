@@ -11,7 +11,7 @@ NOTA: Este servicio es diferente de category_service.py (categorías de producto
 
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 
@@ -91,7 +91,7 @@ class PermissionCategoryService:
             if field in allowed_fields and value is not None:
                 setattr(category, field, value)
         
-        category.updated_at = datetime.utcnow()
+        category.updated_at = datetime.now(timezone.utc)
         
         await self.session.commit()
         await self.session.refresh(category)
@@ -135,7 +135,7 @@ class PermissionCategoryService:
             )
         
         category.is_active = False
-        category.updated_at = datetime.utcnow()
+        category.updated_at = datetime.now(timezone.utc)
         
         await self.session.commit()
         

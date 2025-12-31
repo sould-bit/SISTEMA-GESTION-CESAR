@@ -10,7 +10,7 @@ para mantener el código organizado.
 """
 
 # Dependencias de autenticación
-from app.routers.auth import get_current_user
+from app.auth_deps import get_current_user
 
 # Dependencias multi-tenant
 from core.multi_tenant import (
