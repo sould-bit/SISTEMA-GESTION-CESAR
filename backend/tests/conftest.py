@@ -338,6 +338,26 @@ async def test_product(db_session: AsyncSession, test_company, test_category):
     await db_session.refresh(product)
     return product
 
+
+@pytest_asyncio.fixture
+async def test_branch(db_session: AsyncSession, test_company):
+    """Crear una sucursal de prueba."""
+    from app.models import Branch
+    from uuid import uuid4
+    
+    unique_id = str(uuid4())[:8]
+    branch = Branch(
+        name=f"Sucursal Test {unique_id}",
+        code=f"BR-{unique_id}",
+        company_id=test_company.id,
+        address="Dirección Sucursal Test",
+        is_active=True
+    )
+    db_session.add(branch)
+    await db_session.commit()
+    await db_session.refresh(branch)
+    return branch
+
 @pytest_asyncio.fixture
 async def test_products_batch(db_session: AsyncSession, test_company, test_category):
     """Crear un lote de productos de prueba en BD."""
