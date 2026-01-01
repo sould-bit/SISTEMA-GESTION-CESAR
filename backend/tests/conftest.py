@@ -338,6 +338,30 @@ async def test_product(db_session: AsyncSession, test_company, test_category):
     await db_session.refresh(product)
     return product
 
+@pytest_asyncio.fixture
+async def test_client():
+    from httpx import AsyncClient, ASGITransport
+    from app.main import app
+    # Usar ASGITransport para evitar warnings de Deprecation
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+
+@pytest.fixture
+def user_token(test_user, test_company):
+    """Generar token válido para el usuario de prueba."""
+    from app.utils.security import create_access_token
+    
+    token_data = {
+        "sub": test_user.username,
+        "user_id": test_user.id,
+        "company_id": test_company.id,
+        "branch_id": 1, # Dummy branch ID if needed, or None
+        "role": "admin",
+        "plan": "premium",
+        "username": test_user.username
+    }
+    return create_access_token(data=token_data)
+
 
 @pytest_asyncio.fixture
 async def test_branch(db_session: AsyncSession, test_company):

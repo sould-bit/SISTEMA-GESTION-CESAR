@@ -80,6 +80,10 @@ class OrderItem(SQLModel, table=True):
     order: "Order" = Relationship(back_populates="items")
     product: "Product" = Relationship()
 
+    @property
+    def product_name(self) -> str:
+        return self.product.name if self.product else "Desconocido"
+
 
 class Order(SQLModel, table=True):
     """
