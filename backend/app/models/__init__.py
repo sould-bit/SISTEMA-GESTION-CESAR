@@ -11,3 +11,6 @@ from .permission import Permission
 from .role import Role
 from .role_permission import RolePermission
 
+# Sistema de Recetas (v4.2)
+from .recipe import Recipe, RecipeItem
+
