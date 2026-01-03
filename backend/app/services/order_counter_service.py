@@ -51,8 +51,11 @@ class OrderCounterService:
                     OrderCounter.branch_id == branch_id,
                     OrderCounter.counter_type == counter_type
                 )
-                .with_for_update()
             )
+
+            # Bloqueo pesimista solo si no es SQLite (Postgres supports it)
+            if self.db.bind.dialect.name != "sqlite":
+                 query = query.with_for_update()
             
             result = await self.db.execute(query)
             counter = result.scalar_one_or_none()

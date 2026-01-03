@@ -4,7 +4,7 @@ from typing import List
 
 from app.database import get_session
 from app.services.order_service import OrderService
-from app.schemas.order import OrderCreate, OrderRead
+from app.schemas.order import OrderCreate, OrderRead, OrderUpdateStatus
 from app.models.user import User
 from app.auth_deps import get_current_user
 
@@ -36,12 +36,30 @@ async def create_order(
 @router.get("/{order_id}", response_model=OrderRead)
 async def get_order(
     order_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Obtener detalle de un pedido por ID.
-    Solo puede ver pedidos de su propia compañía.
+    Obtiene los detalles de un pedido.
     """
-    service = OrderService(db)
+    service = OrderService(session)
     return await service.get_order(order_id, current_user.company_id)
+
+
+@router.patch("/{order_id}/status", response_model=OrderRead)
+async def update_order_status(
+    order_id: int,
+    status_update: OrderUpdateStatus,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Actualiza el estado de un pedido siguiendo la máquina de estados.
+    """
+    service = OrderService(session)
+    return await service.update_status(
+        order_id=order_id,
+        new_status=status_update.status,
+        company_id=current_user.company_id,
+        user=current_user
+    )

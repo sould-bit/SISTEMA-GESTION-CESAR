@@ -1,10 +1,3 @@
-"""
-Configuración global de pruebas para el sistema RBAC.
-
-Este archivo contiene fixtures y configuraciones compartidas
-para todas las pruebas del sistema.
-"""
-
 import asyncio
 import pytest
 import pytest_asyncio
@@ -339,12 +332,18 @@ async def test_product(db_session: AsyncSession, test_company, test_category):
     return product
 
 @pytest_asyncio.fixture
-async def test_client():
+async def test_client(db_session_factory):
     from httpx import AsyncClient, ASGITransport
     from app.main import app
-    # Usar ASGITransport para evitar warnings de Deprecation
+    from app.database import get_session
+
+    # Override dependency para que la app use la misma DB que los tests
+    app.dependency_overrides[get_session] = lambda: db_session_factory()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
+    
+    app.dependency_overrides.clear()
 
 @pytest.fixture
 def user_token(test_user, test_company):

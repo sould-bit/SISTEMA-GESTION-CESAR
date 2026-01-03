@@ -59,6 +59,9 @@ class OrderCreate(BaseModel):
             raise ValueError('El pedido debe tener al menos un item')
         return v
 
+class OrderUpdateStatus(BaseModel):
+    status: OrderStatus
+
 class OrderRead(BaseModel):
     id: int
     order_number: str

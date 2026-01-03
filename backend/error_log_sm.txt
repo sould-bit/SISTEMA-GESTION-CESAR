@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/app/app/services/order_state_machine.py", line 103, in transition
+    old_status=old_status.value,
+               ^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'value'

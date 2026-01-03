@@ -15,6 +15,6 @@ from .role_permission import RolePermission
 from .recipe import Recipe, RecipeItem
 
 # Sistema de Pedidos y Pagos (v5.1)
-from .order import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus, Payment
+from .order import Order, OrderItem, Payment, OrderStatus
 from .order_counter import OrderCounter
-
+from .order_audit import OrderAudit

@@ -180,6 +180,35 @@ class OrderService:
             
         return self._build_order_response(order)
 
+    async def update_status(self, order_id: int, new_status: OrderStatus, company_id: int, user: Optional['User'] = None) -> OrderRead:
+        """
+        Actualiza el estado de un pedido utilizando la Máquina de Estados.
+        """
+        # 1. Recuperar orden (reutilizamos get_order pero necesitamos el objeto ORM, no el Schema)
+        # Asi que hacemos query manual similar a get_order pero sin serializar aun
+        from sqlalchemy.orm import selectinload
+        from app.services.order_state_machine import OrderStateMachine
+        
+        stmt = select(Order).where(
+            Order.id == order_id, 
+            Order.company_id == company_id
+        ).options(
+            selectinload(Order.items).selectinload(OrderItem.product),
+            selectinload(Order.payments)
+        )
+        result = await self.db.execute(stmt)
+        order = result.scalar_one_or_none()
+        
+        if not order:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado")
+
+        # 2. Ejecutar Transición
+        machine = OrderStateMachine(self.db)
+        await machine.transition(order, new_status, user)
+        
+        # 3. Retornar actualizado
+        return self._build_order_response(order)
+
     def _build_order_response(self, order: Order) -> OrderRead:
         """
         Transforma el modelo de BD a un esquema de respuesta OrderRead.
