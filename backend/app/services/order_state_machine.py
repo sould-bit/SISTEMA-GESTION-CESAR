@@ -27,6 +27,21 @@ class OrderStateMachine:
         OrderStatus.CANCELLED: set(),  # Estado terminal (No reabrir)
     }
 
+    # Definición de RBAC (Opción A: Seguridad Integrada)
+    # Define qué roles pueden ejecutar qué transiciones.
+    # Si la lista de roles es None o vacía, permitimos a todos (o restringimos todo, según política).
+    # Aquí: None = Permitido para roles básicos (waiter/cashier/manager/admin)
+    #       Lista explícita = Solo esos roles
+    RBAC_RULES: dict[tuple[OrderStatus, OrderStatus], Set[str]] = {
+        # Cancelar algo confirmado es delicado -> Solo Jefes
+        (OrderStatus.CONFIRMED, OrderStatus.CANCELLED): {"manager", "admin"},
+        (OrderStatus.PREPARING, OrderStatus.CANCELLED): {"manager", "admin"}, 
+        # Entregar es tarea de meseros y repartidores (y jefes por supuesto)
+        (OrderStatus.READY, OrderStatus.DELIVERED): {"waiter", "cashier", "manager", "admin"},
+        # Cancelación simple (Pending -> Cancelled)
+        (OrderStatus.PENDING, OrderStatus.CANCELLED): {"waiter", "cashier", "manager", "admin"},
+    }
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -43,13 +58,15 @@ class OrderStateMachine:
         Principios:
         1. Idempotencia: Si ya está en new_status, retorna True (sin cambios).
         2. Validación: Verifica si la transición es permitida por el grafo.
-        3. Bloqueo Optimista: Usa rowcount para asegurar que nadie más cambió el estado.
-        4. Auditoría: Registra el cambio.
+        3. Seguridad (RBAC): Verifica si el usuario tiene rol para esta acción.
+        4. Bloqueo Optimista: Usa rowcount para asegurar atomicidad.
+        5. Auditoría: Registra el cambio.
         
         Returns:
             bool: True si cambió, False si era idempotente.
         Raises:
             HTTPException 400: Transición inválida.
+            HTTPException 403: No autorizado (RBAC).
             HTTPException 409: Conflicto de concurrencia.
         """
         old_status = order.status
@@ -59,7 +76,7 @@ class OrderStateMachine:
             logger.info(f"🔁 Transición idempotente para Orden {order.id}: {old_status} -> {new_status}")
             return False
 
-        # 2. Validación
+        # 2. Validación de Grafo
         allowed = self.VALID_TRANSITIONS.get(old_status, set())
         if new_status not in allowed:
             error_msg = f"Transición inválida: de '{old_status}' a '{new_status}' no es permitida."
@@ -69,13 +86,40 @@ class OrderStateMachine:
                 detail=error_msg
             )
 
-        # 3. Hooks Transaccionales (Hooks Pre-Commit)
-        # Aquí validaríamos inventario, etc. Si fallan, lanzan excepción y rollback.
+        # 3. Seguridad (RBAC) - Opción A
+        if user:
+            # Buscar regla específica para esta transición
+            required_roles = self.RBAC_RULES.get((old_status, new_status))
+            
+            # Si hay regla, validar. Si no hay regla específica, asumimos política por defecto (ej: permitir standard)
+            # Para este caso, si no está definida, asumimos que es una operación estándar permitida para staff.
+            # Pero para ser estrictos, si quisiéramos bloquear todo lo no definido:
+            # if not required_roles: required_roles = {...default...}
+            
+            if required_roles:
+                # Acceso robusto al rol:
+                role_name = "guest"
+                
+                # Caso 1: User.role es un objeto ORM (Role model)
+                if hasattr(user, "role") and user.role and not isinstance(user.role, str):
+                     role_name = getattr(user.role, "code", getattr(user.role, "name", "guest")).lower()
+                
+                # Caso 2: User.role es un string (Mocking o estructura simple)
+                elif hasattr(user, "role") and isinstance(user.role, str):
+                    role_name = user.role.lower()
+
+                if role_name not in required_roles:
+                     logger.warning(f"🔒 Acceso Denegado: Usuario '{user.username}' ({role_name}) intentó {old_status}->{new_status}")
+                     raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"No tiene permisos para cambiar el estado a {new_status}"
+                     )
+
+        # 4. Hooks Transaccionales (Hooks Pre-Commit)
         await self._run_transactional_hooks(order, new_status)
 
         try:
-            # 4. Ejecución con Bloqueo Optimista
-            # Usamos update construct de SQLAlchemy para mayor seguridad y portabilidad (SQLite/PG)
+            # 5. Ejecución con Bloqueo Optimista
             stmt = (
                 update(Order)
                 .where(Order.id == order.id)
@@ -89,15 +133,13 @@ class OrderStateMachine:
             result = await self.db.execute(stmt)
             
             if result.rowcount == 0:
-                # Si rowcount es 0, significa que el estado cambió concurrentemente
-                # o la orden fue borrada. Asumimos concurrencia.
                 logger.warning(f"⚔️ Conflicto de Concurrencia en Orden {order.id}")
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="El estado del pedido ha cambiado concurrentemente. Por favor refresque e intente de nuevo."
+                    detail="El estado del pedido ha cambiado concurrentemente."
                 )
 
-            # 5. Auditoría
+            # 6. Auditoría
             old_val = old_status.value if hasattr(old_status, "value") else old_status
             new_val = new_status.value if hasattr(new_status, "value") else new_status
             
@@ -110,19 +152,19 @@ class OrderStateMachine:
             )
             self.db.add(audit_entry)
             
-            # Commit de la transacción (Orden + Auditoría)
+            # Commit de la transacción
             await self.db.commit()
             
-            # Actualizar objeto en memoria para reflejar cambios
+            # Actualizar objeto en memoria
             order.status = new_status
             
             logger.info(f"✅ Estado Orden {order.id}: {old_status} -> {new_status}")
             
-            # 6. Hooks Post-Commit (Async)
-            # await self._run_post_commit_hooks(order, new_status)
-            
             return True
 
+        except HTTPException:
+            # Re-lanzar excepciones HTTP conocidas (400, 403, 409)
+            raise
         except Exception as e:
             await self.db.rollback()
             logger.error(f"❌ Error crítico en transición de estado: {e}")
