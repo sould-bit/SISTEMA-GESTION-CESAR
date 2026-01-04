@@ -15,7 +15,15 @@ def verify_password(plain_password: str, hashed_password: str)-> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str)-> str:
-    """genera un hash de la contraseña"""
+    """
+    Genera un hash de la contraseña.
+
+    ADVERTENCIA: Esta es una operación síncrona y que consume CPU.
+    En un endpoint asíncrono, DEBE ser llamada usando `run_in_executor`
+    para evitar bloquear el servidor.
+    Ejemplo:
+    hashed_password = await run_in_executor(None, get_password_hash, "nueva_contraseña")
+    """
     return pwd_context.hash(password)
 
 def create_access_token(
