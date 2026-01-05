@@ -608,3 +608,4 @@ class TestProductRouterIntegration:
         db_session.add(role_permission)
 
         await db_session.commit()
+

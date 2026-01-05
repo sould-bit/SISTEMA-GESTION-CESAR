@@ -18,171 +18,56 @@ Fase 2: Base de Datos Multi-Tenant ✅ COMPLETADA
 Evidencia: migrations/, category.py, seed_simple.py
 Conceptos aprendidos: PostgreSQL, Alembic migrations, modelos SQLModel
 🚀 FASES PENDIENTES - APRENDIZAJE PROFESIONAL
-FASE 3: AUTENTICACIÓN Y SEGURIDAD MULTI-TENANT
-Duración estimada: 1 semana | Conceptos clave: JWT, middlewares, aislamiento de datos
-Ticket 3.1: Implementar JWT Authentication
-Objetivo: Aprender tokens JWT y middleware de autenticación
-Archivos a crear/modificar: backend/app/core/security.py, backend/app/core/auth.py
-¿Qué aprenderás?
-Cómo funcionan los JWT tokens
-Claims personalizados para multi-tenancy
-Refresh tokens vs access tokens
-Verificación de firma HS256
-Pasos detallados:
-Instala python-jose[cryptography] y passlib[bcrypt]
-Crea función create_access_token() con claims multi-tenant
-Implementa verify_token() middleware
-Crea endpoints /auth/login y /auth/refresh
-Agrega hashing de passwords con bcrypt
-Ticket 3.2: Middleware Multi-Tenant
-Objetivo: Aprender aislamiento automático de datos
-Archivos: backend/app/core/multi_tenant.py, backend/app/dependencies.py
-¿Qué aprenderás?
-Dependency injection en FastAPI
-Verificación automática de company_id
-Filtros SQL automáticos por tenant
-Manejo de excepciones 403/402
-Pasos detallados:
-Crea dependencias get_current_user() y verify_company_access()
-Implementa verify_active_subscription() para planes
-Modifica todos los queries existentes para incluir company_id
-Agrega middleware global para logging de requests
-Ticket 3.3: Roles y Permisos
-Objetivo: Sistema de autorización granular
-Archivos: backend/app/core/permissions.py, backend/app/models/user.py
-¿Qué aprenderás?
-Role-Based Access Control (RBAC)
-Permisos por endpoint
-Verificación de branch access
-Custom exceptions para auth
-Pasos detallados:
-Define enum de roles (admin, cashier, kitchen, delivery)
-Crea decorador @require_role('admin')
-Implementa verify_branch_access() para sucursales
-Actualiza modelo User con campos de role y branch_id
-FASE 4: SISTEMA DE PRODUCTOS Y RECETAS
-Duración estimada: 1 semana | Conceptos clave: Relaciones SQL, validación compleja
-Ticket 4.1: CRUD Completo de Productos
-Objetivo: Aprender operaciones CRUD con validaciones
-Archivos: backend/app/routers/products.py, backend/app/schemas/product.py
-¿Qué aprenderás?
-Pydantic schemas para request/response
-Validaciones complejas (precios, imágenes)
-Upload de archivos a CDN
-Soft deletes con filtros
-Pasos detallados:
-Crea schemas ProductCreate, ProductUpdate, ProductResponse
-Implementa endpoints GET/POST/PUT/DELETE /products
-Agrega validación de precio > 0, nombre único por company
-Integra upload de imágenes con validación de tipo/mime
-Ticket 4.2: Sistema de Recetas
-Objetivo: Relaciones many-to-many y cálculo de costos
-Archivos: backend/app/models/recipe.py, backend/app/services/recipe.py
-¿Qué aprenderás?
-Relaciones SQLAlchemy complejas
-Cálculo de costo por receta
-Validación de integridad referencial
-Transacciones ACID
-Pasos detallados:
-Crea modelos Recipe y RecipeItem con foreign keys
-Implementa cálculo automático de costo total
-Crea servicio para validar recetas completas
-Agrega endpoint para actualizar receta de producto
-Ticket 4.3: Categorías Multi-Tenant
-Objetivo: CRUD simple pero con aislamiento completo
-Archivos: backend/app/routers/categories.py
-¿Qué aprenderás?
-Queries con filtros automáticos
-Validación de unicidad por tenant
-Soft deletes y restauración
-Optimización de queries
-Pasos detallados:
-Crea endpoints CRUD básicos para categorías
-Implementa restricción única company_id + name
-Agrega filtros por is_active
-Optimiza queries con índices apropiados
-FASE 5: SISTEMA DE PEDIDOS ASÍNCRONO
-Duración estimada: 1.5 semanas | Conceptos clave: Asincronía, colas, transacciones
-Ticket 5.1: Base de Datos de Pedidos
-Objetivo: Aprender transacciones complejas y consecutivos
-Archivos: backend/app/models/order.py, backend/app/services/order_counter.py
-¿Qué aprenderás?
-Transacciones anidadas
-Generación de consecutivos únicos
-Estados de pedido con transiciones válidas
-Constraints de integridad
-Pasos detallados:
-Crea modelos Order, OrderItem, Payment
-Implementa OrderCounter por sucursal y tipo
-Agrega constraints de estado válido
-Crea índices para queries de estado y fecha
-Ticket 5.2: Creación de Pedidos (Asíncrona)
-Objetivo: Arquitectura asíncrona sin bloqueos
-Archivos: backend/app/services/order_service.py, backend/app/routers/orders.py
-¿Qué aprenderás?
-Async/await en Python
-Separación de responsabilidades
-Validación en capas
-Respuestas inmediatas
-Pasos detallados:
-Crea OrderService.create_order() async
-Valida stock disponible antes de crear
-Genera consecutivo único con locking
-Retorna respuesta inmediata (< 1s)
-Ticket 5.3: Estados y Transiciones
-Objetivo: Máquina de estados para pedidos
-Archivos: backend/app/services/order_state_machine.py
-¿Qué aprenderás?
-State machines en software
-Transiciones válidas
-Eventos y side effects
-Concurrencia en updates
-Pasos detallados:
-Define estados: pending → confirmed → preparing → ready → delivered
-Crea métodos de transición con validaciones
-Implementa side effects (notificaciones, inventario)
-Maneja concurrencia con optimistic locking
+Fase 3: Autenticación y Seguridad ✅ COMPLETADA
+Fase 4: Sistema de Productos y Recetas ✅ COMPLETADA
+Fase 5: Sistema de Pedidos Asíncrono ✅ COMPLETADA
+Fase 10: Testing Profesional (Estabilización) ✅ COMPLETADA
+
+🚀 FASES PENDIENTES - PRÓXIMOS DESAFÍOS
+
 FASE 6: SISTEMA DE IMPRESIÓN DE ALTO RENDIMIENTO
 Duración estimada: 1 semana | Conceptos clave: Colas, workers, circuit breaker
 Ticket 6.1: Configuración de Celery + Redis
 Objetivo: Aprender message queues y workers
-Archivos: backend/app/tasks/__init__.py, backend/app/tasks/celery_app.py
+Archivos a crear/modificar: backend/app/tasks/__init__.py, backend/app/tasks/celery_app.py
 ¿Qué aprenderás?
-Message brokers (Redis)
-Task queues con Celery
-Serialización de datos complejos
-Configuración de workers
+- Message brokers (Redis)
+- Task queues con Celery
+- Serialización de datos complejos
+- Configuración de workers
 Pasos detallados:
-Instala celery[redis] y configura broker
-Crea celery_app con configuración
-Define task print_order_task()
-Configura reintentos y timeouts
+1. Instala celery[redis] y configura broker
+2. Crea celery_app con configuración
+3. Define task print_order_task()
+4. Configura reintentos y timeouts
+
 Ticket 6.2: Cola de Impresión Asíncrona
 Objetivo: Sistema de impresión sin bloqueos
 Archivos: backend/app/models/print_queue.py, backend/app/services/print_service.py
 ¿Qué aprenderás?
-Diseño de colas de prioridad
-Persistencia de tareas
-Estados de procesamiento
-Manejo de fallos
+- Diseño de colas de prioridad
+- Persistencia de tareas
+- Estados de procesamiento
+- Manejo de fallos
 Pasos detallados:
-Crea tabla print_queue con estados
-Implementa encolado en OrderService
-Crea PrintService con lógica de impresión
-Agrega tracking de intentos
+1. Crea tabla print_queue con estados
+2. Implementa encolado en OrderService
+3. Crea PrintService con lógica de impresión
+4. Agrega tracking de intentos
+
 Ticket 6.3: Circuit Breaker y Fallback
 Objetivo: Resiliencia ante fallos de hardware
 Archivos: backend/app/core/circuit_breaker.py, backend/app/services/print_fallback.py
 ¿Qué aprenderás?
-Patrones de resiliencia
-Circuit breaker states (closed/open/half-open)
-Fallback strategies
-Notificaciones de sistema
+- Patrones de resiliencia
+- Circuit breaker states (closed/open/half-open)
+- Fallback strategies
+- Notificaciones de sistema
 Pasos detallados:
-Implementa CircuitBreaker class
-Define estados y transiciones automáticas
-Crea fallbacks (pantalla, email, PDF)
-Integra alertas a administradores
+1. Implementa CircuitBreaker class
+2. Define estados y transiciones automáticas
+3. Crea fallbacks (pantalla, email, PDF)
+4. Integra alertas a administradores
 FASE 7: WEBSOCKETS Y TIEMPO REAL
 Duración estimada: 1 semana | Conceptos clave: WebSockets, rooms, eventos
 Ticket 7.1: Configuración Socket.IO

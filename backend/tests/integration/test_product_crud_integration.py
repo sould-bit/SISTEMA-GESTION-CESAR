@@ -324,3 +324,4 @@ class TestProductCRUDIntegration:
         second_product = await service.create_product(valid_second_company, test_company_2.id)
         assert second_product.name == "Producto Validación"
         assert second_product.company_id == test_company_2.id
+

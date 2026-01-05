@@ -370,3 +370,4 @@ class TestProductMultiTenantIsolation:
         original_product = await service.product_repo.get_by_id_or_404(created_1.id, test_company.id)
         assert original_product.name == "Producto Seguro 1"
         assert original_product.price == Decimal('25.00')
+

@@ -499,3 +499,4 @@ class TestProductSchemasValidation:
             ProductUpdate(name="")  # Nombre vacío no permitido
 
         assert "String should have at least 1 character" in str(exc_info.value)
+
