@@ -9,7 +9,8 @@ from sqlmodel import SQLModel
 
 from app.database import get_session
 from app.main import app
-
+from app.models import Company, Category
+import uuid
 import os
 
 # Use environment variable or fallback to Docker DB
@@ -60,3 +61,25 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield ac
     
     app.dependency_overrides.clear()
+
+@pytest.fixture
+def db_session(session):
+    return session
+
+@pytest.fixture
+async def test_company(session: AsyncSession):
+    uid = uuid.uuid4().hex[:8]
+    company = Company(name=f"Recipe Test Corp {uid}", slug=f"recipe-corp-{uid}")
+    session.add(company)
+    await session.commit()
+    await session.refresh(company)
+    return company
+
+@pytest.fixture
+async def test_category(session: AsyncSession, test_company: Company):
+    uid = uuid.uuid4().hex[:8]
+    category = Category(name=f"Test Category {uid}", company_id=test_company.id)
+    session.add(category)
+    await session.commit()
+    await session.refresh(category)
+    return category
