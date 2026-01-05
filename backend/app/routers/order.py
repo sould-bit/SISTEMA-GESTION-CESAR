@@ -31,7 +31,7 @@ async def create_order(
     # y el backend valida company_id del usuario vs productos/branch si implementamos esa validación.
     # En OrderService validamos que los productos sean de company_id.
     
-    return await service.create_order(order_data, current_user.company_id)
+    return await service.create_order(order_data, current_user.company_id, current_user.id)
 
 @router.get("/{order_id}", response_model=OrderRead)
 async def get_order(
