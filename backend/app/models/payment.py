@@ -15,6 +15,8 @@ class PaymentMethod(str, Enum):
     CASH = "cash"
     CARD = "card"
     TRANSFER = "transfer"
+    NEQUI = "nequi"
+    DAVIPLATA = "daviplata"
     OTHER = "other"
 
 
@@ -40,6 +42,7 @@ class Payment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     company_id: int = Field(foreign_key="companies.id", index=True, nullable=False)
     branch_id: int = Field(foreign_key="branches.id", index=True, nullable=False)
+    user_id: int = Field(foreign_key="users.id", index=True, nullable=False)
     order_id: int = Field(foreign_key="orders.id", nullable=False)
     
     amount: Decimal = Field(max_digits=12, decimal_places=2)

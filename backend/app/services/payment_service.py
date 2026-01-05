@@ -67,6 +67,7 @@ class PaymentService:
             new_payment = Payment(
                 company_id=company_id,
                 branch_id=order.branch_id,
+                user_id=user_id,
                 order_id=order.id,
                 amount=payment_data.amount,
                 method=payment_data.method,
