@@ -4,6 +4,8 @@ from sqlmodel import select, Session, SQLModel
 from .database import get_session, engine
 from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte
 from .routers import auth, category, rbac, product, recipe, order
+from .core.websockets import sio # Import Socket.IO server
+import socketio
 
 from .core.logging_config import get_rbac_logger
 from .core.exceptions import RBACException, create_rbac_exception_handler
@@ -26,6 +28,10 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json"
 )
+
+# Wrap FastAPI with Socket.IO
+# The socket.io path will be mounted at /socket.io automatically
+app = socketio.ASGIApp(sio, app)
 
 # Middleware de CORS
 app.add_middleware(

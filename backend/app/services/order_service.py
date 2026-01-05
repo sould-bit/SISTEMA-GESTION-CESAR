@@ -11,7 +11,7 @@ from sqlmodel import col
 from app.models.order import Order, OrderItem, OrderStatus, Payment, PaymentStatus
 from app.models.product import Product
 from app.schemas.order import OrderCreate, OrderRead, OrderItemRead, PaymentRead
-from app.services.order_counter_service import OrderCounterService
+from app.services.print_service import PrintService
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ class OrderService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.counter_service = OrderCounterService(db)
+        self.print_service = PrintService(db)
 
     async def create_order(self, order_data: OrderCreate, company_id: int) -> OrderRead:
         """
@@ -150,6 +151,14 @@ class OrderService:
             refreshed_order = result.scalar_one()
             
             logger.info(f"✅ Pedido creado: {order_number} (ID: {refreshed_order.id})")
+            
+            # 8. Trigger Print Job (Async)
+            try:
+                await self.print_service.create_print_job(refreshed_order.id, company_id)
+            except Exception as e:
+                # No fallamos el pedido si falla la impresión, solo logueamos
+                logger.error(f"⚠️ Error al enviar a impresión: {e}")
+
             return self._build_order_response(refreshed_order)
 
         except HTTPException:
