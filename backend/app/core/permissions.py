@@ -34,20 +34,33 @@ P = ParamSpec('P')
 R = TypeVar('R')
 
 
+def _get_session(kwargs: dict) -> Optional[AsyncSession]:
+    """Extrae la sesión de BD de los argumentos de la función."""
+    # 1. Buscar 'session' directamente
+    if 'session' in kwargs:
+        return kwargs['session']
+
+    # 2. Buscar 'db' directamente
+    if 'db' in kwargs:
+        return kwargs['db']
+
+    # 3. Buscar en servicios que tengan atributo .session o .db
+    for val in kwargs.values():
+        if hasattr(val, 'session'):
+            return val.session
+        if hasattr(val, 'db'):
+            return val.db
+
+    return None
+
+
 def require_permission(permission_code: str):
     """
     Decorador que requiere un permiso específico.
-
-    NOTA: Temporalmente deshabilitado para debugging.
-    Las rutas requerirán verificación manual de permisos.
     """
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            # TEMPORAL: Permitir acceso sin verificación
-            # TODO: Implementar verificación de permisos correctamente
-            print(f"🔍 Verificando permiso: {permission_code}")
-
             # Extraer current_user de kwargs
             current_user = kwargs.get('current_user')
 
@@ -58,14 +71,18 @@ def require_permission(permission_code: str):
                     detail="Usuario no autenticado"
                 )
 
-            print(f"✅ Usuario autenticado: {current_user.username}")
-
-            # POR AHORA: Permitir acceso a todos los usuarios autenticados
-            # TODO: Implementar verificación real de permisos
-            return await func(*args, **kwargs)
+            # Obtener sesión
+            session = _get_session(kwargs)
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Error interno: sesión de BD no disponible en la función decorada"
+                )
 
             # Verificar permiso
+            print(f"DEBUG: Creando PermissionService con sesión {id(session)}")
             permission_service = PermissionService(session)
+            print(f"DEBUG: Llamando a check_permission para {permission_code}")
             has_permission = await permission_service.check_permission(
                 user_id=current_user.id,
                 permission_code=permission_code,
@@ -88,38 +105,29 @@ def require_permission(permission_code: str):
 def require_any_permission(permission_codes: List[str]):
     """
     Decorador que requiere AL MENOS UNO de los permisos especificados.
-
-    IMPORTANTE: La función decorada DEBE tener current_user y al menos un servicio con session.
     """
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            # Extraer current_user de kwargs
+            # Extraer current_user
             current_user = kwargs.get('current_user')
-
-            # Validar que el usuario esté autenticado
             if not current_user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Usuario no autenticado"
                 )
 
-            # Obtener la sesión de los servicios inyectados
-            session = None
-            for value in kwargs.values():
-                if hasattr(value, 'session'):
-                    session = value.session
-                    break
-
+            # Obtener sesión
+            session = _get_session(kwargs)
             if not session:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Error interno: sesión de base de datos no disponible"
+                    detail="Error interno: sesión de BD no disponible"
                 )
 
             permission_service = PermissionService(session)
 
-            # Verificar si tiene al menos uno de los permisos
+            # Verificar si tiene al menos uno
             for perm_code in permission_codes:
                 has_permission = await permission_service.check_permission(
                     user_id=current_user.id,
@@ -128,7 +136,6 @@ def require_any_permission(permission_codes: List[str]):
                 )
 
                 if has_permission:
-                    # Ejecutar función original
                     return await func(*args, **kwargs)
 
             raise HTTPException(
@@ -143,38 +150,29 @@ def require_any_permission(permission_codes: List[str]):
 def require_all_permissions(permission_codes: List[str]):
     """
     Decorador que requiere TODOS los permisos especificados.
-
-    IMPORTANTE: La función decorada DEBE tener current_user y al menos un servicio con session.
     """
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            # Extraer current_user de kwargs
+            # Extraer current_user
             current_user = kwargs.get('current_user')
-
-            # Validar que el usuario esté autenticado
             if not current_user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Usuario no autenticado"
                 )
 
-            # Obtener la sesión de los servicios inyectados
-            session = None
-            for value in kwargs.values():
-                if hasattr(value, 'session'):
-                    session = value.session
-                    break
-
+            # Obtener sesión
+            session = _get_session(kwargs)
             if not session:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Error interno: sesión de base de datos no disponible"
+                    detail="Error interno: sesión de BD no disponible"
                 )
 
             permission_service = PermissionService(session)
 
-            # Verificar que tiene TODOS los permisos
+            # Verificar todos
             for perm_code in permission_codes:
                 has_permission = await permission_service.check_permission(
                     user_id=current_user.id,
@@ -188,7 +186,6 @@ def require_all_permissions(permission_codes: List[str]):
                         detail=f"Permiso denegado: se requieren todos estos permisos {permission_codes}"
                     )
 
-            # Ejecutar función original
             return await func(*args, **kwargs)
 
         return wrapper

@@ -20,5 +20,6 @@ Principios:
 from .auth_service import AuthService
 from .category_service import CategoryService
 from .product_service import ProductService
+from .permission_service import PermissionService
 
-__all__ = ["AuthService", "CategoryService", "ProductService"]
+__all__ = ["AuthService", "CategoryService", "ProductService", "PermissionService"]

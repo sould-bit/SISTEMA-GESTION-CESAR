@@ -12,8 +12,8 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy import select, and_, or_
 
 from app.models import Permission, Role, RolePermission, User, PermissionCategory
 from app.core.logging_config import get_rbac_logger, log_permission_check, log_security_event
@@ -26,7 +26,8 @@ class PermissionService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.logger = get_rbac_logger("app.permissions")
-        self.cache = get_rbac_cache()  # Cache Redis para permisos
+        # self.cache = get_rbac_cache()  # Cache Redis para permisos
+        self.cache = None
     
     async def check_permission(
         self,
@@ -52,7 +53,8 @@ class PermissionService:
 
         try:
             # Intentar obtener desde cache primero
-            cached_permissions = await self.cache.get_user_permissions(user_id, company_id)
+            # cached_permissions = await self.cache.get_user_permissions(user_id, company_id)
+            cached_permissions = None
 
             if cached_permissions is not None:
                 # Cache hit
@@ -83,6 +85,7 @@ class PermissionService:
                 return has_permission
 
             # Cache miss - obtener desde base de datos
+            print(f"DEBUG: PermissionService.check_permission: Cache miss, llamando a get_user_permissions")
             user_permissions = await self.get_user_permissions(user_id, company_id)
             permission_codes = [p.code for p in user_permissions]
             has_permission = permission_code in permission_codes
@@ -175,6 +178,7 @@ class PermissionService:
             Lista de objetos Permission
         """
         # Obtener usuario con su rol
+        print(f"DEBUG: PermissionService.get_user_permissions: Ejecutando SELECT User")
         result = await self.session.execute(
             select(User)
             .where(and_(
@@ -182,7 +186,7 @@ class PermissionService:
                 User.company_id == company_id,
                 User.is_active == True
             ))
-            .options(selectinload(User.user_role))
+            .options(joinedload(User.user_role))
         )
         user = result.scalar_one_or_none()
         
@@ -198,7 +202,7 @@ class PermissionService:
                 Permission.company_id == company_id,
                 Permission.is_active == True
             ))
-            .options(selectinload(Permission.category))
+            .options(joinedload(Permission.category))
         )
         
         permissions = result.scalars().all()

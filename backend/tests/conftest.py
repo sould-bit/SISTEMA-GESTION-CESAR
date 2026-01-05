@@ -5,6 +5,7 @@ import logging
 from typing import AsyncGenerator, Generator
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool, NullPool
+from sqlalchemy import text
 from sqlmodel import SQLModel
 
 # Importar todos los modelos para que SQLModel los registre en metadata
@@ -43,6 +44,7 @@ def get_test_engine():
             # y evitar errores de 'another operation is in progress'
             connect_args = {}
             poolclass = NullPool
+            # poolclass = None
 
         test_engine = create_async_engine(
             TEST_DATABASE_URL,
@@ -58,15 +60,15 @@ def get_test_engine():
     return test_engine, TestSessionLocal
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Crear una instancia del event loop para toda la sesión de pruebas."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+# @pytest.fixture(scope="session")
+# def event_loop():
+#     """Crear una instancia del event loop para toda la sesión de pruebas."""
+#     try:
+#         loop = asyncio.get_running_loop()
+#     except RuntimeError:
+#         loop = asyncio.new_event_loop()
+#     yield loop
+#     loop.close()
 
 
 
@@ -83,6 +85,7 @@ async def setup_database():
     yield
 
     # Limpiar después de las pruebas (SOLO en SQLite para evitar borrar DB real)
+    # Limpiar después de las pruebas (SOLO en SQLite para evitar borrar DB real)
     if not USE_POSTGRES:
         async with engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.drop_all)
@@ -93,16 +96,21 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
-    """Fixture que proporciona una sesión de base de datos limpia."""
+    """
+    Fixture que proporciona una sesión de base de datos limpia.
+    
+    Cada test obtiene una sesión nueva e independiente.
+    Para evitar InterfaceError, NO usamos transacción envolvente.
+    Los datos creados se quedan en la BD (serán limpiados por el siguiente test 
+    usando IDs únicos generados por fixtures).
+    """
     _, session_maker = get_test_engine()
-    async with session_maker() as session:
-        # Limpiar datos entre pruebas
-        await session.begin()
-
-        try:
-            yield session
-        finally:
-            await session.rollback()
+    
+    session = session_maker()
+    try:
+        yield session
+    finally:
+        await session.close()
 
 
 @pytest.fixture
@@ -157,7 +165,7 @@ async def test_company(db_session: AsyncSession):
         is_active=True
     )
     db_session.add(company)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(company)
     return company
 
@@ -179,7 +187,7 @@ async def test_user(db_session: AsyncSession, test_company):
         is_active=True
     )
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(user)
     return user
 
@@ -199,7 +207,7 @@ async def test_permission_category(db_session: AsyncSession, test_company):
         is_active=True
     )
     db_session.add(category)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(category)
     return category
 
@@ -222,7 +230,7 @@ async def test_permission(db_session: AsyncSession, test_company, test_permissio
         is_active=True
     )
     db_session.add(permission)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(permission)
     return permission
 
@@ -243,7 +251,7 @@ async def test_role(db_session: AsyncSession, test_company):
         is_active=True
     )
     db_session.add(role)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(role)
     return role
 
@@ -259,7 +267,7 @@ async def test_role_permission(db_session: AsyncSession, test_role, test_permiss
         granted_by=1  # Usuario admin por defecto
     )
     db_session.add(role_perm)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(role_perm)
     return role_perm
 
@@ -305,7 +313,7 @@ async def test_category(db_session: AsyncSession, test_company):
         is_active=True
     )
     db_session.add(category)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(category)
     return category
 
@@ -327,7 +335,7 @@ async def test_product(db_session: AsyncSession, test_company, test_category):
         is_active=True
     )
     db_session.add(product)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(product)
     return product
 
@@ -377,7 +385,7 @@ async def test_branch(db_session: AsyncSession, test_company):
         is_active=True
     )
     db_session.add(branch)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(branch)
     return branch
 
@@ -402,7 +410,7 @@ async def test_products_batch(db_session: AsyncSession, test_company, test_categ
         products.append(product)
         db_session.add(product)
 
-    await db_session.commit()
+    await db_session.flush()
     for product in products:
         await db_session.refresh(product)
 
@@ -425,7 +433,7 @@ async def test_company_2(db_session: AsyncSession):
         is_active=True
     )
     db_session.add(company)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(company)
     return company
 
@@ -447,7 +455,7 @@ async def test_user_company_2(db_session: AsyncSession, test_company_2):
         is_active=True
     )
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(user)
     return user
 
@@ -464,7 +472,7 @@ async def test_category_company_2(db_session: AsyncSession, test_company_2):
         is_active=True
     )
     db_session.add(category)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(category)
     return category
 
@@ -486,6 +494,6 @@ async def test_product_company_2(db_session: AsyncSession, test_company_2, test_
         is_active=True
     )
     db_session.add(product)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(product)
     return product

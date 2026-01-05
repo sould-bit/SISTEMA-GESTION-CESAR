@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/app/app/services/order_service.py", line 208, in update_status
-    await machine.transition(order, new_status, user)
-  File "/app/app/services/order_state_machine.py", line 67, in transition
-    raise HTTPException(
-fastapi.exceptions.HTTPException: 400: Transición inválida: de 'cancelled' a 'OrderStatus.PENDING' no es permitida.

@@ -19,7 +19,7 @@ from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from fastapi import HTTPException, status
-from fastapi.concurrency import run_in_executor
+from fastapi.concurrency import run_in_threadpool as run_in_executor
 
 from app.models.user import User
 from app.models.company import Company
@@ -88,7 +88,7 @@ class AuthService:
             is_password_valid = False
             if user:
                 is_password_valid = await run_in_executor(
-                    None, verify_password, login_data.password, user.hashed_password
+                    verify_password, login_data.password, user.hashed_password
                 )
 
             if not user or not is_password_valid:
