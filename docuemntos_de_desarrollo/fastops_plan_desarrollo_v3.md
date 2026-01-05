@@ -41,7 +41,7 @@ Pasos detallados:
 3. Define task print_order_task()
 4. Configura reintentos y timeouts
 
-Ticket 6.2: Cola de Impresión Asíncrona
+Ticket 6.2: Cola de Impresión Asíncrona ✅ COMPLETADO
 Objetivo: Sistema de impresión sin bloqueos
 Archivos: backend/app/models/print_queue.py, backend/app/services/print_service.py
 ¿Qué aprenderás?
@@ -55,7 +55,7 @@ Pasos detallados:
 3. Crea PrintService con lógica de impresión
 4. Agrega tracking de intentos
 
-Ticket 6.3: Circuit Breaker y Fallback
+Ticket 6.3: Circuit Breaker y Fallback ✅ COMPLETADO
 Objetivo: Resiliencia ante fallos de hardware
 Archivos: backend/app/core/circuit_breaker.py, backend/app/services/print_fallback.py
 ¿Qué aprenderás?
