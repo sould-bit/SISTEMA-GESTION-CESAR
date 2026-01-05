@@ -25,99 +25,60 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
 
 TEST_DATABASE_URL = DATABASE_URL if USE_POSTGRES and DATABASE_URL else DEFAULT_TEST_DB
 
-# Engine de pruebas (lazy initialization)
-test_engine = None
-TestSessionLocal = None
-
-def get_test_engine():
-    """Obtener engine de pruebas (lazy loading)."""
-    global test_engine, TestSessionLocal
-    if test_engine is None:
-        connect_args = {"timeout": 30}
-        
-        # SQLite específico
-        if TEST_DATABASE_URL.startswith("sqlite"):
-            connect_args["check_same_thread"] = False
-            poolclass = StaticPool
-        else:
-            # PostgreSQL: Usar NullPool para evitar compartir conexiones en tests concurrentes
-            # y evitar errores de 'another operation is in progress'
-            connect_args = {}
-            poolclass = NullPool
-            # poolclass = None
-
-        test_engine = create_async_engine(
-            TEST_DATABASE_URL,
-            connect_args=connect_args,
-            poolclass=poolclass,
-            echo=False,
-        )
-        TestSessionLocal = async_sessionmaker(
-            bind=test_engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
-    return test_engine, TestSessionLocal
-
-
-# @pytest.fixture(scope="session")
-# def event_loop():
-#     """Crear una instancia del event loop para toda la sesión de pruebas."""
-#     try:
-#         loop = asyncio.get_running_loop()
-#     except RuntimeError:
-#         loop = asyncio.new_event_loop()
-#     yield loop
-#     loop.close()
-
-
-
-
-
-@pytest_asyncio.fixture(scope="session")
-async def setup_database():
-    """Configurar base de datos para pruebas."""
-    engine, _ = get_test_engine()
-    # Crear todas las tablas
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
-    yield
-
-    # Limpiar después de las pruebas (SOLO en SQLite para evitar borrar DB real)
-    # Limpiar después de las pruebas (SOLO en SQLite para evitar borrar DB real)
-    if not USE_POSTGRES:
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.drop_all)
+@pytest_asyncio.fixture(scope="function")
+async def test_engine_fixture():
+    """Create a fresh engine for each test."""
+    connect_args = {"timeout": 30}
+    
+    if TEST_DATABASE_URL.startswith("sqlite"):
+        connect_args["check_same_thread"] = False
+        poolclass = StaticPool
     else:
-        logger = logging.getLogger(__name__)
-        logger.info("ℹ️ Manteniendo base de datos PostgreSQL activa después de los tests.")
+        connect_args = {}
+        poolclass = NullPool
 
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        connect_args=connect_args,
+        poolclass=poolclass,
+        echo=False,
+    )
+    yield engine
+    await engine.dispose()
 
-@pytest_asyncio.fixture
-async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Fixture que proporciona una sesión de base de datos limpia.
+@pytest_asyncio.fixture(scope="function")
+async def setup_database(test_engine_fixture):
+    """Configurar base de datos para pruebas."""
+    async with test_engine_fixture.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
     
-    Cada test obtiene una sesión nueva e independiente.
-    Para evitar InterfaceError, NO usamos transacción envolvente.
-    Los datos creados se quedan en la BD (serán limpiados por el siguiente test 
-    usando IDs únicos generados por fixtures).
-    """
-    _, session_maker = get_test_engine()
+    yield
     
-    session = session_maker()
-    try:
+    # Limpiar
+    if not USE_POSTGRES:
+        async with test_engine_fixture.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.drop_all)
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session(setup_database, test_engine_fixture) -> AsyncGenerator[AsyncSession, None]:
+    """Sesión de base de datos limpia por test."""
+    session_maker = async_sessionmaker(
+        bind=test_engine_fixture,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    
+    async with session_maker() as session:
         yield session
-    finally:
-        await session.close()
-
 
 @pytest.fixture
-def db_session_factory(setup_database):
-    """Fixture que proporciona un factory para crear sesiones de base de datos."""
-    _, session_maker = get_test_engine()
-    return session_maker
+def db_session_factory(test_engine_fixture, setup_database):
+    """Factory para crear sesiones (útil para override de dependencias)."""
+    return async_sessionmaker(
+        bind=test_engine_fixture,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
 
 
 @pytest.fixture

@@ -18,7 +18,9 @@ from .recipe import Recipe, RecipeItem
 from .order import Order, OrderItem, Payment, OrderStatus
 from .order_counter import OrderCounter
 from .order_audit import OrderAudit
-from .order_audit import OrderAudit
 
-# Sistema de Impresión (v6.2)
+# Sistema de Inventario (v2.1)
+from .inventory import Inventory, InventoryTransaction
+
+# Sistema de Impresión (v1.7 / v6.2)
 from .print_queue import PrintJob, PrintJobStatus
