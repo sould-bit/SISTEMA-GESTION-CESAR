@@ -8,14 +8,17 @@ class InventoryService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_stock(self, branch_id: int, product_id: int) -> Optional[Inventory]:
+    async def get_stock(self, branch_id: int, product_id: int, for_update: bool = False) -> Optional[Inventory]:
         """Obtener registro de inventario para un producto en una sucursal"""
         statement = select(Inventory).where(
             Inventory.branch_id == branch_id,
             Inventory.product_id == product_id
         )
-        result = await self.session.exec(statement)
-        return result.one_or_none()
+        if for_update:
+            statement = statement.with_for_update()
+            
+        result = await self.session.execute(statement)
+        return result.scalars().one_or_none()
 
     async def initialize_stock(self, branch_id: int, product_id: int) -> Inventory:
         """Crear registro de inventario inicial (en 0)"""
@@ -44,7 +47,7 @@ class InventoryService:
         - quantity_delta: Positivo para entrada, Negativo para salida/venta
         """
         # 1. Obtener o crear inventario
-        inventory = await self.get_stock(branch_id, product_id)
+        inventory = await self.get_stock(branch_id, product_id, for_update=True)
         if not inventory:
             inventory = await self.initialize_stock(branch_id, product_id)
 
@@ -53,7 +56,11 @@ class InventoryService:
         
         # 3. Validación: No permitir stock negativo (opcional, por ahora soft-check)
         if new_balance < 0 and transaction_type in ["SALE", "OUT"]:
-            pass 
+            from fastapi import HTTPException, status
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Stock insuficiente. Disponible: {inventory.stock}, Solicitado: {abs(quantity_delta)}"
+            ) 
 
         # 4. Actualizar Inventario
         inventory.stock = new_balance
@@ -82,5 +89,5 @@ class InventoryService:
             Inventory.branch_id == branch_id,
             Inventory.stock <= Inventory.min_stock
         )
-        result = await self.session.exec(statement)
-        return result.all()
+        result = await self.session.execute(statement)
+        return result.scalars().all()

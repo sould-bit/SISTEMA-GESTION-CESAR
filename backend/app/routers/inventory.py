@@ -8,8 +8,7 @@ from pydantic import BaseModel
 from app.database import get_session
 from app.models.user import User
 from app.models.inventory import Inventory, InventoryTransaction
-from app.services.inventory_service import InventoryService
-from app.core.security import get_current_user
+from app.auth_deps import get_current_user
 from app.core.permissions import require_permission
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])

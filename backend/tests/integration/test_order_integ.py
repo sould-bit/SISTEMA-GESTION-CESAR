@@ -1,7 +1,8 @@
 import pytest
 from httpx import AsyncClient
 from sqlmodel import select, Session
-from app.models.order import Order, OrderStatus, PaymentStatus
+from app.models.order import Order, OrderStatus
+from app.models.payment import PaymentStatus
 from app.models.order_counter import OrderCounter
 from app.services.order_counter_service import OrderCounterService
 

@@ -16,10 +16,29 @@ from app.routers import (
 )
 from .core.websockets import sio # Import Socket.IO server
 import socketio
+from app.core.exceptions import RBACException, create_rbac_exception_handler
 
 # ... (omitted)
 
+
+# Inicializar App
+app = FastAPI(
+    title="SISTEMA GESTION CESAR",
+    version="0.1.0"
+)
+
+# Configurar CORS
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Incluir routers
+
 app.include_router(auth.router)
 app.include_router(category.router)
 app.include_router(rbac.router)

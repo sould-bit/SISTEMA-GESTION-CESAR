@@ -1,8 +1,10 @@
+
 from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
-from app.models.order import OrderStatus, PaymentMethod, PaymentStatus
+from app.models.order import Order, OrderStatus
+from app.models.payment import PaymentMethod, PaymentStatus
 
 # --- Order Item Schemas ---
 

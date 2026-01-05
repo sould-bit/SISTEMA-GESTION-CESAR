@@ -1,460 +1,62 @@
-import asyncio
+
 import pytest
-import pytest_asyncio
-import logging
+import asyncio
 from typing import AsyncGenerator, Generator
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool, NullPool
-from sqlalchemy import text
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
-# Importar todos los modelos para que SQLModel los registre en metadata
-from app.models import User, Company, Product, Category, Role, Permission, RolePermission, Branch
+from app.database import get_session
+from app.main import app
 
 import os
 
-# Configuración de base de datos para pruebas
-# Si estamos en el entorno Docker, preferimos PostgreSQL para pruebas de concurrencia reales
-DEFAULT_TEST_DB = "sqlite+aiosqlite:///:memory:"
-DATABASE_URL = os.getenv("DATABASE_URL")
-USE_POSTGRES = os.getenv("USE_REAL_DB", "false").lower() == "true"
-
-# Ajustar driver para async si es PostgreSQL
-if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+# Use environment variable or fallback to Docker DB
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@db:5432/cesar_db")
+if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-TEST_DATABASE_URL = DATABASE_URL if USE_POSTGRES and DATABASE_URL else DEFAULT_TEST_DB
+engine = create_async_engine(DATABASE_URL, echo=False)
+TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-@pytest_asyncio.fixture(scope="function")
-async def test_engine_fixture():
-    """Create a fresh engine for each test."""
-    connect_args = {"timeout": 30}
-    
-    if TEST_DATABASE_URL.startswith("sqlite"):
-        connect_args["check_same_thread"] = False
-        poolclass = StaticPool
-    else:
-        connect_args = {}
-        poolclass = NullPool
+@pytest.fixture(scope="session")
+def event_loop() -> Generator:
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
-    engine = create_async_engine(
-        TEST_DATABASE_URL,
-        connect_args=connect_args,
-        poolclass=poolclass,
-        echo=False,
-    )
-    yield engine
-    await engine.dispose()
-
-@pytest_asyncio.fixture(scope="function")
-async def setup_database(test_engine_fixture):
-    """Configurar base de datos para pruebas."""
-    async with test_engine_fixture.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-    
-    yield
-    
-    # Limpiar
-    if not USE_POSTGRES:
-        async with test_engine_fixture.begin() as conn:
+@pytest.fixture(scope="session")
+async def init_db():
+    try:
+        async with engine.begin() as conn:
+            # Drop all tables to ensure clean state
             await conn.run_sync(SQLModel.metadata.drop_all)
+            # Create all tables
+            await conn.run_sync(SQLModel.metadata.create_all)
+    except Exception as e:
+        print(f"Error initializing DB: {e}")
+        raise e
+    yield
+    # Optional: cleanup after all tests
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(SQLModel.metadata.drop_all)
 
-@pytest_asyncio.fixture(scope="function")
-async def db_session(setup_database, test_engine_fixture) -> AsyncGenerator[AsyncSession, None]:
-    """Sesión de base de datos limpia por test."""
-    session_maker = async_sessionmaker(
-        bind=test_engine_fixture,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    
-    async with session_maker() as session:
+@pytest.fixture
+async def session(init_db) -> AsyncGenerator[AsyncSession, None]:
+    async with TestingSessionLocal() as session:
         yield session
 
 @pytest.fixture
-def db_session_factory(test_engine_fixture, setup_database):
-    """Factory para crear sesiones (útil para override de dependencias)."""
-    return async_sessionmaker(
-        bind=test_engine_fixture,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    # Override the dependency
+    def get_session_override():
+        return session
 
-
-@pytest.fixture
-def mock_redis():
-    """Mock de Redis para pruebas."""
-    class MockRedis:
-        def __init__(self):
-            self.data = {}
-
-        async def get(self, key):
-            return self.data.get(key)
-
-        async def setex(self, key, ttl, value):
-            self.data[key] = value
-            return True
-
-        async def delete(self, *keys):
-            for key in keys:
-                self.data.pop(key, None)
-            return len(keys)
-
-        async def keys(self, pattern):
-            # Implementación simple del patrón
-            return [k for k in self.data.keys() if pattern.replace("*", "") in k]
-
-    return MockRedis()
-
-
-# Fixture para crear datos de prueba comunes
-@pytest_asyncio.fixture
-async def test_company(db_session: AsyncSession):
-    """Crear una compañía de prueba con identificadores únicos."""
-    from app.models import Company
-    from uuid import uuid4
-
-    # Usar UUID para evitar conflictos con datos existentes
-    unique_id = str(uuid4())[:8]
-
-    company = Company(
-        name=f"Empresa Test {unique_id}",
-        slug=f"test-company-{unique_id}",
-        email=f"test-{unique_id}@empresa.com",
-        phone="+1234567890",
-        address="Dirección de prueba",
-        is_active=True
-    )
-    db_session.add(company)
-    await db_session.flush()
-    await db_session.refresh(company)
-    return company
-
-
-@pytest_asyncio.fixture
-async def test_user(db_session: AsyncSession, test_company):
-    """Crear un usuario de prueba con identificadores únicos."""
-    from app.models import User
-    from app.utils.security import get_password_hash
-    from uuid import uuid4
-
-    unique_id = str(uuid4())[:8]
-    user = User(
-        username=f"testuser-{unique_id}",
-        email=f"test-{unique_id}@example.com",
-        full_name="Usuario de Prueba",
-        hashed_password=get_password_hash("testpass123"),
-        company_id=test_company.id,
-        is_active=True
-    )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    return user
-
-
-@pytest_asyncio.fixture
-async def test_permission_category(db_session: AsyncSession, test_company):
-    """Crear una categoría de permisos de prueba con identificadores únicos."""
-    from app.models import PermissionCategory
-    from uuid import uuid4
-
-    unique_id = str(uuid4())[:8]
-    category = PermissionCategory(
-        name=f"Categoría Test {unique_id}",
-        code=f"test_cat_{unique_id}",
-        company_id=test_company.id,
-        is_system=False,
-        is_active=True
-    )
-    db_session.add(category)
-    await db_session.flush()
-    await db_session.refresh(category)
-    return category
-
-
-@pytest_asyncio.fixture
-async def test_permission(db_session: AsyncSession, test_company, test_permission_category):
-    """Crear un permiso de prueba con identificadores únicos."""
-    from app.models import Permission
-    from uuid import uuid4
-
-    unique_id = str(uuid4())[:8]
-    permission = Permission(
-        name=f"Permiso Test {unique_id}",
-        code=f"test.perm.{unique_id}",
-        resource="test",
-        action="permission",
-        company_id=test_company.id,
-        category_id=test_permission_category.id,
-        is_system=False,
-        is_active=True
-    )
-    db_session.add(permission)
-    await db_session.flush()
-    await db_session.refresh(permission)
-    return permission
-
-
-@pytest_asyncio.fixture
-async def test_role(db_session: AsyncSession, test_company):
-    """Crear un rol de prueba con identificadores únicos."""
-    from app.models import Role
-    from uuid import uuid4
-
-    unique_id = str(uuid4())[:8]
-    role = Role(
-        name=f"Rol Test {unique_id}",
-        code=f"test_role_{unique_id}",
-        company_id=test_company.id,
-        hierarchy_level=50,
-        is_system=False,
-        is_active=True
-    )
-    db_session.add(role)
-    await db_session.flush()
-    await db_session.refresh(role)
-    return role
-
-
-@pytest_asyncio.fixture
-async def test_role_permission(db_session: AsyncSession, test_role, test_permission):
-    """Crear una asignación rol-permiso de prueba."""
-    from app.models import RolePermission
-
-    role_perm = RolePermission(
-        role_id=test_role.id,
-        permission_id=test_permission.id,
-        granted_by=1  # Usuario admin por defecto
-    )
-    db_session.add(role_perm)
-    await db_session.flush()
-    await db_session.refresh(role_perm)
-    return role_perm
-
-
-# ==================== FIXTURES PARA PRODUCTOS ====================
-
-# Fixtures síncronas para tests unitarios (mocks)
-@pytest.fixture
-def mock_category(test_company):
-    """Mock de categoría para tests unitarios."""
-    mock_cat = type('Category', (), {
-        'id': 1,
-        'name': "Categoría Mock",
-        'company_id': test_company.id,
-        'is_active': True
-    })()
-    return mock_cat
-
-@pytest.fixture
-def mock_product(test_company, mock_category):
-    """Mock de producto para tests unitarios."""
-    from decimal import Decimal
-    mock_prod = type('Product', (), {
-        'id': 1,
-        'name': "Producto Mock",
-        'price': Decimal('25.50'),
-        'company_id': test_company.id,
-        'category_id': mock_category.id,
-        'is_active': True
-    })()
-    return mock_prod
-
-# Fixtures async para tests de integración
-@pytest_asyncio.fixture
-async def test_category(db_session: AsyncSession, test_company):
-    """Crear una categoría de prueba en BD."""
-    from app.models import Category
-
-    category = Category(
-        name="Categoría de Prueba",
-        description="Categoría para testing de productos",
-        company_id=test_company.id,
-        is_active=True
-    )
-    db_session.add(category)
-    await db_session.flush()
-    await db_session.refresh(category)
-    return category
-
-@pytest_asyncio.fixture
-async def test_product(db_session: AsyncSession, test_company, test_category):
-    """Crear un producto de prueba en BD."""
-    from app.models import Product
-    from decimal import Decimal
-
-    product = Product(
-        name="Producto de Prueba",
-        description="Descripción del producto de prueba",
-        price=Decimal('25.50'),
-        tax_rate=Decimal('0.10'),
-        stock=Decimal('100.0'),
-        image_url="https://example.com/image.jpg",
-        company_id=test_company.id,
-        category_id=test_category.id,
-        is_active=True
-    )
-    db_session.add(product)
-    await db_session.flush()
-    await db_session.refresh(product)
-    return product
-
-@pytest_asyncio.fixture
-async def test_client(db_session_factory):
-    from httpx import AsyncClient, ASGITransport
-    from app.main import app
-    from app.database import get_session
-
-    # Override dependency para que la app use la misma DB que los tests
-    app.dependency_overrides[get_session] = lambda: db_session_factory()
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
+    app.dependency_overrides[get_session] = get_session_override
+    
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
     
     app.dependency_overrides.clear()
-
-@pytest.fixture
-def user_token(test_user, test_company):
-    """Generar token válido para el usuario de prueba."""
-    from app.utils.security import create_access_token
-    
-    token_data = {
-        "sub": test_user.username,
-        "user_id": test_user.id,
-        "company_id": test_company.id,
-        "branch_id": 1, # Dummy branch ID if needed, or None
-        "role": "admin",
-        "plan": "premium",
-        "username": test_user.username
-    }
-    return create_access_token(data=token_data)
-
-
-@pytest_asyncio.fixture
-async def test_branch(db_session: AsyncSession, test_company):
-    """Crear una sucursal de prueba."""
-    from app.models import Branch
-    from uuid import uuid4
-    
-    unique_id = str(uuid4())[:8]
-    branch = Branch(
-        name=f"Sucursal Test {unique_id}",
-        code=f"BR-{unique_id}",
-        company_id=test_company.id,
-        address="Dirección Sucursal Test",
-        is_active=True
-    )
-    db_session.add(branch)
-    await db_session.flush()
-    await db_session.refresh(branch)
-    return branch
-
-@pytest_asyncio.fixture
-async def test_products_batch(db_session: AsyncSession, test_company, test_category):
-    """Crear un lote de productos de prueba en BD."""
-    from app.models import Product
-    from decimal import Decimal
-
-    products = []
-    for i in range(5):
-        product = Product(
-            name=f"Producto {i+1}",
-            description=f"Descripción del producto {i+1}",
-            price=Decimal(f'{(i+1) * 10}.00'),
-            tax_rate=Decimal('0.10'),
-            stock=Decimal(f'{i * 20}.0'),
-            company_id=test_company.id,
-            category_id=test_category.id,
-            is_active=True
-        )
-        products.append(product)
-        db_session.add(product)
-
-    await db_session.flush()
-    for product in products:
-        await db_session.refresh(product)
-
-    return products
-
-
-@pytest_asyncio.fixture
-async def test_company_2(db_session: AsyncSession):
-    """Crear una segunda compañía con identificadores únicos para tests multi-tenant."""
-    from app.models import Company
-    from uuid import uuid4
-
-    unique_id = str(uuid4())[:8]
-    company = Company(
-        name=f"Empresa Dos {unique_id}",
-        slug=f"empresa-dos-{unique_id}",
-        email=f"contacto-{unique_id}@empresa2.com",
-        phone="+1234567890",
-        address="Dirección Empresa 2",
-        is_active=True
-    )
-    db_session.add(company)
-    await db_session.flush()
-    await db_session.refresh(company)
-    return company
-
-
-@pytest_asyncio.fixture
-async def test_user_company_2(db_session: AsyncSession, test_company_2):
-    """Crear un usuario con identificadores únicos para la segunda compañía."""
-    from app.models import User
-    from app.utils.security import get_password_hash
-    from uuid import uuid4
-
-    unique_id = str(uuid4())[:8]
-    user = User(
-        username=f"user2-{unique_id}",
-        email=f"user-{unique_id}@empresa2.com",
-        full_name="Usuario Empresa 2",
-        hashed_password=get_password_hash("testpass123"),
-        company_id=test_company_2.id,
-        is_active=True
-    )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    return user
-
-
-@pytest_asyncio.fixture
-async def test_category_company_2(db_session: AsyncSession, test_company_2):
-    """Crear una categoría para la segunda compañía."""
-    from app.models import Category
-
-    category = Category(
-        name="Categoría Empresa 2",
-        description="Categoría de la empresa 2",
-        company_id=test_company_2.id,
-        is_active=True
-    )
-    db_session.add(category)
-    await db_session.flush()
-    await db_session.refresh(category)
-    return category
-
-
-@pytest_asyncio.fixture
-async def test_product_company_2(db_session: AsyncSession, test_company_2, test_category_company_2):
-    """Crear un producto para la segunda compañía."""
-    from app.models import Product
-    from decimal import Decimal
-
-    product = Product(
-        name="Producto Empresa 2",
-        description="Producto de la empresa 2",
-        price=Decimal('15.00'),
-        tax_rate=Decimal('0.05'),  # 5%
-        stock=Decimal('50.0'),
-        company_id=test_company_2.id,
-        category_id=test_category_company_2.id,
-        is_active=True
-    )
-    db_session.add(product)
-    await db_session.flush()
-    await db_session.refresh(product)
-    return product

@@ -10,6 +10,7 @@ from sqlmodel import col
 
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.payment import Payment, PaymentStatus
+from app.services.order_counter_service import OrderCounterService
 from app.models.product import Product
 from app.schemas.order import OrderCreate, OrderRead, OrderItemRead, PaymentRead
 from app.services.print_service import PrintService
@@ -33,6 +34,11 @@ class OrderService:
             # 1. Obtener IDs de productos solicitados
             product_dict = {item.product_id: item for item in order_data.items}
             product_ids = list(product_dict.keys())
+            
+            product_ids = list(product_dict.keys())
+            
+            logger.error(f"DEBUG: create_order params - company_id type: {type(company_id)}, user_id type: {type(user_id)}")
+            logger.error(f"DEBUG: company_id value: {company_id}, user_id value: {user_id}")
             
             # 2. Consultar productos en DB (para obtener precio real y validar stock/existencia)
             stmt = select(Product).where(
@@ -211,7 +217,8 @@ class OrderService:
             raise
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"❌ Error al crear pedido: {e}")
+            import traceback
+            logger.error(f"❌ Error al crear pedido: {e}\n{traceback.format_exc()}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error interno al procesar el pedido"

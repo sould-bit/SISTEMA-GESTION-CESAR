@@ -8,7 +8,10 @@ from app.schemas.auth import TokenData
 
 
 
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+ALGORITHM = settings.ALGORITHM
+
 
 def verify_password(plain_password: str, hashed_password: str)-> bool:
     """verifica si la contraseña es correcta"""
