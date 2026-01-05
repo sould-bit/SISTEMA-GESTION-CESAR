@@ -3,7 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select, Session, SQLModel
 from .database import get_session, engine
 from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte
-from .routers import auth, category, rbac, product, recipe, order, inventory
+from app.routers import (
+    auth, 
+    rbac, 
+    product, 
+    recipe, 
+    category, 
+    inventory, 
+    order,
+    payment
+)
 from .core.websockets import sio # Import Socket.IO server
 import socketio
 
@@ -17,6 +26,7 @@ app.include_router(product.router)
 app.include_router(recipe.router)
 app.include_router(order.router)
 app.include_router(inventory.router)
+app.include_router(payment.router)
 
 # Handler global para excepciones RBAC
 app.add_exception_handler(RBACException, create_rbac_exception_handler())

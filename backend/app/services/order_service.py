@@ -8,7 +8,8 @@ from sqlalchemy import select, func
 from fastapi import HTTPException, status
 from sqlmodel import col
 
-from app.models.order import Order, OrderItem, OrderStatus, Payment, PaymentStatus
+from app.models.order import Order, OrderItem, OrderStatus
+from app.models.payment import Payment, PaymentStatus
 from app.models.product import Product
 from app.schemas.order import OrderCreate, OrderRead, OrderItemRead, PaymentRead
 from app.services.print_service import PrintService

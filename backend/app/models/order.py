@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from .product import Product
     from .company import Company
     from .branch import Branch
+    from .payment import Payment
+
 
 
 class OrderStatus(str, Enum):
@@ -21,42 +23,7 @@ class OrderStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class PaymentMethod(str, Enum):
-    """Métodos de pago soportados."""
-    CASH = "cash"
-    CARD = "card"
-    TRANSFER = "transfer"
-    OTHER = "other"
 
-
-class PaymentStatus(str, Enum):
-    """Estados de un pago."""
-    PENDING = "pending"
-    COMPLETED = "completed"
-    REFUNDED = "refunded"
-    FAILED = "failed"
-
-
-class Payment(SQLModel, table=True):
-    """
-    Modelo de Pago - Registra la transacción financiera de un pedido.
-    """
-    __tablename__ = "payments"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: int = Field(foreign_key="orders.id", nullable=False)
-    
-    amount: Decimal = Field(max_digits=12, decimal_places=2)
-    method: PaymentMethod = Field(sa_column=Column(String))
-    status: PaymentStatus = Field(default=PaymentStatus.PENDING, sa_column=Column(String, default=PaymentStatus.PENDING))
-    
-    transaction_id: Optional[str] = Field(default=None, max_length=100)  # ID de pasarela externa si aplica
-    
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(default=None)
-
-    # Relaciones
-    order: "Order" = Relationship(back_populates="payments")
 
 
 class OrderItem(SQLModel, table=True):
@@ -121,6 +88,6 @@ class Order(SQLModel, table=True):
 
     # Relaciones
     items: List[OrderItem] = Relationship(back_populates="order", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
-    payments: List[Payment] = Relationship(back_populates="order")
+    payments: List["Payment"] = Relationship(back_populates="order")
     company: "Company" = Relationship()
     branch: "Branch" = Relationship()
