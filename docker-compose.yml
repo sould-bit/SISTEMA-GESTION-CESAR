@@ -72,6 +72,38 @@ services:
       - /app/__pycache__
       - /app/.pytest_cache
 
+  # Worker de Celery para tareas asíncronas
+  celery_worker:
+    build: ./backend
+    container_name: celery_worker_FastOps
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    restart: always
+    environment:
+      # Variables de Base de Datos
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # Variables de aplicación
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      # Celery
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - postgres_network
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+
   # pgAdmin - Interfaz gráfica para PostgreSQL
   pgadmin:
     image: dpage/pgadmin4:latest
