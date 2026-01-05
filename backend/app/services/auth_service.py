@@ -24,8 +24,7 @@ from fastapi.concurrency import run_in_threadpool as run_in_executor
 from app.models.user import User
 from app.models.company import Company
 from app.schemas.auth import LoginRequest, Token, UserResponse, TokenVerification
-from app.utils.security import verify_password, create_access_token
-from app.config import settings
+from app.utils.security import verify_password, create_access_token, create_refresh_token, decode_access_token
 
 import logging
 
@@ -164,13 +163,13 @@ class AuthService:
         """
         🔄 REFRESCAR TOKEN DEL USUARIO
 
-        Genera un nuevo token para el usuario actual.
+        Genera un nuevo par de tokens para el usuario actual.
 
         Args:
-            user: Usuario ya validado por middleware
+            user: Usuario ya validado por middleware (a través del access token anterior)
 
         Returns:
-            Token: Nuevo token JWT
+            Token: Nuevos tokens JWT (Access + Refresh)
         """
         token = await self._generate_user_token(user)
         logger.info(f"✅ Token refrescado para: {user.username}")
@@ -303,9 +302,15 @@ class AuthService:
             role_id=role_id,
             role_code=role_code
         )
+        
+        # Generar refresh token (v3.4 - Ticket 3.1)
+        refresh_token = create_refresh_token(
+            data={"sub": str(user.id), "user_id": user.id, "company_id": user.company_id},
+            expires_delta=timedelta(days=7)
+        )
 
         return Token(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer"
         )
-
