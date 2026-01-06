@@ -1,7 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Index, UniqueConstraint, text
+from sqlalchemy import Index, UniqueConstraint, text, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -29,10 +29,10 @@ class Product(SQLModel, table=True):
 
     name: str = Field(max_length=200)
     description: Optional[str] = Field(default=None, max_length=500)
-    price: Decimal = Field(default=0, max_digits=12, decimal_places=2)
-    tax_rate: Decimal = Field(default=0, max_digits=5, decimal_places=2)
+    price: Decimal = Field(default=0, sa_column=Column(Numeric(12, 2)))
+    tax_rate: Decimal = Field(default=0, sa_column=Column(Numeric(5, 2)))
 
-    stock: Optional[Decimal] = Field(default=None, max_digits=10, decimal_places=2)
+    stock: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 2)))
 
     image_url: Optional[str] = Field(default=None, max_length=500)
 

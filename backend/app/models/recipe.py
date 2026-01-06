@@ -1,7 +1,7 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Index, UniqueConstraint, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
@@ -30,11 +30,11 @@ class RecipeItem(SQLModel, table=True):
     ingredient_product_id: int = Field(foreign_key="products.id", nullable=False)
 
     # Cantidad del ingrediente
-    quantity: Decimal = Field(max_digits=10, decimal_places=3)
+    quantity: Decimal = Field(sa_column=Column(Numeric(10, 3)))
     unit: str = Field(max_length=50)  # kg, unidad, litro, gramo, etc.
 
     # Snapshot del costo al momento de agregar (para histórico)
-    unit_cost: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
+    unit_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -69,7 +69,7 @@ class Recipe(SQLModel, table=True):
     description: Optional[str] = Field(default=None, max_length=500)
 
     # Costo total calculado (suma de items)
-    total_cost: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
+    total_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
 
     is_active: bool = Field(default=True)
 

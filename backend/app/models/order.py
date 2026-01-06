@@ -2,7 +2,7 @@ from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from sqlalchemy import Index, UniqueConstraint, String, Column
+from sqlalchemy import Index, UniqueConstraint, String, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ class Payment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     order_id: int = Field(foreign_key="orders.id", nullable=False)
     
-    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    amount: Decimal = Field(sa_column=Column(Numeric(12, 2)))
     method: PaymentMethod = Field(sa_column=Column(String))
     status: PaymentStatus = Field(default=PaymentStatus.PENDING, sa_column=Column(String, default=PaymentStatus.PENDING))
     
@@ -69,10 +69,10 @@ class OrderItem(SQLModel, table=True):
     order_id: int = Field(foreign_key="orders.id", nullable=False)
     product_id: int = Field(foreign_key="products.id", nullable=False)
 
-    quantity: Decimal = Field(max_digits=10, decimal_places=2)
-    unit_price: Decimal = Field(max_digits=12, decimal_places=2)
-    tax_amount: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
-    subtotal: Decimal = Field(max_digits=12, decimal_places=2)
+    quantity: Decimal = Field(sa_column=Column(Numeric(10, 2)))
+    unit_price: Decimal = Field(sa_column=Column(Numeric(12, 2)))
+    tax_amount: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
+    subtotal: Decimal = Field(sa_column=Column(Numeric(12, 2)))
     
     notes: Optional[str] = Field(default=None, max_length=255)
 
@@ -109,9 +109,9 @@ class Order(SQLModel, table=True):
     status: OrderStatus = Field(default=OrderStatus.PENDING, sa_column=Column(String, default=OrderStatus.PENDING))
     
     # Totales
-    subtotal: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
-    tax_total: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
-    total: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
+    subtotal: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
+    tax_total: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
+    total: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
     
     # Información del cliente (opcional para MVP)
     customer_notes: Optional[str] = Field(default=None, max_length=500)

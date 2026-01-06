@@ -4,41 +4,41 @@
       "username": "admin",
       "email": "admin@fastops.com",
       "password": "admin123",
-      "first_name": "Administrador",
-      "last_name": "Sistema",
+      "full_name": "Administrador Sistema",
       "is_active": true,
       "role_code": "admin",
-      "company_code": "fastops"
+      "company_code": "fastops",
+      "branch_code": "MAIN"
     },
     {
       "username": "cajero1",
       "email": "cajero@fastops.com",
       "password": "cajero123",
-      "first_name": "Juan",
-      "last_name": "Pérez",
+      "full_name": "Juan Pérez",
       "is_active": true,
       "role_code": "cashier",
-      "company_code": "fastops"
+      "company_code": "fastops",
+      "branch_code": "MAIN"
     },
     {
       "username": "cocinero1",
       "email": "cocina@fastops.com",
       "password": "cocina123",
-      "first_name": "María",
-      "last_name": "García",
+      "full_name": "María García",
       "is_active": true,
       "role_code": "kitchen",
-      "company_code": "fastops"
+      "company_code": "fastops",
+      "branch_code": "MAIN"
     },
     {
       "username": "domiciliario1",
       "email": "delivery@fastops.com",
       "password": "delivery123",
-      "first_name": "Carlos",
-      "last_name": "Rodríguez",
+      "full_name": "Carlos Rodríguez",
       "is_active": true,
       "role_code": "delivery",
-      "company_code": "fastops"
+      "company_code": "fastops",
+      "branch_code": "MAIN"
     }
   ]
 }

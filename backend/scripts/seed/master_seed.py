@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.database import get_session
 from app.models import (
     Company, User, Role, Permission, PermissionCategory,
-    RolePermission, Category, Product
+    RolePermission, Category, Product, Branch
 )
 from app.services.auth_service import AuthService
 from app.services.role_service import RoleService
@@ -111,6 +111,58 @@ class MasterSeeder:
             })
 
         return default_company
+
+    async def seed_branches(self, company: Company) -> Dict[str, "Branch"]:
+        """Carga sucursales"""
+        try:
+            data = await self.load_json("branches.json")
+        except FileNotFoundError:
+            print("ℹ️  No se encontró branches.json, creando sucursal por defecto...")
+            result = await self.session.execute(
+                select(Branch).filter(
+                    Branch.code == "MAIN",
+                    Branch.company_id == company.id
+                )
+            )
+            branch = result.scalar_one_or_none()
+            if not branch:
+                branch = Branch(
+                    name="Sucursal Principal",
+                    code="MAIN",
+                    company_id=company.id,
+                    is_main=True,
+                    is_active=True
+                )
+                self.session.add(branch)
+                await self.session.commit()
+                print(f"✅ Sucursal por defecto creada: {branch.name}")
+            return {"MAIN": branch}
+
+        branches = {}
+        for branch_data in data["branches"]:
+            company_code_in_branch = branch_data.pop("company_code", self.company_code)
+            if company_code_in_branch != company.slug:
+                continue
+
+            branch_data["company_id"] = company.id
+
+            result = await self.session.execute(
+                select(Branch).filter(
+                    Branch.code == branch_data["code"],
+                    Branch.company_id == company.id
+                )
+            )
+            branch = result.scalar_one_or_none()
+
+            if not branch:
+                branch = Branch(**branch_data)
+                self.session.add(branch)
+                print(f"✅ Sucursal creada: {branch.name}")
+
+            branches[branch.code] = branch
+
+        await self.session.commit()
+        return branches
 
     async def seed_categories(self, company: Company) -> Dict[str, PermissionCategory]:
         """Carga categorías de permisos"""
@@ -240,9 +292,10 @@ class MasterSeeder:
 
         await self.session.commit()
 
-    async def seed_users(self, company: Company, roles: Dict[str, Role]):
+    async def seed_users(self, company: Company, roles: Dict[str, Role], branches: Dict[str, "Branch"]):
         """Carga usuarios de prueba"""
         data = await self.load_json("users.json")
+        default_branch = branches.get("MAIN")
 
         for user_data in data["users"]:
             user_data_copy = user_data.copy()
@@ -250,6 +303,7 @@ class MasterSeeder:
             # Reemplazar códigos por IDs
             role_code = user_data_copy.pop("role_code")
             company_code_in_user = user_data_copy.pop("company_code")
+            branch_code = user_data_copy.pop("branch_code", "MAIN")
 
             if company_code_in_user != company.slug:
                 continue  # Saltar usuarios de otras compañías
@@ -271,6 +325,11 @@ class MasterSeeder:
                 # Crear usuario
                 user_data_copy["company_id"] = company.id
                 user_data_copy["role_id"] = roles[role_code].id
+                
+                # Asignar branch_id
+                branch = branches.get(branch_code, default_branch)
+                if branch:
+                    user_data_copy["branch_id"] = branch.id
 
                 # Hash de contraseña
                 from app.utils.security import get_password_hash
@@ -278,7 +337,7 @@ class MasterSeeder:
 
                 user = User(**user_data_copy)
                 self.session.add(user)
-                print(f"✅ Usuario creado: {user.username}")
+                print(f"✅ Usuario creado: {user.username} (branch: {branch_code})")
             else:
                 print(f"ℹ️  Usuario ya existe: {user_data['username']}")
 
@@ -378,9 +437,13 @@ class MasterSeeder:
             print("👥 Creando roles...")
             roles = await self.seed_roles(company)
 
-            # 5. Usuarios
+            # 5. Sucursales
+            print("🏪 Creando sucursales...")
+            branches = await self.seed_branches(company)
+
+            # 6. Usuarios
             print("👤 Creando usuarios...")
-            await self.seed_users(company, roles)
+            await self.seed_users(company, roles, branches)
 
             # 6. Asignaciones rol-permiso
             print("🔗 Asignando permisos a roles...")
