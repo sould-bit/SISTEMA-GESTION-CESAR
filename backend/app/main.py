@@ -1,3 +1,5 @@
+import os
+import logging
 from fastapi import FastAPI, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select, Session, SQLModel
@@ -18,7 +20,9 @@ from .core.websockets import sio # Import Socket.IO server
 import socketio
 from app.core.exceptions import RBACException, create_rbac_exception_handler
 
-# ... (omitted)
+# Logger setup
+logger = logging.getLogger(__name__)
+
 
 
 # Inicializar App

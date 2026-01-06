@@ -2,7 +2,7 @@ from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from sqlalchemy import Index, String, Column
+from sqlalchemy import Index, String, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class Payment(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", index=True, nullable=False)
     order_id: int = Field(foreign_key="orders.id", nullable=False)
     
-    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    amount: Decimal = Field(sa_column=Column(Numeric(12, 2)))
     method: PaymentMethod = Field(sa_column=Column(String))
     status: PaymentStatus = Field(default=PaymentStatus.PENDING, sa_column=Column(String, default=PaymentStatus.PENDING))
     

@@ -8,7 +8,7 @@ WORKDIR /app
 
 #copiar el archivo requirements.txt
 
-COPY requirements.txt ./requirements.txt
+COPY requirements_clean.txt ./requirements.txt
 
 #instalar las dependencias de python
 

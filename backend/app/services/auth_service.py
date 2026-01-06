@@ -25,6 +25,7 @@ from app.models.user import User
 from app.models.company import Company
 from app.schemas.auth import LoginRequest, Token, UserResponse, TokenVerification
 from app.utils.security import verify_password, create_access_token, create_refresh_token, decode_access_token
+from app.config import settings
 
 import logging
 
