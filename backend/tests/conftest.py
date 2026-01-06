@@ -9,7 +9,9 @@ from sqlmodel import SQLModel
 
 from app.database import get_session
 from app.main import app
-from app.models import Company, Category
+from app.models import Company, Category, User, Product
+from app.utils.security import get_password_hash, create_access_token
+from decimal import Decimal
 import uuid
 import os
 
@@ -63,6 +65,10 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 @pytest.fixture
+async def test_client(client):
+    yield client
+
+@pytest.fixture
 def db_session(session):
     return session
 
@@ -83,3 +89,67 @@ async def test_category(session: AsyncSession, test_company: Company):
     await session.commit()
     await session.refresh(category)
     return category
+
+@pytest.fixture
+async def test_user(session: AsyncSession, test_company: Company):
+    uid = uuid.uuid4().hex[:8]
+    hashed_password = get_password_hash("testpassword")
+    user = User(
+        username=f"user_{uid}",
+        email=f"user_{uid}@example.com",
+        hashed_password=hashed_password,
+        company_id=test_company.id,
+        is_active=True,
+        role="admin"
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+@pytest.fixture
+async def user_token(test_user: User, test_company: Company):
+    # Create valid token for testing
+    data = {
+        "sub": test_user.email,
+        "company_slug": test_company.slug,
+        "role": test_user.role,
+        "user_id": str(test_user.id)
+    }
+    return create_access_token(data=data)
+
+@pytest.fixture
+async def test_product(session: AsyncSession, test_company: Company, test_category: Category):
+    uid = uuid.uuid4().hex[:8]
+    product = Product(
+        name=f"Test Product {uid}",
+        price=Decimal("10.00"),
+        company_id=test_company.id,
+        category_id=test_category.id,
+        is_active=True,
+        stock=Decimal("100.0")
+    )
+    session.add(product)
+    await session.commit()
+    await session.refresh(product)
+    return product
+
+@pytest.fixture
+async def test_products_batch(session: AsyncSession, test_company: Company, test_category: Category):
+    products = []
+    for i in range(5):
+        uid = uuid.uuid4().hex[:8]
+        product = Product(
+            name=f"Product {i} {uid}",
+            price=Decimal("10.00"),
+            company_id=test_company.id,
+            category_id=test_category.id,
+            is_active=True,
+            stock=Decimal("100.0")
+        )
+        session.add(product)
+        products.append(product)
+    await session.commit()
+    for p in products:
+        await session.refresh(p)
+    return products

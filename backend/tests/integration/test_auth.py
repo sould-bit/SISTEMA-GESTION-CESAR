@@ -31,11 +31,8 @@ async def test_auth_login_flow(client: AsyncClient, session: AsyncSession):
     session.add(user)
     await session.refresh(user)
     
-    # Mock Config
-    from app.main import app
-    # Ensure no overrides affect this test
-    app.dependency_overrides.clear()
     await session.commit()
+    # await session.refresh(user)
     
     # 2. Test Login
     login_data = {
