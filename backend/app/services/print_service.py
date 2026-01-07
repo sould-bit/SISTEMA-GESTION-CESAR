@@ -30,10 +30,7 @@ class PrintService:
         """
         Crea un trabajo de impresión y lo envía a la cola (Celery).
         """
-        # Importación local para evitar ciclo
-        from app.tasks.tasks import print_order_task
-
-        # Check Circuit Breaker
+        # Check Circuit Breaker FIRST (before any imports that might fail)
         cb = await self._get_cb()
         if await cb.is_open():
             logger.warning(f"⛔ PrintService Circuit Breaker OPEN. Rejecting Order {order_id}")
@@ -52,6 +49,8 @@ class PrintService:
         await self.db.commit()
         await self.db.refresh(job)
 
+        # Importación local DESPUÉS del CB check para evitar errores de import
+        from app.tasks.tasks import print_order_task
         # Enviar a Celery (pasamos solo el ID)
         print_order_task.delay(job.id)
         
