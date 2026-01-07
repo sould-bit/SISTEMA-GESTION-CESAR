@@ -292,6 +292,7 @@ class RegistrationService:
             {"code": "reports", "name": "Reportes", "icon": "analytics", "color": "#607D8B"},
             {"code": "users", "name": "Usuarios", "icon": "people", "color": "#F44336"},
             {"code": "settings", "name": "Configuración", "icon": "settings", "color": "#795548"},
+            {"code": "admin", "name": "Administración", "icon": "admin_panel_settings", "color": "#673AB7"},
         ]
         
         default_permissions = [
@@ -323,6 +324,13 @@ class RegistrationService:
             # Configuración
             {"category": "settings", "code": "settings.read", "name": "Ver configuración", "resource": "settings", "action": "read"},
             {"category": "settings", "code": "settings.update", "name": "Modificar configuración", "resource": "settings", "action": "update"},
+            # Admin RBAC
+            {"category": "admin", "code": "admin.roles.create", "name": "Crear roles", "resource": "admin.roles", "action": "create"},
+            {"category": "admin", "code": "admin.roles.read", "name": "Ver roles", "resource": "admin.roles", "action": "read"},
+            {"category": "admin", "code": "admin.roles.update", "name": "Editar roles", "resource": "admin.roles", "action": "update"},
+            {"category": "admin", "code": "admin.roles.delete", "name": "Eliminar roles", "resource": "admin.roles", "action": "delete"},
+            {"category": "admin", "code": "admin.permissions.read", "name": "Ver permisos", "resource": "admin.permissions", "action": "read"},
+            {"category": "admin", "code": "admin.permissions.update", "name": "Asignar permisos", "resource": "admin.permissions", "action": "update"},
         ]
         
         # Crear categorías
