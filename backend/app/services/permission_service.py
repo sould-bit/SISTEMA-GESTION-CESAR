@@ -101,8 +101,9 @@ class PermissionService:
                 source="database"
             )
 
-            # Cachear los permisos para futuras consultas
-            await self.cache.set_user_permissions(user_id, company_id, permission_codes)
+            # Cachear los permisos para futuras consultas (si cache está disponible)
+            if self.cache:
+                await self.cache.set_user_permissions(user_id, company_id, permission_codes)
 
             self.logger.debug(
                 f"Permisos guardados en cache para usuario {user_id}",
