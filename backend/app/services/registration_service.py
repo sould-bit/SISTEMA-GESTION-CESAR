@@ -15,6 +15,9 @@ from app.models.subscription import Subscription
 from app.models.branch import Branch
 from app.models.user import User
 from app.models.role import Role
+from app.models.permission_category import PermissionCategory
+from app.models.permission import Permission
+from app.models.role_permission import RolePermission
 from app.schemas.registration import (
     RegistrationRequest, 
     RegistrationResponse,
@@ -113,6 +116,9 @@ class RegistrationService:
             
             # 5. Obtener o crear Role admin para esta empresa
             admin_role = await self._get_or_create_admin_role(company)
+            
+            # 5.5 Crear permisos por defecto y asignarlos al admin
+            await self._create_default_permissions(company, admin_role)
             
             # 6. Crear User admin (owner)
             user = await self._create_admin_user(
@@ -271,3 +277,100 @@ class RegistrationService:
         refresh_token = create_refresh_token(data=token_data)
         
         return access_token, refresh_token
+
+    async def _create_default_permissions(self, company: Company, admin_role: Role):
+        """
+        Crear categorías de permisos y permisos por defecto.
+        Asignar todos los permisos al rol admin.
+        """
+        # Definir categorías y permisos del sistema
+        default_categories = [
+            {"code": "products", "name": "Productos", "icon": "inventory_2", "color": "#4CAF50"},
+            {"code": "orders", "name": "Pedidos", "icon": "receipt_long", "color": "#2196F3"},
+            {"code": "inventory", "name": "Inventario", "icon": "warehouse", "color": "#FF9800"},
+            {"code": "cash", "name": "Caja", "icon": "point_of_sale", "color": "#9C27B0"},
+            {"code": "reports", "name": "Reportes", "icon": "analytics", "color": "#607D8B"},
+            {"code": "users", "name": "Usuarios", "icon": "people", "color": "#F44336"},
+            {"code": "settings", "name": "Configuración", "icon": "settings", "color": "#795548"},
+        ]
+        
+        default_permissions = [
+            # Productos
+            {"category": "products", "code": "products.create", "name": "Crear productos", "resource": "products", "action": "create"},
+            {"category": "products", "code": "products.read", "name": "Ver productos", "resource": "products", "action": "read"},
+            {"category": "products", "code": "products.update", "name": "Editar productos", "resource": "products", "action": "update"},
+            {"category": "products", "code": "products.delete", "name": "Eliminar productos", "resource": "products", "action": "delete"},
+            # Pedidos
+            {"category": "orders", "code": "orders.create", "name": "Crear pedidos", "resource": "orders", "action": "create"},
+            {"category": "orders", "code": "orders.read", "name": "Ver pedidos", "resource": "orders", "action": "read"},
+            {"category": "orders", "code": "orders.update", "name": "Actualizar pedidos", "resource": "orders", "action": "update"},
+            {"category": "orders", "code": "orders.cancel", "name": "Cancelar pedidos", "resource": "orders", "action": "cancel"},
+            # Inventario
+            {"category": "inventory", "code": "inventory.read", "name": "Ver inventario", "resource": "inventory", "action": "read"},
+            {"category": "inventory", "code": "inventory.adjust", "name": "Ajustar inventario", "resource": "inventory", "action": "adjust"},
+            # Caja
+            {"category": "cash", "code": "cash.open", "name": "Abrir caja", "resource": "cash", "action": "open"},
+            {"category": "cash", "code": "cash.close", "name": "Cerrar caja", "resource": "cash", "action": "close"},
+            {"category": "cash", "code": "cash.read", "name": "Ver movimientos", "resource": "cash", "action": "read"},
+            # Reportes
+            {"category": "reports", "code": "reports.sales", "name": "Ver reportes de ventas", "resource": "reports", "action": "sales"},
+            {"category": "reports", "code": "reports.financial", "name": "Ver reportes financieros", "resource": "reports", "action": "financial"},
+            # Usuarios
+            {"category": "users", "code": "users.create", "name": "Crear usuarios", "resource": "users", "action": "create"},
+            {"category": "users", "code": "users.read", "name": "Ver usuarios", "resource": "users", "action": "read"},
+            {"category": "users", "code": "users.update", "name": "Editar usuarios", "resource": "users", "action": "update"},
+            {"category": "users", "code": "users.delete", "name": "Eliminar usuarios", "resource": "users", "action": "delete"},
+            # Configuración
+            {"category": "settings", "code": "settings.read", "name": "Ver configuración", "resource": "settings", "action": "read"},
+            {"category": "settings", "code": "settings.update", "name": "Modificar configuración", "resource": "settings", "action": "update"},
+        ]
+        
+        # Crear categorías
+        category_map = {}
+        for cat_data in default_categories:
+            category = PermissionCategory(
+                company_id=company.id,
+                code=cat_data["code"],
+                name=cat_data["name"],
+                icon=cat_data["icon"],
+                color=cat_data["color"],
+                is_system=True,
+                is_active=True
+            )
+            self.db.add(category)
+            await self.db.flush()
+            category_map[cat_data["code"]] = category
+        
+        logger.info(f"✅ {len(category_map)} categorías de permisos creadas")
+        
+        # Crear permisos y asignar al admin
+        permissions_created = 0
+        for perm_data in default_permissions:
+            category = category_map.get(perm_data["category"])
+            if not category:
+                continue
+                
+            permission = Permission(
+                company_id=company.id,
+                category_id=category.id,
+                code=perm_data["code"],
+                name=perm_data["name"],
+                resource=perm_data["resource"],
+                action=perm_data["action"],
+                is_system=True,
+                is_active=True
+            )
+            self.db.add(permission)
+            await self.db.flush()
+            
+            # Asignar al rol admin
+            role_permission = RolePermission(
+                role_id=admin_role.id,
+                permission_id=permission.id,
+                granted_at=datetime.utcnow()
+            )
+            self.db.add(role_permission)
+            permissions_created += 1
+        
+        await self.db.flush()
+        logger.info(f"✅ {permissions_created} permisos creados y asignados a admin")
