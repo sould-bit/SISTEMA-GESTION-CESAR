@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.inventory import Inventory, InventoryTransaction
 from app.auth_deps import get_current_user
 from app.core.permissions import require_permission
+from app.services.inventory_service import InventoryService
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -39,7 +40,7 @@ class InventoryResponse(BaseModel):
 # -----------------------------------------------
 
 @router.get("/{branch_id}", response_model=List[InventoryResponse])
-@require_permission("inventory:list")
+@require_permission("inventory.read")
 async def list_branch_inventory(
     branch_id: int,
     current_user: User = Depends(get_current_user),
@@ -78,7 +79,7 @@ async def list_branch_inventory(
     return response
 
 @router.post("/adjust", response_model=dict)
-@require_permission("inventory:adjust")
+@require_permission("inventory.adjust")
 async def adjust_stock(
     adjustment: StockAdjustmentRequest,
     current_user: User = Depends(get_current_user),
@@ -102,7 +103,7 @@ async def adjust_stock(
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/alerts/{branch_id}")
-@require_permission("inventory:list")
+@require_permission("inventory.read")
 async def get_low_stock(
     branch_id: int,
     session: Session = Depends(get_session),
