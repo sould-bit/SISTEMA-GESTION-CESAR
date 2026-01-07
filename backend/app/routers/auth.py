@@ -27,9 +27,16 @@ from app.schemas.auth import(
     UserResponse,
     TokenVerification
 )
+from app.schemas.registration import (
+    RegistrationRequest,
+    RegistrationResponse,
+    CompanyAvailabilityCheck,
+    CompanyAvailabilityResponse
+)
 from app.utils.security import decode_access_token
 from app.config import settings
 from app.services import AuthService
+from app.services.registration_service import RegistrationService
 
 from logging import getLogger
 
@@ -58,6 +65,60 @@ def get_auth_service(session: AsyncSession = Depends(get_session)) -> AuthServic
     Proporciona una instancia del AuthService con la sesión de BD.
     """
     return AuthService(session)
+
+def get_registration_service(session: AsyncSession = Depends(get_session)) -> RegistrationService:
+    """
+    🛠️ DEPENDENCIA: INYECTAR REGISTRATION SERVICE
+    """
+    return RegistrationService(session)
+
+# ============================================
+# ENDPOINT: REGISTRO PÚBLICO
+# ============================================
+@router.post("/register", response_model=RegistrationResponse)
+async def register_company(
+    data: RegistrationRequest,
+    registration_service: RegistrationService = Depends(get_registration_service)
+):
+    """
+    🏢 REGISTRAR NUEVO NEGOCIO (Público - Sin autenticación)
+
+    Crea automáticamente:
+    - Company con el plan seleccionado (free/basic/premium)
+    - Subscription (activa o trial de 14 días)
+    - Branch "Principal"
+    - Rol admin para la empresa
+    - Usuario admin (el owner)
+
+    Retorna token JWT para auto-login.
+
+    Ejemplo:
+    ```json
+    POST /auth/register
+    {
+        "company_name": "Mi Restaurante",
+        "company_slug": "mi-restaurante",
+        "owner_name": "Juan Pérez",
+        "owner_email": "juan@email.com",
+        "password": "miPassword123",
+        "plan": "free"
+    }
+    ```
+    """
+    return await registration_service.register_company(data)
+
+@router.post("/check-slug", response_model=CompanyAvailabilityResponse)
+async def check_slug_availability(
+    data: CompanyAvailabilityCheck,
+    registration_service: RegistrationService = Depends(get_registration_service)
+):
+    """
+    🔍 VERIFICAR DISPONIBILIDAD DE SLUG (Público)
+
+    Verifica si un identificador de empresa está disponible.
+    Si no lo está, sugiere una alternativa.
+    """
+    return await registration_service.check_slug_availability(data.slug)
 
 # ============================================
 # ENDPOINT: LOGIN
