@@ -57,12 +57,21 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     def get_session_override():
         return session
 
-    app.dependency_overrides[get_session] = get_session_override
+    # If app is wrapped in socketio.ASGIApp, we need to access the inner FastAPI app
+    fastapi_app = app
+    if hasattr(app, "other_asgi_app"):
+        fastapi_app = app.other_asgi_app
+
+    fastapi_app.dependency_overrides[get_session] = get_session_override
     
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    # httpx AsyncClient accepts 'app' or 'transport'
+    # 'transport' is usually preferred for ASGI apps
+    from httpx import ASGITransport
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()
 
 @pytest.fixture
 async def test_client(client):
