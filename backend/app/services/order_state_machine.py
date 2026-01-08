@@ -8,6 +8,7 @@ from sqlalchemy import text, update
 from app.models.order import Order, OrderStatus
 from app.models.order_audit import OrderAudit
 from app.models.user import User
+from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -190,5 +191,17 @@ class OrderStateMachine:
         Ejecuta lógicas no críticas (fuego y olvido) DESPUÉS del commit.
         Ej: Enviar notificaciones, websockets, emails.
         """
-        # TODO: Implementar envío de eventos (Ticket 7)
-        pass
+        try:
+            # Notify Status Change
+            await NotificationService.notify_order_status(
+                order_id=order.id,
+                status=new_status.value,
+                company_id=order.company_id,
+                branch_id=order.branch_id
+            )
+            # Also notify kitchen or other roles if specific transitions occur
+            if new_status == OrderStatus.PREPARING:
+                # Maybe notify kitchen that order is now preparing?
+                pass
+        except Exception as e:
+            logger.error(f"⚠️ Error al enviar notificación WS (Status): {e}")

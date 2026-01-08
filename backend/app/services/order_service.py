@@ -16,6 +16,7 @@ from app.schemas.order import OrderCreate, OrderRead, OrderItemRead, PaymentRead
 from app.services.print_service import PrintService
 from app.services.inventory_service import InventoryService
 from app.services.recipe_service import RecipeService
+from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +211,20 @@ class OrderService:
             except Exception as e:
                 # No fallamos el pedido si falla la impresión, solo logueamos
                 logger.error(f"⚠️ Error al enviar a impresión: {e}")
+
+            # 11. Trigger WebSocket Events (Async)
+            # Convert to dict for JSON serialization
+            try:
+                # Basic sync to dict for WS (or use schema dump)
+                # refreshed_order is ORM model, need schema or dict
+                # We used _build_order_response to return, let's use that data
+                response_schema = self._build_order_response(refreshed_order)
+                order_dict = response_schema.model_dump(mode='json')
+
+                await NotificationService.notify_order_created(order_dict, company_id)
+                await NotificationService.notify_kitchen(order_dict, order_data.branch_id)
+            except Exception as e:
+                logger.error(f"⚠️ Error al enviar notificación WS: {e}")
 
             return self._build_order_response(refreshed_order)
 
