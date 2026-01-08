@@ -162,3 +162,8 @@ async def debug_users(company_slug: str, session = Depends(get_session)):
         }
     except Exception as e:
         return {"error": str(e)}
+
+# MOUNT SOCKET.IO
+# Esto permite que la app maneje tanto HTTP (FastAPI) como WebSockets (Socket.IO)
+# socket_path default es 'socket.io', debe coincidir con el cliente
+app = socketio.ASGIApp(sio, app)
