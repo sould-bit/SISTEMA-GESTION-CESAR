@@ -536,12 +536,11 @@ class TestProductRouterIntegration:
         """Helper para asignar permisos a un usuario de prueba."""
         # Buscar o crear el permiso
         from app.models import Permission, PermissionCategory
+        from sqlmodel import select
 
         # Crear categoría si no existe
-        category = await db_session.execute(
-            db_session.query(PermissionCategory).filter_by(code="products")
-        )
-        category = category.scalar_one_or_none()
+        stmt = select(PermissionCategory).where(PermissionCategory.code == "products")
+        category = (await db_session.execute(stmt)).scalar_one_or_none()
 
         if not category:
             category = PermissionCategory(
@@ -556,10 +555,8 @@ class TestProductRouterIntegration:
             await db_session.refresh(category)
 
         # Buscar o crear el permiso
-        permission = await db_session.execute(
-            db_session.query(Permission).filter_by(code=permission_code)
-        )
-        permission = permission.scalar_one_or_none()
+        stmt = select(Permission).where(Permission.code == permission_code)
+        permission = (await db_session.execute(stmt)).scalar_one_or_none()
 
         if not permission:
             permission = Permission(
@@ -577,10 +574,8 @@ class TestProductRouterIntegration:
             await db_session.refresh(permission)
 
         # Crear rol si no existe
-        role = await db_session.execute(
-            db_session.query(Role).filter_by(company_id=user.company_id)
-        )
-        role = role.scalar_one_or_none()
+        stmt = select(Role).where(Role.company_id == user.company_id)
+        role = (await db_session.execute(stmt)).scalar_one_or_none()
 
         if not role:
             role = Role(

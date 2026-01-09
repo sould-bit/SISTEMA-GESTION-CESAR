@@ -34,7 +34,8 @@ async def test_inventory_flow(db_session: AsyncSession):
         name=f"Main Branch {uid}", 
         address="123 St", 
         phone="123", 
-        company_id=company.id
+        company_id=company.id,
+        code=f"MB-{uid}"
     )
     session.add(branch)
     await session.commit()
@@ -48,11 +49,13 @@ async def test_inventory_flow(db_session: AsyncSession):
     session.add(product)
     await session.commit()
     
+    from app.utils.security import get_password_hash
     user = User(
         username=f"inv_manager_{uid}", 
         email=f"inv_{uid}@test.com", 
         company_id=company.id, 
-        role_id=None
+        role_id=None,
+        hashed_password=get_password_hash("password123")
     )
     session.add(user)
     await session.commit()
@@ -74,8 +77,8 @@ async def test_inventory_flow(db_session: AsyncSession):
     assert inventory.branch_id == branch.id
     
     # Verify Transaction
-    result = await session.exec(select(InventoryTransaction).where(InventoryTransaction.inventory_id == inventory.id))
-    txn = result.first()
+    result = await session.execute(select(InventoryTransaction).where(InventoryTransaction.inventory_id == inventory.id))
+    txn = result.scalars().first()
     assert txn is not None
     assert txn.transaction_type == "IN"
     assert txn.quantity == Decimal("100.000")
