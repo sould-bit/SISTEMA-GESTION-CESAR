@@ -81,6 +81,22 @@
       "category": "order_management"
     },
     {
+      "name": "Ver Inventario",
+      "code": "inventory.read",
+      "resource": "inventory",
+      "action": "read",
+      "description": "Permite ver inventario",
+      "category": "inventory_management"
+    },
+    {
+      "name": "Ajustar Inventario",
+      "code": "inventory.adjust",
+      "resource": "inventory",
+      "action": "adjust",
+      "description": "Permite ajustar stock de inventario",
+      "category": "inventory_management"
+    },
+    {
       "name": "Ver Reportes",
       "code": "reports.read",
       "resource": "reports",

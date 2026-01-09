@@ -609,3 +609,4 @@ class TestProductRouterIntegration:
 
         await db_session.commit()
 
+

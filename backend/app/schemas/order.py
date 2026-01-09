@@ -55,6 +55,12 @@ class OrderCreate(BaseModel):
     # Pagos opcionales al crear (ej: pago completo en caja o pedido web pagado)
     payments: Optional[List[PaymentCreate]] = None
 
+    # CRM Fields (V5.0)
+    customer_id: Optional[int] = None
+    delivery_type: str = "dine_in" # dine_in, takeaway, delivery
+    delivery_address: Optional[str] = None
+    delivery_notes: Optional[str] = None
+
     @field_validator('items')
     def validate_items_params(cls, v):
         if not v:
@@ -78,6 +84,13 @@ class OrderRead(BaseModel):
     customer_notes: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    # CRM Fields
+    customer_id: Optional[int] = None
+    delivery_type: str = "dine_in"
+    delivery_address: Optional[str] = None
+    delivery_notes: Optional[str] = None
+    delivery_fee: Decimal = Decimal("0.00")
     
     items: List[OrderItemRead] = []
     payments: List[PaymentRead] = []
