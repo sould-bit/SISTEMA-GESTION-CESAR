@@ -184,7 +184,10 @@ class MasterSeeder:
             if not category:
                 category = PermissionCategory(**category_data)
                 self.session.add(category)
+                await self.session.flush()  # Flush to get ID immediately
                 print(f"✅ Categoría creada: {category.name}")
+            else:
+                print(f"ℹ️  Categoría ya existe: {category.code}")
 
             categories[category.code] = category
 
@@ -217,7 +220,10 @@ class MasterSeeder:
             if not permission:
                 permission = Permission(**permission_data)
                 self.session.add(permission)
+                await self.session.flush()  # Commit inmediato para evitar conflictos
                 print(f"✅ Permiso creado: {permission.name}")
+            else:
+                print(f"ℹ️  Permiso ya existe: {permission.code}")
 
             permissions[permission.code] = permission
 

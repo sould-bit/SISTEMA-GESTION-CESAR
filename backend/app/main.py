@@ -1,51 +1,15 @@
-import os
-import logging
 from fastapi import FastAPI, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select, Session, SQLModel
 from .database import get_session, engine
 from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte
-from app.routers import (
-    auth, 
-    rbac, 
-    product, 
-    recipe, 
-    category, 
-    inventory, 
-    order,
-    payment,
-    cash,
-    reports,
-    customers,
-    storefront
-)
+from .routers import auth, category, rbac, product, recipe, order, inventory
 from .core.websockets import sio # Import Socket.IO server
 import socketio
-from app.core.exceptions import RBACException, create_rbac_exception_handler
 
-# Logger setup
-logger = logging.getLogger(__name__)
-
-
-
-# Inicializar App
-app = FastAPI(
-    title="SISTEMA GESTION CESAR",
-    version="0.1.0"
-)
-
-# Configurar CORS
-origins = ["*"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ... (omitted)
 
 # Incluir routers
-
 app.include_router(auth.router)
 app.include_router(category.router)
 app.include_router(rbac.router)
@@ -53,12 +17,6 @@ app.include_router(product.router)
 app.include_router(recipe.router)
 app.include_router(order.router)
 app.include_router(inventory.router)
-app.include_router(payment.router)
-app.include_router(cash.router)
-app.include_router(reports.router)
-
-app.include_router(customers.router)
-app.include_router(storefront.router)
 
 # Handler global para excepciones RBAC
 app.add_exception_handler(RBACException, create_rbac_exception_handler())
@@ -169,8 +127,3 @@ async def debug_users(company_slug: str, session = Depends(get_session)):
         }
     except Exception as e:
         return {"error": str(e)}
-
-# MOUNT SOCKET.IO
-# Esto permite que la app maneje tanto HTTP (FastAPI) como WebSockets (Socket.IO)
-# socket_path default es 'socket.io', debe coincidir con el cliente
-app = socketio.ASGIApp(sio, app)
