@@ -1,14 +1,14 @@
 """
-Test Script: Customer (PWA) Flow
+Test Script: Customer (PWA) Flow via Storefront API
 Ejecutar DESPUÉS de test_admin_flow.py
 
 Flujo:
 1. Registro Público (sin login)
 2. Login por Teléfono
-3. Ver Productos Disponibles
-4. Agregar Dirección
-5. Crear Pedido Delivery
-6. (Opcional) Pagar
+3. Ver Sucursales Disponibles
+4. Ver Menú de Sucursal
+5. Agregar Dirección (con token customer)
+6. Crear Pedido Delivery (con token customer)
 """
 import asyncio
 import httpx
@@ -47,20 +47,19 @@ async def main():
             state["branch_id"] = admin_state["branch_id"]
     except FileNotFoundError:
         log("⚠️  Ejecuta primero test_admin_flow.py para crear datos base", "error")
-        sys.exit(1)
+        state["branch_id"] = 1  # Fallback a sucursal 1
     
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as client:
         log("FLUJO CUSTOMER (PWA) - Experiencia del Usuario Final", "section")
         
         await run_step("1. Registro Público", register_public, client)
         await run_step("2. Login por Teléfono", login_phone, client)
-        await run_step("3. Ver Productos", browse_products, client)
-        # Address/Order require admin auth, customer JWT not recognized
-        # await run_step("4. Agregar Dirección", add_address, client)
-        # await run_step("5. Crear Pedido Delivery", create_delivery_order, client)
+        await run_step("3. Ver Sucursales", browse_branches, client)
+        await run_step("4. Ver Menú", browse_menu, client)
+        await run_step("5. Agregar Dirección", add_address, client)
+        await run_step("6. Crear Pedido Delivery", create_delivery_order, client)
         
-        log("\n✅ FLUJO CUSTOMER (BÁSICO) COMPLETADO - Registro y Login OK", "success")
-        log("⚠️  Address/Order omitidos: requieren implementar auth de customer", "success")
+        log("\n✅ FLUJO CUSTOMER COMPLETO - Todos los endpoints funcionando", "success")
 
 # --- Steps ---
 
@@ -91,20 +90,51 @@ async def login_phone(client):
     
     token = res.json()["access_token"]
     state["headers"] = {"Authorization": f"Bearer {token}"}
-    log("Logueado con token", "success")
+    log("Logueado con token customer", "success")
 
-async def browse_products(client):
-    # Productos deberían ser públicos para PWA, pero el endpoint actual requiere auth.
-    # Por ahora, omitimos este paso o lo marcamos como pendiente.
-    # Si hubiera un endpoint público: GET /products/public?company_slug=fastops
-    log("Productos: (Omitido - endpoint requiere auth de admin, no de customer)", "success")
-    # Usamos el producto del test_state.json que viene del admin flow
-    if state.get("product_id"):
-        log(f"Usando producto ID: {state['product_id']} del Admin Flow", "success")
+async def browse_branches(client):
+    """Ver sucursales disponibles (público)."""
+    res = await client.get(f"/storefront/{COMPANY_SLUG}/branches")
+    if res.status_code != 200:
+        raise Exception(f"Branches failed: {res.text}")
+    
+    branches = res.json()
+    log(f"Sucursales disponibles: {len(branches)}", "success")
+    
+    # Usar la primera sucursal si no tenemos una del admin flow
+    if branches and not state.get("branch_id"):
+        state["branch_id"] = branches[0]["id"]
 
+async def browse_menu(client):
+    """Ver menú de la sucursal (público)."""
+    branch_id = state.get("branch_id", 1)
+    res = await client.get(f"/storefront/{COMPANY_SLUG}/branches/{branch_id}/menu")
+    if res.status_code != 200:
+        raise Exception(f"Menu failed: {res.text}")
+    
+    menu = res.json()
+    total_products = sum(len(cat.get("products", [])) for cat in menu.get("categories", []))
+    log(f"Menú: {len(menu.get('categories', []))} categorías, {total_products} productos", "success")
+    
+    # Obtener un producto disponible
+    for cat in menu.get("categories", []):
+        for prod in cat.get("products", []):
+            if prod.get("available"):
+                state["product_id"] = prod["id"]
+                log(f"Producto seleccionado: {prod['name']} (${prod['price']})", "success")
+                return
+    
+    # Si no hay disponible, usar el del admin flow o primero de la lista
+    if not state.get("product_id"):
+        for cat in menu.get("categories", []):
+            for prod in cat.get("products", []):
+                state["product_id"] = prod["id"]
+                log(f"Producto (sin stock): {prod['name']}", "success")
+                return
 
 async def add_address(client):
-    res = await client.post(f"/customers/{state['customer_id']}/addresses", json={
+    """Agregar dirección usando storefront/me/addresses."""
+    res = await client.post("/storefront/me/addresses", json={
         "name": "Casa",
         "address": f"Calle {random.randint(1,100)} # {random.randint(1,50)}-{random.randint(1,99)}",
         "details": f"Apto {random.randint(100,999)}",
@@ -113,30 +143,24 @@ async def add_address(client):
         "is_default": True
     }, headers=state["headers"])
     
-    if res.status_code != 200:
+    if res.status_code not in [200, 201]:
         raise Exception(f"Address failed: {res.text}")
     
     state["address"] = res.json()
     log(f"Dirección guardada: {state['address']['address']}", "success")
 
 async def create_delivery_order(client):
-    # Este endpoint puede requerir token de admin o adaptarse para customer
-    # Por ahora simulamos que el customer hace el pedido via PWA
-    # y el backend lo procesa (podría ser un endpoint público con company_slug)
-    
-    res = await client.post("/orders/", json={
+    """Crear pedido usando storefront/me/orders."""
+    res = await client.post("/storefront/me/orders", json={
         "branch_id": state["branch_id"],
-        "customer_id": state["customer_id"],
-        "delivery_type": "delivery",
         "delivery_address": f"{state['address']['address']} - {state['address'].get('details', '')}",
         "delivery_notes": "Llamar al llegar",
-        "delivery_fee": 5000,
         "items": [
             {"product_id": state["product_id"], "quantity": 1, "notes": "Sin cebolla"}
         ]
     }, headers=state["headers"])
     
-    if res.status_code != 200:
+    if res.status_code not in [200, 201]:
         raise Exception(f"Order failed: {res.text}")
     
     order = res.json()
