@@ -15,6 +15,9 @@ from decimal import Decimal
 import uuid
 import os
 
+# Import Redis Mock Fixture
+from tests.fixtures.redis_mock import mock_redis
+
 # Use environment variable or fallback to Docker DB
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@db:5432/cesar_db")
 if DATABASE_URL.startswith("postgresql://"):

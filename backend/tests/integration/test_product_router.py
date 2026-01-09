@@ -104,7 +104,7 @@ class TestProductRouterIntegration:
         # Assert
         assert response.status_code == status.HTTP_403_FORBIDDEN
         data = response.json()
-        assert "No tienes permiso" in data["detail"]
+        assert "Permiso denegado" in data["detail"]
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -187,7 +187,7 @@ class TestProductRouterIntegration:
 
         # Act - Búsqueda por nombre
         response = await test_client.get(
-            "/products/?search=Producto 1",
+            "/products/?search=Product 1",
             headers={"Authorization": f"Bearer {user_token}"}
         )
 
@@ -196,7 +196,7 @@ class TestProductRouterIntegration:
         data = response.json()
 
         assert len(data) >= 1
-        assert "Producto 1" in data[0]["name"]
+        assert "Product 1" in data[0]["name"]
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -492,7 +492,7 @@ class TestProductRouterIntegration:
 
         # Act
         response = await test_client.get(
-            "/products/search/?q=Producto&limit=10",
+            "/products/search/?q=Product&limit=10",
             headers={"Authorization": f"Bearer {user_token}"}
         )
 
@@ -501,9 +501,9 @@ class TestProductRouterIntegration:
         data = response.json()
 
         assert isinstance(data, list)
-        assert len(data) >= 5  # Todos contienen "Producto"
+        assert len(data) >= 5  # Todos contienen "Product"
         for product in data:
-            assert "Producto" in product["name"]
+            assert "Product" in product["name"]
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -554,8 +554,11 @@ class TestProductRouterIntegration:
             await db_session.commit()
             await db_session.refresh(category)
 
-        # Buscar o crear el permiso
-        stmt = select(Permission).where(Permission.code == permission_code)
+        # Buscar o crear el permiso para ESTA compañía
+        stmt = select(Permission).where(
+            Permission.code == permission_code,
+            Permission.company_id == user.company_id
+        )
         permission = (await db_session.execute(stmt)).scalar_one_or_none()
 
         if not permission:
@@ -594,13 +597,22 @@ class TestProductRouterIntegration:
         user.role_id = role.id
         db_session.add(user)
 
-        # Crear relación rol-permiso
-        role_permission = RolePermission(
-            role_id=role.id,
-            permission_id=permission.id,
-            granted_by=1
+        # Verificar si el permiso ya está asignado al rol
+        stmt = select(RolePermission).where(
+            RolePermission.role_id == role.id,
+            RolePermission.permission_id == permission.id
         )
-        db_session.add(role_permission)
+        existing_rp = (await db_session.execute(stmt)).scalar_one_or_none()
+
+        if not existing_rp:
+            # Crear relación rol-permiso
+            role_permission = RolePermission(
+                role_id=role.id,
+                permission_id=permission.id,
+                granted_by=1
+            )
+            db_session.add(role_permission)
 
         await db_session.commit()
+        await db_session.refresh(user)
 
