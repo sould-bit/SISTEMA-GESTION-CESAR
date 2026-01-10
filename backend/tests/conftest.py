@@ -26,28 +26,30 @@ if DATABASE_URL.startswith("postgresql://"):
 engine = create_async_engine(DATABASE_URL, echo=False)
 TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# NOTE: event_loop fixture removed to avoid conflict with pytest-asyncio 0.24+
+# when asyncio_default_fixture_loop_scope = session is set in pytest.ini
 
 @pytest.fixture(scope="session")
 async def init_db():
     try:
+        # Check dialect
+        is_postgres = engine.url.drivername == 'postgresql+asyncpg'
+
         async with engine.begin() as conn:
-            # Drop all tables to ensure clean state
-            await conn.run_sync(SQLModel.metadata.drop_all)
+            if is_postgres:
+                from sqlalchemy import text
+                # CASCADE drop for Postgres to handle foreign keys
+                await conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+            else:
+                # Standard drop for SQLite
+                await conn.run_sync(SQLModel.metadata.drop_all)
+
             # Create all tables
             await conn.run_sync(SQLModel.metadata.create_all)
     except Exception as e:
         print(f"Error initializing DB: {e}")
         raise e
     yield
-    # Optional: cleanup after all tests
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(SQLModel.metadata.drop_all)
 
 @pytest.fixture
 async def session(init_db) -> AsyncGenerator[AsyncSession, None]:
