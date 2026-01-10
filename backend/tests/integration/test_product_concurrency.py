@@ -424,3 +424,4 @@ class TestProductConcurrency:
             perf_products = [p for p in final_products if "Prod Perf" in p.name]
             assert len(perf_products) == num_operations
 
+

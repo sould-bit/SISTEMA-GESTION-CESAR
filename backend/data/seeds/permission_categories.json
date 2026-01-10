@@ -29,6 +29,13 @@
       "icon": "bar-chart"
     },
     {
+      "name": "Gestión de Inventario",
+      "code": "inventory_management",
+      "description": "Permisos para control de stock e inventario",
+      "color": "#9B59B6",
+      "icon": "box"
+    },
+    {
       "name": "Control de Caja",
       "code": "cash_management",
       "description": "Permisos para operaciones de caja y finanzas",

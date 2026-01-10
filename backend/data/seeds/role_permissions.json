@@ -14,6 +14,8 @@
         "orders.create",
         "orders.update",
         "reports.read",
+        "inventory.read",
+        "inventory.adjust",
         "cash.close"
       ]
     },
