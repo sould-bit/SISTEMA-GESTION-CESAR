@@ -616,4 +616,3 @@ class TestProductRouterIntegration:
         await db_session.commit()
         await db_session.refresh(user)
 
-

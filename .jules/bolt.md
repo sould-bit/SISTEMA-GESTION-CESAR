@@ -21,3 +21,8 @@
 - **Observation**: Integration tests for `ProductRouter` are failing with 403 Forbidden despite permission assignment attempts.
 - **Hypothesis**: The RBAC system might rely on complex relationships (User -> Role -> RolePermission -> Permission) that are not fully set up or committed in the test transaction, or there is a cache/session visibility issue.
 - **Action**: Added performance tests that bypass the HTTP layer to validate service logic efficiency directly, decoupling performance metrics from auth complexity.
+
+### 5. Product Search Scalability
+- **Observation**: Search latency for 1000 items is extremely low (~6ms) using SQLite + SQLModel optimization (loading specific columns).
+- **Metric**: < 15ms for single item search, < 10ms for list retrieval.
+- **Learning**: The use of `ProductListRead` schema which avoids loading heavy relationships (lazy loading avoided by explicit query or lightweight schema) works very well for performance. Future optimization should ensure this pattern is kept as complexity grows.

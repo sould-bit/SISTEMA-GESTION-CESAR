@@ -325,4 +325,3 @@ class TestProductCRUDIntegration:
         assert second_product.name == "Producto Validación"
         assert second_product.company_id == test_company_2.id
 
-

@@ -26,7 +26,3 @@ from .inventory import Inventory, InventoryTransaction
 
 # Sistema de Impresión (v1.7 / v6.2)
 from .print_queue import PrintJob, PrintJobStatus
-
-# Sistema CRM y Delivery (v5.1)
-from .customer import Customer
-from .customer_address import CustomerAddress

@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.inventory import Inventory, InventoryTransaction
 
 class InventoryService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
     async def get_stock(self, branch_id: int, product_id: int, for_update: bool = False) -> Optional[Inventory]:
         """Obtener registro de inventario para un producto en una sucursal"""
@@ -17,7 +17,7 @@ class InventoryService:
         if for_update:
             statement = statement.with_for_update()
             
-        result = await self.db.execute(statement)
+        result = await self.session.execute(statement)
         return result.scalars().one_or_none()
 
     async def initialize_stock(self, branch_id: int, product_id: int) -> Inventory:
@@ -27,9 +27,9 @@ class InventoryService:
             product_id=product_id,
             stock=Decimal("0.000")
         )
-        self.db.add(inventory)
-        await self.db.commit()
-        await self.db.refresh(inventory)
+        self.session.add(inventory)
+        await self.session.commit()
+        await self.session.refresh(inventory)
         return inventory
 
     async def update_stock(
@@ -64,7 +64,7 @@ class InventoryService:
 
         # 4. Actualizar Inventario
         inventory.stock = new_balance
-        self.db.add(inventory)
+        self.session.add(inventory)
 
         # 5. Registrar Transacción (Kardex)
         transaction = InventoryTransaction(
@@ -76,10 +76,10 @@ class InventoryService:
             reason=reason,
             user_id=user_id
         )
-        self.db.add(transaction)
+        self.session.add(transaction)
         
-        await self.db.commit()
-        await self.db.refresh(inventory)
+        await self.session.commit()
+        await self.session.refresh(inventory)
         
         return inventory
 
@@ -89,5 +89,5 @@ class InventoryService:
             Inventory.branch_id == branch_id,
             Inventory.stock <= Inventory.min_stock
         )
-        result = await self.db.execute(statement)
+        result = await self.session.execute(statement)
         return result.scalars().all()

@@ -371,4 +371,3 @@ class TestProductMultiTenantIsolation:
         assert original_product.name == "Producto Seguro 1"
         assert original_product.price == Decimal('25.00')
 
-

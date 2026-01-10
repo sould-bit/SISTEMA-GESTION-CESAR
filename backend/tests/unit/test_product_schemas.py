@@ -500,4 +500,3 @@ class TestProductSchemasValidation:
 
         assert "String should have at least 1 character" in str(exc_info.value)
 
-

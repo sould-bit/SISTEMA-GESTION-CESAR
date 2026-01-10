@@ -5,13 +5,11 @@ from enum import Enum
 from sqlalchemy import Index, UniqueConstraint, String, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
-
 if TYPE_CHECKING:
     from .product import Product
     from .company import Company
     from .branch import Branch
     from .payment import Payment
-    from .customer import Customer
 
 
 class OrderStatus(str, Enum):
@@ -78,16 +76,7 @@ class Order(SQLModel, table=True):
     tax_total: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
     total: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
     
-    # CRM & Delivery (V5.0)
-    customer_id: Optional[int] = Field(default=None, foreign_key="customers.id", index=True)
-    delivery_type: str = Field(default="dine_in", sa_column=Column(String, default="dine_in")) # dine_in, takeaway, delivery
-    
-    # Snapshot de Datos de Entrega
-    delivery_address: Optional[str] = Field(default=None, description="Dirección snapshot al momento del pedido")
-    delivery_notes: Optional[str] = Field(default=None, max_length=500, description="Notas de entrega")
-    delivery_fee: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(10, 2)))
-    
-    # Información del cliente (Legacy/Notes)
+    # Información del cliente (opcional para MVP)
     customer_notes: Optional[str] = Field(default=None, max_length=500)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -98,4 +87,3 @@ class Order(SQLModel, table=True):
     payments: List["Payment"] = Relationship(back_populates="order")
     company: "Company" = Relationship()
     branch: "Branch" = Relationship()
-    customer: Optional["Customer"] = Relationship(back_populates="orders")

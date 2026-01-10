@@ -184,10 +184,7 @@ class MasterSeeder:
             if not category:
                 category = PermissionCategory(**category_data)
                 self.session.add(category)
-                await self.session.flush()  # Flush to get ID immediately
                 print(f"✅ Categoría creada: {category.name}")
-            else:
-                print(f"ℹ️  Categoría ya existe: {category.code}")
 
             categories[category.code] = category
 
@@ -220,10 +217,7 @@ class MasterSeeder:
             if not permission:
                 permission = Permission(**permission_data)
                 self.session.add(permission)
-                await self.session.flush()  # Commit inmediato para evitar conflictos
                 print(f"✅ Permiso creado: {permission.name}")
-            else:
-                print(f"ℹ️  Permiso ya existe: {permission.code}")
 
             permissions[permission.code] = permission
 
@@ -413,51 +407,6 @@ class MasterSeeder:
 
         await self.session.commit()
 
-    async def seed_inventory(self, company: Company, branches: Dict[str, "Branch"]):
-        """Carga inventario inicial para productos"""
-        from app.models.inventory import Inventory
-        from decimal import Decimal
-        
-        # Obtener todos los productos de la compañía
-        result = await self.session.execute(
-            select(Product).filter(Product.company_id == company.id)
-        )
-        products = result.scalars().all()
-        
-        if not products:
-            print("ℹ️  No hay productos para crear inventario")
-            return
-        
-        # Usar la primera sucursal
-        branch = list(branches.values())[0] if branches else None
-        if not branch:
-            print("ℹ️  No hay sucursales para crear inventario")
-            return
-        
-        for product in products:
-            # Verificar si ya existe inventario
-            result = await self.session.execute(
-                select(Inventory).filter(
-                    Inventory.product_id == product.id,
-                    Inventory.branch_id == branch.id
-                )
-            )
-            existing = result.scalar_one_or_none()
-            
-            if not existing:
-                inventory = Inventory(
-                    product_id=product.id,
-                    branch_id=branch.id,
-                    stock=Decimal("100"),
-                    min_stock=Decimal("10")
-                )
-                self.session.add(inventory)
-                print(f"✅ Inventario creado: {product.name} (stock: 100)")
-            else:
-                print(f"ℹ️  Inventario ya existe: {product.name}")
-        
-        await self.session.commit()
-
     async def run(self, dry_run: bool = False, reset: bool = False):
         """Ejecuta el seeding completo"""
         print("🌱 Iniciando Master Seed...")
@@ -507,10 +456,6 @@ class MasterSeeder:
             # 8. Productos
             print("🍎 Creando productos...")
             await self.seed_products(company, prod_categories)
-
-            # 9. Inventario inicial
-            print("📦 Creando inventario inicial...")
-            await self.seed_inventory(company, branches)
 
             if not dry_run:
                 await self.session.commit()

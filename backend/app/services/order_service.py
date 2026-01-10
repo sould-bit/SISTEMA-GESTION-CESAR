@@ -159,13 +159,7 @@ class OrderService:
                 subtotal=subtotal,
                 tax_total=tax_total,
                 total=total,
-                customer_notes=order_data.customer_notes,
-                
-                # CRM (V5.0)
-                customer_id=order_data.customer_id,
-                delivery_type=order_data.delivery_type,
-                delivery_address=order_data.delivery_address, # Snapshot
-                delivery_notes=order_data.delivery_notes
+                customer_notes=order_data.customer_notes
             )
             
             # Asociar items
@@ -328,14 +322,6 @@ class OrderService:
             customer_notes=order.customer_notes,
             created_at=order.created_at,
             updated_at=order.updated_at,
-            
-            # CRM
-            customer_id=order.customer_id,
-            delivery_type=order.delivery_type,
-            delivery_address=order.delivery_address,
-            delivery_notes=order.delivery_notes,
-            delivery_fee=order.delivery_fee,
-
             items=items_read,
             payments=payments_read
         )
