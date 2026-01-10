@@ -172,7 +172,10 @@ class OrderService:
                         amount=pay_data.amount,
                         method=pay_data.method,
                         status=PaymentStatus.COMPLETED, # Asumimos completado si viene en creación directa (POS)
-                        transaction_id=pay_data.transaction_id
+                        transaction_id=pay_data.transaction_id,
+                        company_id=company_id,
+                        branch_id=order_data.branch_id,
+                        user_id=user_id
                     )
                     new_order.payments.append(payment)
                 

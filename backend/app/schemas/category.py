@@ -19,9 +19,9 @@ class CategoryCreate(CategoryBase):
 #update : campos opcionales para editar 
 class CategoryUpdate(SQLModel):
     """campos opcionales para editar"""
-    name: str | None
-    description: str | None
-    is_active: bool | None
+    name: str | None = None
+    description: str | None = None
+    is_active: bool | None = None
 
 
 #read: lo que devolvemos a la api (incluye ID)

@@ -9,7 +9,7 @@ from sqlmodel import SQLModel
 
 from app.database import get_session
 from app.main import app
-from app.models import Company, Category, User, Product
+from app.models import Company, Category, User, Product, Branch
 from app.utils.security import get_password_hash, create_access_token
 from decimal import Decimal
 import uuid
@@ -94,6 +94,23 @@ async def test_company(session: AsyncSession):
     await session.commit()
     await session.refresh(company)
     return company
+
+@pytest.fixture
+async def test_branch(session: AsyncSession, test_company: Company):
+    uid = uuid.uuid4().hex[:8]
+    branch = Branch(
+        name=f"Test Branch {uid}",
+        code=f"BR-{uid}",
+        company_id=test_company.id,
+        address="123 Test St",
+        phone="555-0100",
+        is_active=True,
+        is_main=True
+    )
+    session.add(branch)
+    await session.commit()
+    await session.refresh(branch)
+    return branch
 
 @pytest.fixture
 async def test_category(session: AsyncSession, test_company: Company):
