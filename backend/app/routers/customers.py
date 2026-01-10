@@ -1,19 +1,22 @@
+"""
+Customers Router - Updated for Instance-based Services
+"""
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, Field
+from datetime import timedelta
 
 from app.database import get_session
 from app.auth_deps import get_current_user
 from app.models.user import User
-from app.services.customer_service import CustomerService
-from app.services.address_service import AddressService
 from app.models.customer import Customer
 from app.models.customer_address import CustomerAddress
-from app.core.permissions import require_permission
+from app.services.customer_service import CustomerService
+from app.services.address_service import AddressService
 from app.services.company_service import CompanyService
+from app.core.permissions import require_permission
 from app.utils.security import create_access_token
-from datetime import timedelta
 from app.config import settings
 
 router = APIRouter(prefix="/customers", tags=["CRM"])
@@ -63,15 +66,11 @@ async def search_customer(
     db: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Busca un cliente por teléfono para el POS/Call Center.
-    Si no existe, retorna null (200 OK con body null) o 404 según preferencia. 
-    Aquí retornaremos null si no existe para facilitar al frontend.
-    """
-    customer = await CustomerService.get_by_phone(db, current_user.company_id, phone)
+    """Busca un cliente por teléfono para el POS/Call Center."""
+    customer_service = CustomerService(db)
+    customer = await customer_service.get_by_phone(current_user.company_id, phone)
     if not customer:
-        return None # Frontend debe manejar esto como "Prompt to create"
-        
+        return None
     return customer
 
 
@@ -81,12 +80,9 @@ async def create_customer(
     db: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Registra un nuevo cliente.
-    """
-    # Lógica de servicio
-    customer = await CustomerService.create_customer(
-        db, 
+    """Registra un nuevo cliente."""
+    customer_service = CustomerService(db)
+    customer = await customer_service.create_customer(
         current_user.company_id, 
         customer_in.phone, 
         customer_in.full_name, 
@@ -103,7 +99,8 @@ async def get_addresses(
     current_user: User = Depends(get_current_user)
 ):
     """Obtiene todas las direcciones de un cliente."""
-    return await AddressService.get_customer_addresses(db, customer_id, current_user.company_id)
+    address_service = AddressService(db)
+    return await address_service.get_customer_addresses(customer_id, current_user.company_id)
 
 
 @router.post("/{customer_id}/addresses", response_model=CustomerAddress)
@@ -114,8 +111,8 @@ async def add_address(
     current_user: User = Depends(get_current_user)
 ):
     """Agrega una nueva dirección a un cliente."""
-    address = await AddressService.add_address(
-        db,
+    address_service = AddressService(db)
+    address = await address_service.add_address(
         customer_id,
         current_user.company_id,
         name=address_in.name,
@@ -138,18 +135,17 @@ async def register_public(
     customer_in: CustomerCreatePublic,
     db: AsyncSession = Depends(get_session)
 ):
-    """
-    Registro público desde la PWA.
-    Requiere el slug del negocio para asociar el cliente a la empresa correcta.
-    """
+    """Registro público desde la PWA."""
+    company_service = CompanyService(db)
+    customer_service = CustomerService(db)
+    
     # 1. Resolver Company ID
-    company = await CompanyService.get_by_slug(db, customer_in.company_slug)
+    company = await company_service.get_by_slug(customer_in.company_slug)
     if not company:
         raise HTTPException(status_code=404, detail="Negocio no encontrado")
 
     # 2. Crear Cliente
-    customer = await CustomerService.create_customer(
-        db, 
+    customer = await customer_service.create_customer(
         company.id, 
         customer_in.phone, 
         customer_in.full_name, 
@@ -164,26 +160,25 @@ async def login_public(
     login_data: CustomerLogin,
     db: AsyncSession = Depends(get_session)
 ):
-    """
-    Login simplificado por teléfono para clientes.
-    Genera un token JWT con scope de cliente.
-    """
+    """Login simplificado por teléfono para clientes."""
+    company_service = CompanyService(db)
+    customer_service = CustomerService(db)
+    
     # 1. Resolver Company
-    company = await CompanyService.get_by_slug(db, login_data.company_slug)
+    company = await company_service.get_by_slug(login_data.company_slug)
     if not company:
         raise HTTPException(status_code=404, detail="Negocio no encontrado")
 
     # 2. Buscar Cliente
-    customer = await CustomerService.get_by_phone(db, company.id, login_data.phone)
+    customer = await customer_service.get_by_phone(company.id, login_data.phone)
     if not customer:
         raise HTTPException(status_code=401, detail="Número no registrado")
 
-    # 3. Generar Token (Simulado por ahora, podríamos validar OTP aquí)
+    # 3. Generar Token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
-    # Payload custom para clientes
     token_payload = {
-        "sub": f"customer:{customer.id}:{company.id}", # Subject especial
+        "sub": f"customer:{customer.id}:{company.id}",
         "type": "customer",
         "company_id": company.id,
         "customer_id": customer.id

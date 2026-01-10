@@ -192,8 +192,9 @@ async def list_my_addresses(
     db: AsyncSession = Depends(get_session)
 ):
     """Lista las direcciones del cliente autenticado."""
-    addresses = await AddressService.get_customer_addresses(
-        db, ctx.customer_id, ctx.company_id
+    address_service = AddressService(db)
+    addresses = await address_service.get_customer_addresses(
+        ctx.customer_id, ctx.company_id
     )
     return [AddressRead(
         id=a.id,
@@ -211,8 +212,8 @@ async def add_my_address(
     db: AsyncSession = Depends(get_session)
 ):
     """Agrega una dirección para el cliente autenticado."""
-    address = await AddressService.add_address(
-        db,
+    address_service = AddressService(db)
+    address = await address_service.add_address(
         customer_id=ctx.customer_id,
         company_id=ctx.company_id,
         name=address_in.name,
