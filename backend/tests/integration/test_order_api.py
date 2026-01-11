@@ -53,9 +53,10 @@ async def test_create_order_success(
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
     
-    assert data["order_number"].startswith("PED-") # O el prefijo configurado
+    assert data["order_number"].startswith("M-") # Update to match M- prefix for dine_in
     assert data["company_id"] == test_company.id
     assert data["branch_id"] == test_branch.id
+    
     assert data["status"] == OrderStatus.CONFIRMED # Porque pagamos todo
     
     # Validar totales

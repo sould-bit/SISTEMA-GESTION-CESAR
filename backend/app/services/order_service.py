@@ -174,9 +174,12 @@ class OrderService:
             if order_data.payments:
                 for pay_data in order_data.payments:
                     payment = Payment(
+                        company_id=company_id,
+                        branch_id=order_data.branch_id,
+                        user_id=user_id,
                         amount=pay_data.amount,
                         method=pay_data.method,
-                        status=PaymentStatus.COMPLETED, # Asumimos completado si viene en creación directa (POS)
+                        status=PaymentStatus.COMPLETED,
                         transaction_id=pay_data.transaction_id
                     )
                     new_order.payments.append(payment)

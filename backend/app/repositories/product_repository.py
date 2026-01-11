@@ -22,6 +22,7 @@ from functools import wraps
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, update
 from sqlalchemy.orm import selectinload
+from fastapi import HTTPException, status
 
 from app.models.product import Product
 from app.models.category import Category
@@ -339,7 +340,10 @@ class ProductRepository(BaseRepository[Product]):
         product = result.scalar_one_or_none()
         
         if not product:
-            raise Exception(f"Producto {product_id} no encontrado")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Producto {product_id} no encontrado"
+            )
             
         old_stock = product.stock
         product.stock = new_stock

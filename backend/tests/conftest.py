@@ -296,12 +296,13 @@ async def auth_headers(user_token: str):
 
 
 @pytest.fixture
-async def test_product(session: AsyncSession, test_company: Company, test_category: Category):
-    """Crea un producto de prueba."""
+async def test_product(session: AsyncSession, test_company: Company, test_category: Category, test_branch: Branch):
+    """Crea un producto de prueba e inicializa su inventario."""
     uid = uuid.uuid4().hex[:8]
     product = Product(
         name=f"Test Product {uid}",
-        price=Decimal("10.00"),
+        price=Decimal("25.50"),
+        tax_rate=Decimal("0.10"),
         company_id=test_company.id,
         category_id=test_category.id,
         is_active=True,
@@ -310,6 +311,19 @@ async def test_product(session: AsyncSession, test_company: Company, test_catego
     session.add(product)
     await session.commit()
     await session.refresh(product)
+    
+    # INICIALIZAR INVENTARIO PARA EVITAR ERROR 'Stock insuficiente'
+    from app.models.inventory import Inventory
+    
+    inventory = Inventory(
+        branch_id=test_branch.id,
+        product_id=product.id,
+        stock=Decimal("100.000"), # Coincide con product.stock
+        min_stock=Decimal("5.000")
+    )
+    session.add(inventory)
+    await session.commit()
+    
     return product
 
 
@@ -330,6 +344,27 @@ async def test_products_batch(session: AsyncSession, test_company: Company, test
         session.add(product)
         products.append(product)
     await session.commit()
+
+    # INICIALIZAR INVENTARIO BATCH
+    from app.models.inventory import Inventory
+    
+    # Asumimos que test_branch está disponible, pero no lo recibimos como argumento.
+    # Dado que es batch, intentaremos obtener el ID de la primera sucursal de la empresa
+    stmt = select(Branch).where(Branch.company_id == test_company.id)
+    result = await session.execute(stmt)
+    branch = result.scalars().first()
+    
+    if branch:
+        for p in products:
+            inv = Inventory(
+                branch_id=branch.id,
+                product_id=p.id,
+                stock=Decimal("100.000"),
+                min_stock=Decimal("5.000")
+            )
+            session.add(inv)
+        await session.commit()
+
     for p in products:
         await session.refresh(p)
     return products

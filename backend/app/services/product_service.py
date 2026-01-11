@@ -341,7 +341,7 @@ class ProductService:
             
             # 4. Actualizar
             update_dict = product_data.model_dump(exclude_unset=True)
-            update_dict["updated_at"] = datetime.now(timezone.utc)
+            update_dict["updated_at"] = datetime.utcnow()
             product = await self.product_repo.update(product_id, company_id, update_dict)
             
             # 5. Recargar con categoría
