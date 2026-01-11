@@ -32,6 +32,7 @@ async def test_inventory_flow(db_session: AsyncSession):
     
     branch = Branch(
         name=f"Main Branch {uid}", 
+        code=f"TST{uid[:4].upper()}",  # Required field
         address="123 St", 
         phone="123", 
         company_id=company.id

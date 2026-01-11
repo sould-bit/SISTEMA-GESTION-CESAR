@@ -44,7 +44,7 @@ async def run_test():
         session.add(company)
         await session.flush()
 
-        branch = Branch(name="Main Branch", company_id=company.id, address="123 Test St", phone="555-0000")
+        branch = Branch(name="Main Branch", company_id=company.id, address="123 Test St", phone="555-0000", code="BR-1")
         session.add(branch)
         await session.flush()
         

@@ -99,15 +99,14 @@ class OrderService:
             
             total = subtotal + tax_total
 
-            # 4. Obtener Número de Orden Secuencial
-            print(f"DEBUG: Getting Order Number for Branch {order_data.branch_id}")
-            # order_number = await self.counter_service.get_next_number(
-            #     company_id=company_id, 
-            #     branch_id=order_data.branch_id,
-            #     counter_type="general" 
-            # )
-            order_number = "TEST-123"
-            print(f"DEBUG: Order Number {order_number} obtained")
+            # 4. Obtener Número de Orden Secuencial con prefijo según tipo
+            # M-00001 (Mesa), L-00001 (Llevar), D-00001 (Domicilio)
+            order_number = await self.counter_service.get_next_number(
+                company_id=company_id, 
+                branch_id=order_data.branch_id,
+                order_type=order_data.delivery_type
+            )
+            logger.info(f"🔢 Número de pedido generado: {order_number}")
 
             # 5. Inventory & Stock Management integration
             inventory_service = InventoryService(self.db)

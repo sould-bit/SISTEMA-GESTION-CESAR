@@ -32,18 +32,37 @@ class OrderCounterService:
         self, 
         company_id: int, 
         branch_id: int, 
-        counter_type: str = "general"
+        order_type: str = "dine_in"
     ) -> str:
         """
         Genera el siguiente número consecutivo para un pedido.
         
         Implementa bloqueo pesimista (Row-level locking) para evitar 
         que dos órdenes reciban el mismo número simultáneamente.
+        
+        Args:
+            company_id: ID de la empresa
+            branch_id: ID de la sucursal
+            order_type: Tipo de pedido - "dine_in", "takeaway", "delivery"
+        
+        Returns:
+            Número formateado con prefijo según tipo:
+            - M-00001 (Mesa/dine_in)
+            - L-00001 (Llevar/takeaway)
+            - D-00001 (Domicilio/delivery)
         """
+        # Mapeo de tipo de pedido a prefijo y counter_type
+        prefix_map = {
+            "dine_in": "M-",    # Mesa
+            "takeaway": "L-",   # Llevar
+            "delivery": "D-",   # Domicilio
+        }
+        
+        prefix = prefix_map.get(order_type, "P-")  # P- como fallback
+        counter_type = f"order_{order_type}"
+        
         try:
             # 1. Buscar el contador con bloqueo (FOR UPDATE)
-            # Nota: 'with_for_update' asegura que ninguna otra transacción
-            # pueda leer/modificar esta fila hasta que hagamos commit/rollback.
             query = (
                 select(OrderCounter)
                 .where(
@@ -53,7 +72,7 @@ class OrderCounterService:
                 )
             )
 
-            # Bloqueo pesimista solo si no es SQLite (Postgres supports it)
+            # Bloqueo pesimista solo si no es SQLite
             if self.db.bind.dialect.name != "sqlite":
                  query = query.with_for_update()
             
@@ -68,18 +87,16 @@ class OrderCounterService:
                     branch_id=branch_id,
                     counter_type=counter_type,
                     last_value=0,
-                    prefix=f"PED-" # Prefijo por defecto
+                    prefix=prefix
                 )
                 self.db.add(counter)
-                # Necesitamos flush para que el objeto sea rastreado antes de seguir
                 await self.db.flush()
 
             # 3. Incrementar el valor
             counter.last_value += 1
             next_val = counter.last_value
             
-            # 4. Formatear el número final (ej: PED-00001)
-            prefix = counter.prefix or ""
+            # 4. Formatear el número final (ej: M-00001)
             formatted_number = f"{prefix}{str(next_val).zfill(5)}"
             
             logger.debug(f"🔢 Generado número de pedido: {formatted_number}")

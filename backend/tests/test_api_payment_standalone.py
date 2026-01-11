@@ -58,7 +58,7 @@ def setup_data():
     with SessionLocal() as session:
         # Create Company & Branch
         company = Company(id=1, name="Test Corp", slug="test-corp")
-        branch = Branch(id=1, name="Main Branch", company_id=1, address="123 St", phone="555")
+        branch = Branch(id=1, name="Main Branch", company_id=1, address="123 St", phone="555", code="BR-1")
         session.add(company)
         session.add(branch)
         
