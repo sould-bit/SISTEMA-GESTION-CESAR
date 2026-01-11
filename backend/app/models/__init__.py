@@ -30,3 +30,4 @@ from .print_queue import PrintJob, PrintJobStatus
 # Sistema CRM y Delivery (v5.1)
 from .customer import Customer
 from .customer_address import CustomerAddress
+from .delivery_shift import DeliveryShift

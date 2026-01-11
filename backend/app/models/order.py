@@ -87,6 +87,12 @@ class Order(SQLModel, table=True):
     delivery_notes: Optional[str] = Field(default=None, max_length=500, description="Notas de entrega")
     delivery_fee: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(10, 2)))
     
+    # Asignación de Domiciliario
+    delivery_person_id: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
+    assigned_at: Optional[datetime] = Field(default=None, description="Cuándo se asignó el domiciliario")
+    picked_up_at: Optional[datetime] = Field(default=None, description="Cuándo recogió el pedido")
+    delivered_at: Optional[datetime] = Field(default=None, description="Cuándo lo entregó")
+    
     # Información del cliente (Legacy/Notes)
     customer_notes: Optional[str] = Field(default=None, max_length=500)
     

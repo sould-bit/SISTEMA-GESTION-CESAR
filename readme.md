@@ -1,6 +1,6 @@
-# 🚀 FastAPI RBAC System
+# 🚀 FastOps - Sistema de Gestión para Comida Rápida
 
-Sistema completo de control de acceso basado en roles (RBAC) construido con FastAPI, SQLModel y PostgreSQL.
+**Plataforma SaaS multi-tenant** para gestión integral de salchipapererías y negocios de comida rápida. Construido con FastAPI, SQLModel y PostgreSQL.
 
 ## 📁 Estructura del Proyecto
 
@@ -8,15 +8,19 @@ Sistema completo de control de acceso basado en roles (RBAC) construido con Fast
 backend/
 ├── app/                    # Código principal de la aplicación
 │   ├── core/              # Componentes core (auth, cache, logging)
-│   ├── models/            # Modelos SQLModel
+│   ├── models/            # 22 Modelos SQLModel
 │   ├── schemas/           # Pydantic schemas
-│   ├── services/          # Lógica de negocio
-│   ├── routers/           # Endpoints FastAPI
-│   └── db/                # Configuración de BD
+│   ├── services/          # 22 Servicios de lógica de negocio
+│   ├── routers/           # 13 Endpoints FastAPI
+│   ├── repositories/      # Capa de acceso a datos
+│   ├── db/                # Configuración de BD
+│   ├── utils/             # Utilidades
+│   └── tasks/             # Tareas asíncronas
 ├── tests/                 # Suite completa de tests
 │   ├── unit/             # Tests unitarios
 │   ├── integration/      # Tests de integración
-│   └── e2e/              # Tests end-to-end
+│   ├── e2e/              # Tests end-to-end
+│   └── load/             # Tests de carga
 ├── scripts/               # Scripts utilitarios
 │   ├── admin/            # Scripts de administración
 │   ├── seed/             # Scripts de seeding
@@ -26,6 +30,9 @@ backend/
 ├── migrations/            # Migraciones Alembic
 ├── logs/                  # Logs de aplicación
 └── Dockerfile             # Configuración Docker
+
+pwa customers/             # PWA para clientes finales
+docuemntos_de_desarrollo/  # Documentación técnica del proyecto
 ```
 
 ## 🚀 Inicio Rápido
@@ -47,7 +54,7 @@ python scripts/dev_utils.py setup
 
 ### Verificación
 - **API Docs**: http://localhost:8000/docs
-- **Login**: `admin` / `admin123`
+- **Login Admin**: `admin` / `admin123`
 - **PgAdmin**: http://localhost:5050
 
 ## 🔧 Comandos Útiles
@@ -66,26 +73,74 @@ python scripts/dev_utils.py reset-db   # Reset completo de BD
 python scripts/dev_utils.py clean      # Limpiar temporales
 ```
 
-## 📚 API Endpoints
+## 📚 Módulos del Sistema
 
-### Autenticación
+### 🔐 Autenticación y RBAC
 - `POST /auth/login` - Login de usuario
 - `POST /auth/refresh` - Refresh token
-
-### Roles y Permisos
 - `GET /rbac/roles` - Listar roles
-- `GET /rbac/roles/{id}` - Detalle de rol con permisos
 - `POST /rbac/roles` - Crear rol
-- `PUT /rbac/roles/{id}` - Actualizar rol
-- `DELETE /rbac/roles/{id}` - Eliminar rol
-
 - `GET /rbac/permissions` - Listar permisos
-- `POST /rbac/permissions` - Crear permiso
 - `POST /rbac/roles/{role_id}/permissions/{perm_id}` - Asignar permiso
 
-### Sistema
-- `GET /health` - Health check
-- `GET /bd-test` - Test de conexión BD
+### 🏢 Multi-tenant
+- Aislamiento completo por `company_id` y `branch_id`
+- Gestión de empresas y sucursales
+- Suscripciones por tenant
+
+### 📦 Productos y Categorías
+- `GET/POST/PUT/DELETE /products/*` - CRUD completo de productos
+- `GET/POST/PUT/DELETE /categories/*` - Gestión de categorías multi-tenant
+- Validaciones de negocio (precio > 0, nombre único por empresa)
+- Soft deletes
+
+### 🍳 Sistema de Recetas
+- `GET/POST/PUT/DELETE /recipes/*` - CRUD de recetas
+- Cálculo automático de costos por ingredientes
+- Integración con inventario
+
+### 📋 Sistema de Pedidos
+- `GET/POST/PUT /orders/*` - Gestión de pedidos
+- Máquina de estados para flujo de pedidos
+- Contador de órdenes diarias
+- Integración con inventario y recetas
+- Deducción automática de stock
+
+### 📦 Inventario
+- `GET/POST/PUT /inventory/*` - Gestión de inventario
+- Control de stock por sucursal
+- Movimientos y ajustes
+- Alertas de stock bajo
+
+### 🛵 Módulo de Delivery
+- `GET/POST/PUT /delivery/*` - Control de entregas
+- Gestión de turnos de domiciliarios (`DeliveryShift`)
+- Asignación de pedidos a repartidores
+- Tracking de entregas en tiempo real
+
+### 👥 CRM y Clientes
+- `GET/POST/PUT /customers/*` - Gestión de clientes
+- Direcciones de entrega múltiples
+- Historial de pedidos
+- Registro de clientes
+
+### 🛒 Storefront (PWA)
+- `GET/POST /storefront/*` - API dedicada para PWA de clientes
+- Registro y login de clientes
+- Browse de sucursales
+- Visualización de menú
+- Creación de pedidos desde PWA
+
+### 💰 Caja y Pagos
+- `GET/POST /cash/*` - Sistema de caja
+- `GET/POST /payments/*` - Procesamiento de pagos
+- Cierre de caja diario
+- Múltiples métodos de pago
+
+### 📊 Reportes
+- `GET /reports/*` - Dashboard y analytics
+- Reportes de ventas
+- Métricas de rendimiento
 
 ## 🧪 Testing
 
@@ -98,15 +153,15 @@ python scripts/dev_utils.py test
 pytest tests/unit/          # Unit tests
 pytest tests/integration/   # Integration tests
 pytest tests/e2e/          # End-to-end tests
+pytest tests/load/         # Load tests
 
 # Con coverage
 pytest --cov=app --cov-report=html
 ```
 
-### Estructura de Tests
-- **Unit**: Componentes individuales (funciones, clases)
-- **Integration**: Interacción entre servicios
-- **E2E**: Flujos completos contra API real
+### Flujos de Test E2E
+- `test_admin_flow.py` - Flujo completo de administración
+- `test_customer_flow.py` - Flujo de cliente en PWA
 
 ## 🌱 Seeding de Datos
 
@@ -114,12 +169,16 @@ Los datos iniciales están organizados en archivos JSON:
 
 ```bash
 data/seeds/
-├── companies.json      # Empresas
-├── roles.json          # Roles del sistema
-├── permissions.json    # Permisos disponibles
-├── permission_categories.json  # Categorías
-├── users.json          # Usuarios de prueba
-└── role_permissions.json       # Asignaciones
+├── companies.json         # Empresas
+├── branches.json          # Sucursales
+├── roles.json             # Roles del sistema
+├── permissions.json       # Permisos disponibles
+├── permission_categories.json  # Categorías de permisos
+├── users.json             # Usuarios de prueba
+├── products.json          # Productos de ejemplo
+├── categories.json        # Categorías de productos
+├── inventory.json         # Stock inicial
+└── role_permissions.json  # Asignaciones rol-permiso
 ```
 
 ### Ejecutar Seed
@@ -130,19 +189,42 @@ python scripts/seed/master_seed.py
 ## 🏗️ Arquitectura
 
 ### Características Principales
-- ✅ **Multi-tenancy** completo
-- ✅ **RBAC avanzado** con jerarquía
+- ✅ **Multi-tenancy** completo por company/branch
+- ✅ **RBAC avanzado** con jerarquía y caché
 - ✅ **Caché Redis** para performance
 - ✅ **Logging JSON** estructurado
 - ✅ **Excepciones personalizadas**
-- ✅ **Testing completo**
+- ✅ **Máquina de estados** para pedidos
+- ✅ **Testing completo** (unit, integration, e2e, load)
 - ✅ **Docker containerizado**
+- ✅ **PWA para clientes** (Storefront)
+- ✅ **Sistema de delivery** con turnos
+
+### Modelos de Datos (22 modelos)
+- **Core**: Company, Branch, Subscription, User
+- **RBAC**: Role, Permission, PermissionCategory, RolePermission
+- **Productos**: Product, Category, Recipe, RecipeItem
+- **Operaciones**: Order, OrderAudit, OrderCounter, Inventory
+- **Finanzas**: Payment, CashClosure
+- **CRM**: Customer, CustomerAddress
+- **Delivery**: DeliveryShift
+- **Sistema**: PrintQueue
+
+### Servicios (22 servicios)
+- AuthService, RoleService, PermissionService
+- ProductService, CategoryService, RecipeService
+- OrderService, OrderStateMachine, OrderCounterService
+- InventoryService, DeliveryService
+- CustomerService, AddressService, RegistrationService
+- PaymentService, CashService, ReportService
+- NotificationService, PrintService, y más...
 
 ### Tecnologías
-- **FastAPI** - Framework web moderno
-- **SQLModel** - ORM con Pydantic
-- **PostgreSQL** - Base de datos
+- **FastAPI** - Framework web moderno (async/await)
+- **SQLModel** - ORM con Pydantic y type hints
+- **PostgreSQL** - Base de datos relacional
 - **Redis** - Caché y sesiones
+- **Alembic** - Migraciones de BD
 - **Docker** - Containerización
 - **Pytest** - Testing framework
 
@@ -150,17 +232,18 @@ python scripts/seed/master_seed.py
 
 - JWT tokens con refresh
 - Hashing bcrypt para passwords
-- Validación automática de permisos
+- Decoradores `@require_permission` para validación automática
 - Rate limiting
 - CORS configurado
-- Logs de seguridad
+- Logs de seguridad estructurados
+- Aislamiento multi-tenant verificado
 
 ## 📊 Monitoreo
 
-- Health checks automáticos
+- Health checks: `GET /health`
+- Test de BD: `GET /bd-test`
 - Logs JSON estructurados
 - Métricas de performance
-- Alertas de errores
 
 ## 🚀 Deployment
 
@@ -182,6 +265,17 @@ docker-compose up -d
 # Hot reload activado
 # Logs en tiempo real
 ```
+
+## 📖 Documentación Adicional
+
+- `GUIA_APRENDIZAJE.md` - Roadmap de aprendizaje
+- `SETUP_GUIDE.md` - Guía de instalación
+- `PRM_PROYECTO_FASTOPS.md` - Documento de contexto del proyecto
+- `INFORME_ESTADO_TESTING.md` - Estado actual de testing
+- `docuemntos_de_desarrollo/` - Documentación técnica completa
+  - `fastops_req_v3.md` - Requisitos del sistema
+  - `fases de desarrollo.md` - Fases de desarrollo
+  - `INFORME_CUMPLIMIENTO_REQUISITOS.md` - Cumplimiento de requisitos
 
 ## 🤝 Contribución
 
@@ -205,3 +299,6 @@ Para soporte técnico o preguntas:
 ---
 
 **Desarrollado con ❤️ para sistemas de gestión empresarial**
+
+**Última Actualización**: Enero 2026  
+**Estado**: MVP en desarrollo activo - Módulos Core, CRM y Delivery implementados
