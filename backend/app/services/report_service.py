@@ -295,15 +295,12 @@ class ReportService:
             Product.id,
             Product.name,
             Category.name.label("category_name"),
-            Inventory.quantity,
+            Inventory.stock,
             Inventory.min_stock,
             Inventory.max_stock,
-            Product.cost_price
+            Product.price  # Usamos precio como referencia de valor
         ).outerjoin(Category, Product.category_id == Category.id)\
-         .outerjoin(Inventory, and_(
-             Inventory.product_id == Product.id,
-             Inventory.company_id == company_id
-         ))\
+         .outerjoin(Inventory, Inventory.product_id == Product.id)\
          .where(and_(*filters))
         
         if branch_id:
@@ -318,10 +315,10 @@ class ReportService:
         out_of_stock_count = 0
         
         for row in rows:
-            current_stock = row.quantity or Decimal("0")
+            current_stock = row.stock or Decimal("0")
             min_stock = row.min_stock or Decimal("0")
             max_stock = row.max_stock or Decimal("999999")
-            unit_cost = row.cost_price or Decimal("0")
+            unit_cost = row.price or Decimal("0")
             total_item_value = current_stock * unit_cost
             
             # Determinar status
@@ -378,26 +375,25 @@ class ReportService:
         from app.models.user import User
         from app.schemas.reports import DeliveryReport, DeliveryReportItem
         
+        # Consulta basada en DeliveryShift que tiene la info agregada
         filters = [
-            Order.company_id == company_id,
-            Order.delivery_type == "delivery",
-            Order.created_at >= start_date,
-            Order.created_at <= end_date
+            DeliveryShift.company_id == company_id,
+            DeliveryShift.started_at >= start_date,
+            DeliveryShift.started_at <= end_date
         ]
         if branch_id:
-            filters.append(Order.branch_id == branch_id)
+            filters.append(DeliveryShift.branch_id == branch_id)
         
-        # Obtener estadísticas por domiciliario
-        # Nota: Asumimos que delivery_shift tiene assigned_user_id
+        # Obtener estadísticas por domiciliario desde delivery_shifts
         query = select(
-            DeliveryShift.user_id,
+            DeliveryShift.delivery_person_id,
             User.full_name.label("user_name"),
-            func.count(DeliveryShift.id).label("total_deliveries"),
-            func.sum(Order.total).label("total_revenue")
-        ).join(Order, DeliveryShift.order_id == Order.id)\
-         .join(User, DeliveryShift.user_id == User.id)\
+            func.sum(DeliveryShift.total_delivered).label("total_deliveries"),
+            func.sum(DeliveryShift.total_cancelled).label("total_cancelled"),
+            func.sum(DeliveryShift.total_earnings).label("total_revenue")
+        ).join(User, DeliveryShift.delivery_person_id == User.id)\
          .where(and_(*filters))\
-         .group_by(DeliveryShift.user_id, User.full_name)
+         .group_by(DeliveryShift.delivery_person_id, User.full_name)
         
         result = await db.execute(query)
         rows = result.all()
@@ -408,10 +404,10 @@ class ReportService:
         
         for row in rows:
             delivery_persons.append(DeliveryReportItem(
-                user_id=row.user_id,
-                user_name=row.user_name or f"Usuario #{row.user_id}",
+                user_id=row.delivery_person_id,
+                user_name=row.user_name or f"Usuario #{row.delivery_person_id}",
                 deliveries_completed=row.total_deliveries or 0,
-                deliveries_canceled=0,  # TODO: Agregar lógica de cancelados
+                deliveries_canceled=row.total_cancelled or 0,
                 total_revenue=row.total_revenue or Decimal("0"),
                 avg_delivery_time_minutes=None  # TODO: Calcular tiempo promedio
             ))
@@ -476,35 +472,35 @@ class ReportService:
         # Obtener recetas de los productos vendidos
         recipe_query = select(
             Recipe.product_id,
-            RecipeItem.ingredient_id,
+            RecipeItem.ingredient_product_id,
             Product.name.label("ingredient_name"),
             RecipeItem.quantity,
             RecipeItem.unit,
-            Product.cost_price
+            RecipeItem.unit_cost  # Usamos unit_cost de RecipeItem
         ).join(RecipeItem, Recipe.id == RecipeItem.recipe_id)\
-         .join(Product, RecipeItem.ingredient_id == Product.id)\
+         .join(Product, RecipeItem.ingredient_product_id == Product.id)\
          .where(Recipe.product_id.in_(products_sold.keys()))
         
         recipe_result = await db.execute(recipe_query)
         
         # Calcular consumo por ingrediente
-        consumption_map = {}  # ingredient_id -> {name, total_qty, unit, cost}
+        consumption_map = {}  # ingredient_product_id -> {name, total_qty, unit, cost}
         
         for row in recipe_result.all():
             product_qty_sold = products_sold.get(row.product_id, 0)
             consumed = float(row.quantity) * float(product_qty_sold)
-            ingredient_cost = float(row.cost_price or 0) * consumed
+            ingredient_cost = float(row.unit_cost or 0) * consumed
             
-            if row.ingredient_id not in consumption_map:
-                consumption_map[row.ingredient_id] = {
+            if row.ingredient_product_id not in consumption_map:
+                consumption_map[row.ingredient_product_id] = {
                     "name": row.ingredient_name,
                     "total": Decimal("0"),
                     "unit": row.unit or "unidad",
                     "cost": Decimal("0")
                 }
             
-            consumption_map[row.ingredient_id]["total"] += Decimal(str(consumed))
-            consumption_map[row.ingredient_id]["cost"] += Decimal(str(ingredient_cost))
+            consumption_map[row.ingredient_product_id]["total"] += Decimal(str(consumed))
+            consumption_map[row.ingredient_product_id]["cost"] += Decimal(str(ingredient_cost))
         
         # Construir lista de items
         ingredients = [
