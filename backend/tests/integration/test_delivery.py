@@ -17,48 +17,24 @@ from decimal import Decimal
 from app.main import app
 from app.database import get_session
 
-
 # =============================================================================
-# FIXTURES
+# IMPORTS AND FIXTURES
 # =============================================================================
 
-@pytest.fixture
-def anyio_backend():
-    return 'asyncio'
-
-
-@pytest.fixture
-async def client():
-    """Cliente HTTP asíncrono para tests."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-
-
-@pytest.fixture
-async def auth_headers(client: AsyncClient):
-    """
-    Obtiene headers de autenticación para un usuario admin.
-    Asume que existe un usuario de prueba en la base de datos.
-    """
-    response = await client.post(
-        "/auth/login",
-        data={
-            "username": "admin",
-            "password": "password123",
-            "company_slug": "fastops"
-        }
-    )
-    if response.status_code != 200:
-        pytest.skip("No se pudo autenticar - verifica datos de seed")
-    
-    token = response.json().get("access_token")
-    return {"Authorization": f"Bearer {token}"}
-
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.company import Company
+from app.models.branch import Branch
+from app.models.user import User
+from app.models.role import Role
+from app.models.order import Order
+from app.utils.security import get_password_hash, create_access_token
+from datetime import datetime
+import uuid
 
 # =============================================================================
 # TESTS DE DOMICILIARIOS
 # =============================================================================
+
 
 class TestDeliveryDrivers:
     """Tests para gestión de domiciliarios."""
@@ -163,6 +139,83 @@ class TestDeliveryShifts:
 
 
 # =============================================================================
+# FIXTURES ESTRATÉGICAS PARA DELIVERY
+# =============================================================================
+
+@pytest.fixture
+async def delivery_role(session: AsyncSession, test_company: Company):
+    """Crea el rol de Domiciliario."""
+    idx = uuid.uuid4().hex[:4]
+    role = Role(
+        name="Domiciliario",
+        code=f"DOM{idx}",
+        company_id=test_company.id,
+        is_system_role=False
+    )
+    session.add(role)
+    await session.commit()
+    await session.refresh(role)
+    return role
+
+@pytest.fixture
+async def delivery_user(session: AsyncSession, test_company: Company, test_branch: Branch, delivery_role: Role):
+    """Crea un usuario con rol Domiciliario."""
+    uid = uuid.uuid4().hex[:4]
+    hashed_password = get_password_hash("password123")
+    user = User(
+        username=f"driver_{uid}",
+        email=f"driver_{uid}@test.com",
+        full_name=f"Driver {uid}",
+        hashed_password=hashed_password,
+        company_id=test_company.id,
+        branch_id=test_branch.id,
+        role_id=delivery_role.id,
+        is_active=True
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+@pytest.fixture
+async def delivery_auth_headers(test_company: Company, delivery_user: User):
+    """Headers de autenticación para el domiciliario."""
+    data = {
+        "sub": delivery_user.email,
+        "company_slug": test_company.slug,
+        "company_id": test_company.id,
+        "user_id": delivery_user.id,
+        "branch_id": delivery_user.branch_id
+    }
+    token = create_access_token(data=data)
+    return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+async def test_order_delivery(session: AsyncSession, test_company: Company, test_branch: Branch, test_user: User):
+    """Crea un pedido listo para entrega."""
+    from app.models.order import Order, OrderStatus
+    
+    order = Order(
+        order_number=f"DEL-{uuid.uuid4().hex[:6]}",
+        company_id=test_company.id,
+        branch_id=test_branch.id,
+        user_id=test_user.id,
+        customer_id=None,
+        delivery_type="delivery",
+        status=OrderStatus.READY,
+        total=Decimal("50.00"),
+        subtotal=Decimal("45.00"),
+        tax_total=Decimal("5.00"),
+        delivery_address="Calle Falsa 123",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    session.add(order)
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+# =============================================================================
 # TESTS DE FLUJO COMPLETO
 # =============================================================================
 
@@ -170,26 +223,79 @@ class TestDeliveryFlow:
     """
     Test de flujo completo:
     1. Iniciar turno
-    2. Asignar pedido
-    3. Marcar recogido
-    4. Marcar entregado
+    2. Asignar pedido (como Admin/Cajero)
+    3. Marcar recogido (como Domiciliario)
+    4. Marcar entregado (como Domiciliario)
     5. Cerrar turno
-    
-    Nota: Este test requiere datos específicos en la BD.
     """
     
     @pytest.mark.anyio
-    @pytest.mark.skip(reason="Requiere setup de datos específicos")
-    async def test_full_delivery_flow(self, client: AsyncClient, auth_headers: dict):
-        """Flujo completo de entrega."""
-        # 1. Iniciar turno
+    async def test_full_delivery_flow(
+        self, 
+        client: AsyncClient, 
+        auth_headers: dict,         # Admin/Cajero
+        delivery_auth_headers: dict,# Domiciliario
+        test_order_delivery: Order,
+        delivery_user: User,
+        test_branch: Branch
+    ):
+        """Flujo completo de entrega verificado."""
+        # 1. Iniciar turno (Domiciliario)
         response = await client.post(
             "/delivery/shift/start",
-            params={"branch_id": 1},
-            headers=auth_headers
+            params={"branch_id": test_branch.id},
+            headers=delivery_auth_headers
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, f"Start Shift Failed: {response.text}"
         shift = response.json()
         assert shift["status"] == "active"
+        shift_id = shift["id"]
         
-        # ... resto del flujo
+        # 2. Asignar pedido (Admin asigna al Domiciliario)
+        response = await client.post(
+            f"/delivery/orders/{test_order_delivery.id}/assign",
+            json={"driver_id": delivery_user.id},
+            headers=auth_headers
+        )
+        assert response.status_code == 200, f"Assign Driver Failed: {response.text}"
+        data = response.json()
+        assert data["driver_id"] == delivery_user.id
+        assert data["order_id"] == test_order_delivery.id
+        
+        # 3. Domiciliario ve el pedido en sus órdenes
+        response = await client.get("/delivery/my-orders", headers=delivery_auth_headers)
+        assert response.status_code == 200, f"Get My Orders Failed: {response.text}"
+        my_orders = response.json()["orders"]
+        assert len(my_orders) >= 1, f"No orders found for driver. Response: {my_orders}"
+        assert my_orders[0]["id"] == test_order_delivery.id
+        
+        # 4. Marcar recogido (Domiciliario)
+        response = await client.post(
+            f"/delivery/orders/{test_order_delivery.id}/picked-up",
+            headers=delivery_auth_headers
+        )
+        assert response.status_code == 200, f"Pick Up Failed: {response.text}"
+        assert response.json()["new_status"] == "picked_up"
+        
+        # 5. Marcar entregado (Domiciliario)
+        response = await client.post(
+            f"/delivery/orders/{test_order_delivery.id}/delivered",
+            headers=delivery_auth_headers
+        )
+        assert response.status_code == 200, f"Delivered Failed: {response.text}"
+        assert response.json()["new_status"] == "delivered"
+        
+        # 6. Cerrar turno (Domiciliario)
+        # Asumiendo que recauda el total del pedido
+        cash_collected = float(test_order_delivery.total)
+        
+        response = await client.post(
+            "/delivery/shift/close",
+            json={"cash_collected": cash_collected, "notes": "Cierre exitoso"},
+            headers=delivery_auth_headers
+        )
+        assert response.status_code == 200, f"Close Shift Failed: {response.text}"
+        summary = response.json()
+        assert summary["status"] == "closed"
+        assert summary["total_delivered"] >= 1
+        assert float(summary["total_earnings"]) >= float(test_order_delivery.total)

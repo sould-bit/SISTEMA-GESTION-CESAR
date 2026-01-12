@@ -147,7 +147,7 @@ async def get_my_orders(
             customer_phone=order.customer.phone if order.customer else None,
             delivery_address=order.delivery_address or "",
             delivery_notes=order.delivery_notes,
-            status=order.status.value,
+            status=order.status.value if hasattr(order.status, "value") else str(order.status),
             total=order.total,
             delivery_fee=order.delivery_fee,
             created_at=order.created_at,
@@ -218,7 +218,7 @@ async def mark_order_delivered(
         message="Pedido entregado exitosamente",
         order_id=order.id,
         order_number=order.order_number,
-        new_status=order.status.value,
+        new_status=order.status.value if hasattr(order.status, "value") else str(order.status),
         timestamp=order.delivered_at or datetime.utcnow()
     )
 

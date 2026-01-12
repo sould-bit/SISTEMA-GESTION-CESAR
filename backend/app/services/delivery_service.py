@@ -142,9 +142,10 @@ class DeliveryService:
         
         # 3. Validar estado (debe estar READY)
         if order.status != OrderStatus.READY:
+            status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"El pedido debe estar en estado 'READY', actualmente está en '{order.status.value}'"
+                detail=f"El pedido debe estar en estado 'READY', actualmente está en '{status_val}'"
             )
         
         # 4. Validar domiciliario
