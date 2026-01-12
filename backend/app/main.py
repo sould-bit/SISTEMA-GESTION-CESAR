@@ -19,7 +19,8 @@ from app.routers import (
     customers,
     storefront,
     delivery,
-    audit
+    audit,
+    tickets
 )
 from .core.websockets import sio # Import Socket.IO server
 import socketio
@@ -59,6 +60,7 @@ app.include_router(customers.router)
 app.include_router(storefront.router)
 app.include_router(delivery.router)
 app.include_router(audit.router)
+app.include_router(tickets.router)
 
 # Handler global para excepciones RBAC
 app.add_exception_handler(RBACException, create_rbac_exception_handler())
