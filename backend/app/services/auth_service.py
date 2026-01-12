@@ -26,6 +26,8 @@ from app.models.company import Company
 from app.schemas.auth import LoginRequest, Token, UserResponse, TokenVerification
 from app.utils.security import verify_password, create_access_token, create_refresh_token, decode_access_token
 from app.config import settings
+from app.services.audit_service import AuditService
+from app.models.audit_log import AuditAction
 
 import logging
 
@@ -109,6 +111,16 @@ class AuthService:
 
             # 5. Generar token
             token = await self._generate_user_token(user)
+            
+            # 6. Auditoría - Login exitoso
+            audit_service = AuditService(self.db)
+            await audit_service.log_simple(
+                action=AuditAction.LOGIN_SUCCESS,
+                company_id=company.id,
+                description=f"Usuario {user.username} inició sesión",
+                user_id=user.id,
+                username=user.username
+            )
 
             logger.info(f"✅ Login exitoso: {user.username} (Empresa: {company.name})")
             return token
@@ -189,6 +201,16 @@ class AuthService:
         Returns:
             dict: Confirmación de logout
         """
+        # Auditoría - Logout
+        audit_service = AuditService(self.db)
+        await audit_service.log_simple(
+            action=AuditAction.LOGOUT,
+            company_id=user.company_id,
+            description=f"Usuario {user.username} cerró sesión",
+            user_id=user.id,
+            username=user.username
+        )
+        
         logger.info(f"👋 Logout: {user.username}")
         return {
             "message": "Logout exitoso",

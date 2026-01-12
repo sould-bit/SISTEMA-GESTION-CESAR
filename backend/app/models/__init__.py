@@ -31,3 +31,6 @@ from .print_queue import PrintJob, PrintJobStatus
 from .customer import Customer
 from .customer_address import CustomerAddress
 from .delivery_shift import DeliveryShift
+
+# Sistema de Auditoría (v6.0)
+from .audit_log import AuditLog, AuditAction
