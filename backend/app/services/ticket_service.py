@@ -1,392 +1,190 @@
 """
-🧾 Ticket Service - Generación de Tickets/Comandas
-===================================================
+🧾 Ticket Service - Orquestación de Tickets
+============================================
 
-MVP: Generación de PDF descargable para impresión manual
-Evolución: WebSocket + Agente Local para impresión automática
+Responsabilidad ÚNICA: Obtener datos y coordinar la generación de tickets.
+Para modificar el DISEÑO del ticket → editar ticket_renderer.py
 
 Autor: Sistema de Gestión César
 """
 
 import io
-from datetime import datetime
-from decimal import Decimal
-from typing import Optional, List
+import logging
+from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.models.order import Order, OrderItem
-from app.models.company import Company
-from app.models.branch import Branch
+from app.services.ticket_renderer import TicketRenderer, TicketConfig
 
-# Para generación de PDF
-try:
-    from reportlab.lib.pagesizes import mm
-    from reportlab.lib.units import mm as mm_unit
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.styles import getSampleStyleSheet
-    REPORTLAB_AVAILABLE = True
-except ImportError:
-    REPORTLAB_AVAILABLE = False
-
-
-# =============================================================================
-# CONSTANTES DE FORMATO
-# =============================================================================
-
-# Tamaño de ticket térmico estándar (80mm x longitud variable)
-TICKET_WIDTH = 80 * mm_unit
-TICKET_MIN_HEIGHT = 200 * mm_unit
-
-# Márgenes
-MARGIN_LEFT = 5 * mm_unit
-MARGIN_RIGHT = 5 * mm_unit
-CONTENT_WIDTH = TICKET_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
+logger = logging.getLogger(__name__)
 
 
 class TicketService:
     """
-    Servicio para generación de tickets/comandas.
+    Servicio de tickets - Solo maneja datos.
     
-    MVP: Genera PDFs descargables
+    Para cambiar el diseño visual:
+    - Editar TicketRenderer en ticket_renderer.py
+    - O pasar una TicketConfig personalizada
     
     # TODO: EVOLUCIÓN OPCIÓN B - WebSocket + Agente Local
     # =====================================================
-    # Para migrar a impresión automática via WebSocket:
-    #
-    # 1. Agregar método send_to_printer():
-    #    async def send_to_printer(self, order_id: int, branch_id: int):
-    #        from app.core.websockets import sio
-    #        ticket_data = await self._build_ticket_data(order_id)
-    #        await sio.emit("print_ticket", ticket_data, room=f"printer_{branch_id}")
-    #
-    # 2. Crear agente local (print_agent.py) que escuche WebSocket:
-    #    - Conectarse a ws://backend/socket.io
-    #    - Escuchar evento "print_ticket"
-    #    - Usar python-escpos para imprimir
-    #
-    # 3. Modificar endpoint para llamar send_to_printer() en lugar de generar PDF
+    # async def send_to_printer(self, order_id: int, branch_id: int):
+    #     from app.core.websockets import sio
+    #     order_data = await self._get_order_data(order_id, company_id)
+    #     await sio.emit("print_ticket", order_data, room=f"printer_{branch_id}")
     # =====================================================
     """
     
-    def __init__(self, db: AsyncSession):
-        self.db = db
-    
-    async def generate_ticket_pdf(self, order_id: int) -> io.BytesIO:
+    def __init__(self, db: AsyncSession, config: TicketConfig = None):
         """
-        Genera un PDF con formato de ticket térmico (80mm de ancho).
+        Inicializa el servicio.
+        
+        Args:
+            db: Sesión de base de datos
+            config: Configuración de estilos (opcional, usa default si no se pasa)
+        """
+        self.db = db
+        self.renderer = TicketRenderer(config)
+    
+    async def generate_ticket_pdf(self, order_id: int, company_id: int) -> io.BytesIO:
+        """
+        Genera un PDF de ticket de caja.
         
         Args:
             order_id: ID del pedido
+            company_id: ID de la empresa (multi-tenant)
             
         Returns:
-            BytesIO con el contenido del PDF
+            BytesIO con el PDF
         """
-        if not REPORTLAB_AVAILABLE:
-            raise ImportError("reportlab no está instalado. Ejecuta: pip install reportlab")
-        
-        # 1. Obtener datos del pedido
-        order = await self._get_order_with_details(order_id)
-        if not order:
+        # 1. Obtener datos
+        order_data = await self._get_order_data(order_id, company_id)
+        if not order_data:
             raise ValueError(f"Pedido {order_id} no encontrado")
         
-        # 2. Crear PDF en memoria
-        buffer = io.BytesIO()
-        
-        # Calcular altura dinámica basada en items
-        num_items = len(order.items) if order.items else 0
-        height = TICKET_MIN_HEIGHT + (num_items * 15 * mm_unit)
-        
-        c = canvas.Canvas(buffer, pagesize=(TICKET_WIDTH, height))
-        
-        # 3. Dibujar contenido
-        y_position = height - 10 * mm_unit  # Empezar desde arriba
-        
-        # --- ENCABEZADO ---
-        y_position = self._draw_header(c, order, y_position)
-        
-        # --- LÍNEA SEPARADORA ---
-        y_position = self._draw_separator(c, y_position)
-        
-        # --- INFORMACIÓN DEL PEDIDO ---
-        y_position = self._draw_order_info(c, order, y_position)
-        
-        # --- LÍNEA SEPARADORA ---
-        y_position = self._draw_separator(c, y_position)
-        
-        # --- ITEMS ---
-        y_position = self._draw_items(c, order, y_position)
-        
-        # --- LÍNEA SEPARADORA ---
-        y_position = self._draw_separator(c, y_position)
-        
-        # --- TOTALES ---
-        y_position = self._draw_totals(c, order, y_position)
-        
-        # --- PIE DE PÁGINA ---
-        self._draw_footer(c, y_position)
-        
-        c.save()
-        buffer.seek(0)
-        return buffer
+        # 2. Renderizar PDF
+        return self.renderer.render_receipt(order_data)
     
-    async def generate_kitchen_ticket_pdf(self, order_id: int) -> io.BytesIO:
+    async def generate_kitchen_ticket_pdf(self, order_id: int, company_id: int) -> io.BytesIO:
         """
-        Genera ticket para cocina (solo items, sin precios).
+        Genera un PDF de comanda para cocina.
         
-        # TODO: EVOLUCIÓN OPCIÓN B
-        # Este método se convertiría en:
-        # async def send_to_kitchen(self, order_id: int):
-        #     await self.send_to_printer(order_id, printer_type="kitchen")
+        Args:
+            order_id: ID del pedido
+            company_id: ID de la empresa (multi-tenant)
+            
+        Returns:
+            BytesIO con el PDF
         """
-        if not REPORTLAB_AVAILABLE:
-            raise ImportError("reportlab no está instalado")
-        
-        order = await self._get_order_with_details(order_id)
-        if not order:
+        # 1. Obtener datos
+        order_data = await self._get_order_data(order_id, company_id)
+        if not order_data:
             raise ValueError(f"Pedido {order_id} no encontrado")
         
-        buffer = io.BytesIO()
-        num_items = len(order.items) if order.items else 0
-        height = 150 * mm_unit + (num_items * 20 * mm_unit)
-        
-        c = canvas.Canvas(buffer, pagesize=(TICKET_WIDTH, height))
-        y_position = height - 10 * mm_unit
-        
-        # --- ENCABEZADO COCINA ---
-        c.setFont("Helvetica-Bold", 16)
-        c.drawCentredString(TICKET_WIDTH / 2, y_position, "*** COCINA ***")
-        y_position -= 20
-        
-        c.setFont("Helvetica-Bold", 14)
-        c.drawCentredString(TICKET_WIDTH / 2, y_position, f"PEDIDO {order.order_number}")
-        y_position -= 15
-        
-        # Tipo de pedido destacado
-        delivery_type_display = {
-            "dine_in": "🍽️ MESA",
-            "takeaway": "📦 PARA LLEVAR", 
-            "delivery": "🛵 DOMICILIO"
-        }.get(order.delivery_type, order.delivery_type.upper())
-        
-        c.setFont("Helvetica-Bold", 12)
-        c.drawCentredString(TICKET_WIDTH / 2, y_position, delivery_type_display)
-        y_position -= 15
-        
-        y_position = self._draw_separator(c, y_position)
-        
-        # --- ITEMS (SIN PRECIOS, SOLO CANTIDADES) ---
-        c.setFont("Helvetica-Bold", 12)
-        for item in order.items:
-            product_name = item.product.name if item.product else f"Producto #{item.product_id}"
-            
-            # Cantidad grande y destacada
-            c.setFont("Helvetica-Bold", 14)
-            c.drawString(MARGIN_LEFT, y_position, f"{int(item.quantity)}x")
-            
-            # Nombre del producto
-            c.setFont("Helvetica", 11)
-            c.drawString(MARGIN_LEFT + 15 * mm_unit, y_position, product_name[:25])
-            y_position -= 8
-            
-            # Notas del item (si las hay)
-            if item.notes:
-                c.setFont("Helvetica-Oblique", 9)
-                c.drawString(MARGIN_LEFT + 15 * mm_unit, y_position, f"→ {item.notes[:30]}")
-                y_position -= 8
-            
-            y_position -= 8
-        
-        # --- NOTAS DEL CLIENTE ---
-        if order.customer_notes:
-            y_position = self._draw_separator(c, y_position)
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(MARGIN_LEFT, y_position, "NOTAS:")
-            y_position -= 12
-            c.setFont("Helvetica", 9)
-            c.drawString(MARGIN_LEFT, y_position, order.customer_notes[:50])
-            y_position -= 10
-        
-        # --- HORA ---
-        y_position = self._draw_separator(c, y_position)
-        c.setFont("Helvetica", 10)
-        c.drawCentredString(TICKET_WIDTH / 2, y_position, order.created_at.strftime("%H:%M:%S"))
-        
-        c.save()
-        buffer.seek(0)
-        return buffer
+        # 2. Renderizar PDF
+        return self.renderer.render_kitchen(order_data)
     
     # =========================================================================
-    # MÉTODOS PRIVADOS
+    # MÉTODOS PRIVADOS - OBTENCIÓN DE DATOS
     # =========================================================================
     
-    async def _get_order_with_details(self, order_id: int) -> Optional[Order]:
-        """Obtiene pedido con items, productos y empresa."""
+    async def _get_order_data(self, order_id: int, company_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene datos del pedido en formato diccionario.
+        
+        Valida que el pedido pertenezca a la empresa (multi-tenant).
+        """
+        logger.info(f"🔍 Buscando Order: id={order_id}, company_id={company_id}")
+        
         result = await self.db.execute(
             select(Order)
-            .where(Order.id == order_id)
+            .where(
+                Order.id == order_id,
+                Order.company_id == company_id
+            )
             .options(
                 selectinload(Order.items).selectinload(OrderItem.product),
                 selectinload(Order.company),
                 selectinload(Order.branch)
             )
         )
-        return result.scalar_one_or_none()
+        order = result.scalar_one_or_none()
+        
+        if not order:
+            logger.warning(f"❌ Pedido NO encontrado: id={order_id}, company_id={company_id}")
+            return None
+        
+        logger.info(f"✅ Pedido encontrado: {order.order_number}")
+        
+        # Transformar a diccionario para el renderer
+        return self._order_to_dict(order)
     
-    def _draw_header(self, c, order: Order, y: float) -> float:
-        """Dibuja encabezado con nombre de empresa."""
-        company_name = order.company.name if order.company else "Mi Restaurante"
-        branch_name = order.branch.name if order.branch else ""
-        
-        c.setFont("Helvetica-Bold", 14)
-        c.drawCentredString(TICKET_WIDTH / 2, y, company_name.upper())
-        y -= 12
-        
-        if branch_name:
-            c.setFont("Helvetica", 10)
-            c.drawCentredString(TICKET_WIDTH / 2, y, branch_name)
-            y -= 10
-        
-        return y
-    
-    def _draw_order_info(self, c, order: Order, y: float) -> float:
-        """Dibuja información del pedido."""
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(MARGIN_LEFT, y, f"Pedido: {order.order_number}")
-        y -= 12
-        
-        c.setFont("Helvetica", 10)
-        c.drawString(MARGIN_LEFT, y, f"Fecha: {order.created_at.strftime('%d/%m/%Y %H:%M')}")
-        y -= 10
-        
-        # Tipo de pedido
-        delivery_labels = {
-            "dine_in": "Mesa",
-            "takeaway": "Para llevar",
-            "delivery": "Domicilio"
+    def _order_to_dict(self, order: Order) -> Dict[str, Any]:
+        """Convierte Order ORM a diccionario para el renderer."""
+        return {
+            "id": order.id,
+            "order_number": order.order_number,
+            "company_name": order.company.name if order.company else "Mi Restaurante",
+            "branch_name": order.branch.name if order.branch else "",
+            "delivery_type": order.delivery_type,
+            "customer_notes": order.customer_notes,
+            "created_at": order.created_at,
+            "subtotal": float(order.subtotal) if order.subtotal else 0,
+            "tax_total": float(order.tax_total) if order.tax_total else 0,
+            "delivery_fee": float(order.delivery_fee) if order.delivery_fee else 0,
+            "total": float(order.total) if order.total else 0,
+            "items": [
+                {
+                    "product_id": item.product_id,
+                    "product_name": item.product.name if item.product else f"Item #{item.product_id}",
+                    "quantity": float(item.quantity) if item.quantity else 1,
+                    "unit_price": float(item.unit_price) if item.unit_price else 0,
+                    "subtotal": float(item.subtotal) if item.subtotal else 0,
+                    "notes": item.notes
+                }
+                for item in order.items
+            ]
         }
-        c.drawString(MARGIN_LEFT, y, f"Tipo: {delivery_labels.get(order.delivery_type, order.delivery_type)}")
-        y -= 10
-        
-        return y
-    
-    def _draw_items(self, c, order: Order, y: float) -> float:
-        """Dibuja lista de items."""
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(MARGIN_LEFT, y, "Cant")
-        c.drawString(MARGIN_LEFT + 12 * mm_unit, y, "Descripción")
-        c.drawRightString(TICKET_WIDTH - MARGIN_RIGHT, y, "Total")
-        y -= 12
-        
-        c.setFont("Helvetica", 9)
-        for item in order.items:
-            product_name = item.product.name if item.product else f"Item #{item.product_id}"
-            subtotal = item.subtotal or (item.quantity * item.unit_price)
-            
-            c.drawString(MARGIN_LEFT, y, f"{int(item.quantity)}")
-            c.drawString(MARGIN_LEFT + 12 * mm_unit, y, product_name[:20])
-            c.drawRightString(TICKET_WIDTH - MARGIN_RIGHT, y, f"${subtotal:,.0f}")
-            y -= 10
-        
-        return y
-    
-    def _draw_totals(self, c, order: Order, y: float) -> float:
-        """Dibuja totales."""
-        c.setFont("Helvetica", 10)
-        c.drawString(MARGIN_LEFT, y, "Subtotal:")
-        c.drawRightString(TICKET_WIDTH - MARGIN_RIGHT, y, f"${order.subtotal:,.0f}")
-        y -= 10
-        
-        if order.tax_total and order.tax_total > 0:
-            c.drawString(MARGIN_LEFT, y, "IVA:")
-            c.drawRightString(TICKET_WIDTH - MARGIN_RIGHT, y, f"${order.tax_total:,.0f}")
-            y -= 10
-        
-        if order.delivery_fee and order.delivery_fee > 0:
-            c.drawString(MARGIN_LEFT, y, "Domicilio:")
-            c.drawRightString(TICKET_WIDTH - MARGIN_RIGHT, y, f"${order.delivery_fee:,.0f}")
-            y -= 10
-        
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(MARGIN_LEFT, y, "TOTAL:")
-        c.drawRightString(TICKET_WIDTH - MARGIN_RIGHT, y, f"${order.total:,.0f}")
-        y -= 12
-        
-        return y
-    
-    def _draw_separator(self, c, y: float) -> float:
-        """Dibuja línea separadora."""
-        c.setStrokeColorRGB(0.5, 0.5, 0.5)
-        c.setDash(1, 2)
-        c.line(MARGIN_LEFT, y - 3, TICKET_WIDTH - MARGIN_RIGHT, y - 3)
-        c.setDash()
-        return y - 10
-    
-    def _draw_footer(self, c, y: float):
-        """Dibuja pie de página."""
-        c.setFont("Helvetica", 8)
-        c.drawCentredString(TICKET_WIDTH / 2, y, "¡Gracias por su compra!")
-        y -= 10
-        c.drawCentredString(TICKET_WIDTH / 2, y, datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 
 
 # =============================================================================
 # EVOLUCIÓN OPCIÓN B: WEBSOCKET + AGENTE
 # =============================================================================
 #
-# Para activar impresión automática, crear estos componentes:
+# Para activar impresión automática, agregar a esta clase:
 #
-# 1. BACKEND - Agregar evento WebSocket:
-# ----------------------------------------
-# # En app/core/websockets.py o nuevo archivo
-#
-# @sio.on("printer_register")
-# async def register_printer(sid, data):
-#     """Registrar una impresora (agente se conecta)"""
-#     branch_id = data.get("branch_id")
-#     printer_type = data.get("type", "receipt")  # receipt, kitchen
-#     await sio.enter_room(sid, f"printer_{branch_id}_{printer_type}")
-#     logger.info(f"🖨️ Printer registered: Branch {branch_id}, Type {printer_type}")
-#
-# async def emit_print_job(order_id: int, branch_id: int, printer_type: str = "receipt"):
-#     """Enviar trabajo de impresión a agentes conectados"""
-#     ticket_data = await build_ticket_data(order_id)  # JSON con datos del ticket
-#     await sio.emit("print_job", ticket_data, room=f"printer_{branch_id}_{printer_type}")
+# async def send_to_printer(self, order_id: int, company_id: int, branch_id: int):
+#     """Envía ticket a impresora via WebSocket."""
+#     from app.core.websockets import sio
+#     
+#     order_data = await self._get_order_data(order_id, company_id)
+#     if not order_data:
+#         raise ValueError(f"Pedido {order_id} no encontrado")
+#     
+#     await sio.emit("print_job", {
+#         "type": "receipt",
+#         "data": order_data
+#     }, room=f"printer_{branch_id}_receipt")
+#     
+#     logger.info(f"🖨️ Ticket enviado a impresora: Branch {branch_id}")
 #
 #
-# 2. AGENTE LOCAL - print_agent.py (instalar en cada PC):
-# --------------------------------------------------------
-# """
-# Agente de impresión para FastOps.
-# Instalar en cada PC con impresora conectada.
-# 
-# Requisitos:
-#   pip install python-socketio python-escpos
-#
-# Uso:
-#   python print_agent.py --backend ws://tu-servidor:8000 --branch 1
-# """
-# import socketio
-# from escpos.printer import Usb, Network
-#
-# sio = socketio.Client()
-# printer = Usb(0x04b8, 0x0e15)  # Cambiar según modelo
-#
-# @sio.event
-# def connect():
-#     sio.emit("printer_register", {"branch_id": BRANCH_ID, "type": "receipt"})
-#
-# @sio.on("print_job")
-# def print_ticket(data):
-#     printer.set(align="center")
-#     printer.text(data["header"] + "\n")
-#     printer.set(align="left")
-#     for item in data["items"]:
-#         printer.text(f"{item['qty']}x {item['name']}\n")
-#     printer.cut()
-#
-# sio.connect(f"ws://{BACKEND_URL}/socket.io")
-# sio.wait()
+# async def send_to_kitchen(self, order_id: int, company_id: int, branch_id: int):
+#     """Envía comanda a cocina via WebSocket."""
+#     from app.core.websockets import sio
+#     
+#     order_data = await self._get_order_data(order_id, company_id)
+#     if not order_data:
+#         raise ValueError(f"Pedido {order_id} no encontrado")
+#     
+#     await sio.emit("print_job", {
+#         "type": "kitchen",
+#         "data": order_data
+#     }, room=f"printer_{branch_id}_kitchen")
+#     
+#     logger.info(f"🍳 Comanda enviada a cocina: Branch {branch_id}")
 #
 # =============================================================================

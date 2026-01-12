@@ -40,7 +40,10 @@ async def download_receipt_ticket(
     """
     try:
         ticket_service = TicketService(db)
-        pdf_buffer = await ticket_service.generate_ticket_pdf(order_id)
+        pdf_buffer = await ticket_service.generate_ticket_pdf(
+            order_id=order_id,
+            company_id=current_user.company_id  # Multi-tenant security
+        )
         
         return StreamingResponse(
             pdf_buffer,
@@ -80,7 +83,10 @@ async def download_kitchen_ticket(
     """
     try:
         ticket_service = TicketService(db)
-        pdf_buffer = await ticket_service.generate_kitchen_ticket_pdf(order_id)
+        pdf_buffer = await ticket_service.generate_kitchen_ticket_pdf(
+            order_id=order_id,
+            company_id=current_user.company_id  # Multi-tenant security
+        )
         
         return StreamingResponse(
             pdf_buffer,
