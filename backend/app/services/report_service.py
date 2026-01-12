@@ -266,3 +266,269 @@ class ReportService:
             
         growth = float((current_net - prev_net) / prev_net * 100)
         return growth
+
+    # =========================================================================
+    # NUEVOS REPORTES - Inventario, Domiciliarios, Consumo
+    # =========================================================================
+
+    @staticmethod
+    async def get_inventory_report(
+        db: AsyncSession,
+        company_id: int,
+        branch_id: Optional[int] = None,
+        include_zero_stock: bool = True
+    ):
+        """
+        Genera reporte de estado de inventario.
+        
+        Incluye: stock actual, valor total, alertas de stock bajo.
+        """
+        from app.models.inventory import Inventory
+        from app.schemas.reports import InventoryReport, InventoryReportItem
+        
+        filters = [
+            Product.company_id == company_id,
+            Product.is_active == True
+        ]
+        
+        query = select(
+            Product.id,
+            Product.name,
+            Category.name.label("category_name"),
+            Inventory.quantity,
+            Inventory.min_stock,
+            Inventory.max_stock,
+            Product.cost_price
+        ).outerjoin(Category, Product.category_id == Category.id)\
+         .outerjoin(Inventory, and_(
+             Inventory.product_id == Product.id,
+             Inventory.company_id == company_id
+         ))\
+         .where(and_(*filters))
+        
+        if branch_id:
+            query = query.where(Inventory.branch_id == branch_id)
+        
+        result = await db.execute(query)
+        rows = result.all()
+        
+        items = []
+        total_value = Decimal("0")
+        low_stock_count = 0
+        out_of_stock_count = 0
+        
+        for row in rows:
+            current_stock = row.quantity or Decimal("0")
+            min_stock = row.min_stock or Decimal("0")
+            max_stock = row.max_stock or Decimal("999999")
+            unit_cost = row.cost_price or Decimal("0")
+            total_item_value = current_stock * unit_cost
+            
+            # Determinar status
+            if current_stock <= 0:
+                stock_status = "OUT"
+                out_of_stock_count += 1
+            elif current_stock < min_stock:
+                stock_status = "LOW"
+                low_stock_count += 1
+            elif current_stock > max_stock:
+                stock_status = "EXCESS"
+            else:
+                stock_status = "OK"
+            
+            if not include_zero_stock and current_stock <= 0:
+                continue
+            
+            items.append(InventoryReportItem(
+                product_id=row.id,
+                product_name=row.name,
+                category_name=row.category_name,
+                current_stock=current_stock,
+                min_stock=min_stock,
+                max_stock=max_stock,
+                stock_status=stock_status,
+                unit_cost=unit_cost,
+                total_value=total_item_value
+            ))
+            
+            total_value += total_item_value
+        
+        return InventoryReport(
+            items=items,
+            total_value=total_value,
+            low_stock_count=low_stock_count,
+            out_of_stock_count=out_of_stock_count,
+            generated_at=datetime.utcnow()
+        )
+
+    @staticmethod
+    async def get_delivery_report(
+        db: AsyncSession,
+        company_id: int,
+        branch_id: Optional[int],
+        start_date: datetime,
+        end_date: datetime
+    ):
+        """
+        Genera reporte de rendimiento de domiciliarios.
+        
+        Incluye: entregas completadas, canceladas, ingresos, tiempo promedio.
+        """
+        from app.models.delivery_shift import DeliveryShift
+        from app.models.user import User
+        from app.schemas.reports import DeliveryReport, DeliveryReportItem
+        
+        filters = [
+            Order.company_id == company_id,
+            Order.delivery_type == "delivery",
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        ]
+        if branch_id:
+            filters.append(Order.branch_id == branch_id)
+        
+        # Obtener estadísticas por domiciliario
+        # Nota: Asumimos que delivery_shift tiene assigned_user_id
+        query = select(
+            DeliveryShift.user_id,
+            User.full_name.label("user_name"),
+            func.count(DeliveryShift.id).label("total_deliveries"),
+            func.sum(Order.total).label("total_revenue")
+        ).join(Order, DeliveryShift.order_id == Order.id)\
+         .join(User, DeliveryShift.user_id == User.id)\
+         .where(and_(*filters))\
+         .group_by(DeliveryShift.user_id, User.full_name)
+        
+        result = await db.execute(query)
+        rows = result.all()
+        
+        delivery_persons = []
+        total_deliveries = 0
+        total_revenue = Decimal("0")
+        
+        for row in rows:
+            delivery_persons.append(DeliveryReportItem(
+                user_id=row.user_id,
+                user_name=row.user_name or f"Usuario #{row.user_id}",
+                deliveries_completed=row.total_deliveries or 0,
+                deliveries_canceled=0,  # TODO: Agregar lógica de cancelados
+                total_revenue=row.total_revenue or Decimal("0"),
+                avg_delivery_time_minutes=None  # TODO: Calcular tiempo promedio
+            ))
+            total_deliveries += row.total_deliveries or 0
+            total_revenue += row.total_revenue or Decimal("0")
+        
+        return DeliveryReport(
+            delivery_persons=delivery_persons,
+            total_deliveries=total_deliveries,
+            total_revenue=total_revenue,
+            avg_delivery_time_minutes=None,
+            period_start=start_date,
+            period_end=end_date
+        )
+
+    @staticmethod
+    async def get_recipe_consumption_report(
+        db: AsyncSession,
+        company_id: int,
+        branch_id: Optional[int],
+        start_date: datetime,
+        end_date: datetime
+    ):
+        """
+        Genera reporte de consumo de ingredientes por recetas.
+        
+        Calcula cuánto de cada ingrediente se consumió basado en recetas
+        de los productos vendidos.
+        """
+        from app.models.recipe import Recipe, RecipeItem
+        from app.schemas.reports import RecipeConsumptionReport, RecipeConsumptionItem
+        
+        filters = [
+            Order.company_id == company_id,
+            Order.created_at >= start_date,
+            Order.created_at <= end_date,
+            Order.status != OrderStatus.CANCELLED
+        ]
+        if branch_id:
+            filters.append(Order.branch_id == branch_id)
+        
+        # Obtener productos vendidos con sus cantidades
+        query = select(
+            OrderItem.product_id,
+            func.sum(OrderItem.quantity).label("qty_sold")
+        ).join(Order, OrderItem.order_id == Order.id)\
+         .where(and_(*filters))\
+         .group_by(OrderItem.product_id)
+        
+        result = await db.execute(query)
+        products_sold = {row.product_id: row.qty_sold for row in result.all()}
+        
+        if not products_sold:
+            return RecipeConsumptionReport(
+                ingredients=[],
+                total_cost=Decimal("0"),
+                top_consumed=[],
+                period_start=start_date,
+                period_end=end_date
+            )
+        
+        # Obtener recetas de los productos vendidos
+        recipe_query = select(
+            Recipe.product_id,
+            RecipeItem.ingredient_id,
+            Product.name.label("ingredient_name"),
+            RecipeItem.quantity,
+            RecipeItem.unit,
+            Product.cost_price
+        ).join(RecipeItem, Recipe.id == RecipeItem.recipe_id)\
+         .join(Product, RecipeItem.ingredient_id == Product.id)\
+         .where(Recipe.product_id.in_(products_sold.keys()))
+        
+        recipe_result = await db.execute(recipe_query)
+        
+        # Calcular consumo por ingrediente
+        consumption_map = {}  # ingredient_id -> {name, total_qty, unit, cost}
+        
+        for row in recipe_result.all():
+            product_qty_sold = products_sold.get(row.product_id, 0)
+            consumed = float(row.quantity) * float(product_qty_sold)
+            ingredient_cost = float(row.cost_price or 0) * consumed
+            
+            if row.ingredient_id not in consumption_map:
+                consumption_map[row.ingredient_id] = {
+                    "name": row.ingredient_name,
+                    "total": Decimal("0"),
+                    "unit": row.unit or "unidad",
+                    "cost": Decimal("0")
+                }
+            
+            consumption_map[row.ingredient_id]["total"] += Decimal(str(consumed))
+            consumption_map[row.ingredient_id]["cost"] += Decimal(str(ingredient_cost))
+        
+        # Construir lista de items
+        ingredients = [
+            RecipeConsumptionItem(
+                ingredient_id=ing_id,
+                ingredient_name=data["name"],
+                total_consumed=data["total"],
+                unit=data["unit"],
+                avg_cost_per_unit=data["cost"] / data["total"] if data["total"] > 0 else Decimal("0"),
+                total_cost=data["cost"]
+            )
+            for ing_id, data in consumption_map.items()
+        ]
+        
+        # Ordenar por consumo y obtener top 5
+        ingredients.sort(key=lambda x: x.total_consumed, reverse=True)
+        top_consumed = [ing.ingredient_name for ing in ingredients[:5]]
+        
+        total_cost = sum(ing.total_cost for ing in ingredients)
+        
+        return RecipeConsumptionReport(
+            ingredients=ingredients,
+            total_cost=total_cost,
+            top_consumed=top_consumed,
+            period_start=start_date,
+            period_end=end_date
+        )

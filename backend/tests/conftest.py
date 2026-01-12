@@ -144,13 +144,14 @@ async def test_branch(session: AsyncSession, test_company: Company):
 
 @pytest.fixture
 async def test_role(session: AsyncSession, test_company: Company):
-    """Crea un rol de prueba."""
+    """Crea un rol de prueba con permisos básicos."""
     uid = uuid.uuid4().hex[:8]
     role = Role(
         name=f"Test Role {uid}",
         code=f"TST{uid[:4].upper()}",  # Required field
         company_id=test_company.id,
-        is_system_role=False
+        is_system_role=False,
+        permissions=["reports.sales", "products.read", "orders.read"]  # Permisos para tests
     )
     session.add(role)
     await session.commit()
@@ -278,13 +279,14 @@ async def test_user(session: AsyncSession, test_company: Company, test_branch: B
 
 @pytest.fixture
 async def user_token(test_user: User, test_company: Company):
-    """Crea un token válido para testing."""
+    """Crea un token válido para testing con permisos."""
     data = {
         "sub": test_user.email,
         "company_slug": test_company.slug,
         "company_id": test_company.id,
         "user_id": test_user.id,
-        "branch_id": test_user.branch_id
+        "branch_id": test_user.branch_id,
+        "permissions": ["reports.sales", "reports.financial", "products.read", "orders.read", "inventory.read"]
     }
     return create_access_token(data=data)
 

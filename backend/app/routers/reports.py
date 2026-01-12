@@ -116,3 +116,79 @@ async def get_sales_by_payment_method(
     return await ReportService.get_sales_by_payment_method(
         db, current_user.company_id, branch_id, start_date, end_date
     )
+
+
+# =============================================================================
+# NUEVOS ENDPOINTS - Inventario, Domiciliarios, Consumo
+# =============================================================================
+
+from app.schemas.reports import (
+    InventoryReport, DeliveryReport, RecipeConsumptionReport
+)
+
+
+@router.get("/inventory", response_model=InventoryReport)
+@require_permission("reports.sales")
+async def get_inventory_report(
+    branch_id: Optional[int] = None,
+    include_zero_stock: bool = Query(True, description="Incluir productos sin stock"),
+    db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Reporte de estado de inventario.
+    
+    Incluye: stock actual, valor total, alertas de stock bajo.
+    """
+    return await ReportService.get_inventory_report(
+        db, current_user.company_id, branch_id, include_zero_stock
+    )
+
+
+@router.get("/delivery", response_model=DeliveryReport)
+@require_permission("reports.sales")
+async def get_delivery_report(
+    branch_id: Optional[int] = None,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Reporte de rendimiento de domiciliarios.
+    
+    Incluye: entregas completadas, ingresos por domiciliario.
+    """
+    if not end_date:
+        end_date = datetime.utcnow()
+    if not start_date:
+        start_date = end_date - timedelta(days=30)
+        
+    return await ReportService.get_delivery_report(
+        db, current_user.company_id, branch_id, start_date, end_date
+    )
+
+
+@router.get("/consumption", response_model=RecipeConsumptionReport)
+@require_permission("reports.sales")
+async def get_recipe_consumption_report(
+    branch_id: Optional[int] = None,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Reporte de consumo de ingredientes por recetas.
+    
+    Calcula cuánto de cada ingrediente se consumió basado en recetas
+    de los productos vendidos en el periodo.
+    """
+    if not end_date:
+        end_date = datetime.utcnow()
+    if not start_date:
+        start_date = end_date - timedelta(days=30)
+        
+    return await ReportService.get_recipe_consumption_report(
+        db, current_user.company_id, branch_id, start_date, end_date
+    )
