@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: "Plus Jakarta Sans", sans-serif;
+
+    --color-asphalt: #0F172A;
+    --color-asphalt-light: #1E293B;
+    --color-asphalt-lighter: #334155;
+    --color-fastops-orange: #FF6B00;
+    --color-alert-red: #EF4444;
+    --color-info-blue: #3B82F6;
+    --color-success-green: #10B981;
+
+    --radius: 0.5rem;
+}
+
+@layer base {
+    :root {
+        --radius: 0.5rem;
+    }
+}
