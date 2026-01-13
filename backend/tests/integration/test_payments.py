@@ -48,8 +48,12 @@ async def test_payment_flow(client: AsyncClient, session: AsyncSession):
     
     def mock_get_current_user():
         return user
+
+    fastapi_app = app
+    if hasattr(app, "other_asgi_app"):
+        fastapi_app = app.other_asgi_app
         
-    app.dependency_overrides[get_current_user] = mock_get_current_user
+    fastapi_app.dependency_overrides[get_current_user] = mock_get_current_user
     
     # 2. Test Partial Payment
     payload = {
@@ -76,4 +80,4 @@ async def test_payment_flow(client: AsyncClient, session: AsyncSession):
     await session.refresh(order)
     assert order.status == OrderStatus.CONFIRMED
 
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()

@@ -78,7 +78,7 @@ async def on_startup():
 
 
 
-#RUTA RAIZ 
+#RUTA RAIZ
 @app.get("/")
 def read_root():
     return {

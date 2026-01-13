@@ -9,11 +9,14 @@ from sqlmodel import SQLModel
 
 from app.database import get_session
 from app.main import app
-from app.models import Company, Category, User, Product
+from app.models import Company, Category, User, Product, Branch
 from app.utils.security import get_password_hash, create_access_token
 from decimal import Decimal
 import uuid
 import os
+
+# Import Redis Mock Fixture
+from tests.fixtures.redis_mock import mock_redis
 
 # Use environment variable or fallback to Docker DB
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@db:5432/cesar_db")
@@ -23,28 +26,30 @@ if DATABASE_URL.startswith("postgresql://"):
 engine = create_async_engine(DATABASE_URL, echo=False)
 TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# NOTE: event_loop fixture removed to avoid conflict with pytest-asyncio 0.24+
+# when asyncio_default_fixture_loop_scope = session is set in pytest.ini
 
 @pytest.fixture(scope="session")
 async def init_db():
     try:
+        # Check dialect
+        is_postgres = engine.url.drivername == 'postgresql+asyncpg'
+
         async with engine.begin() as conn:
-            # Drop all tables to ensure clean state
-            await conn.run_sync(SQLModel.metadata.drop_all)
+            if is_postgres:
+                from sqlalchemy import text
+                # CASCADE drop for Postgres to handle foreign keys
+                await conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+            else:
+                # Standard drop for SQLite
+                await conn.run_sync(SQLModel.metadata.drop_all)
+
             # Create all tables
             await conn.run_sync(SQLModel.metadata.create_all)
     except Exception as e:
         print(f"Error initializing DB: {e}")
         raise e
     yield
-    # Optional: cleanup after all tests
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(SQLModel.metadata.drop_all)
 
 @pytest.fixture
 async def session(init_db) -> AsyncGenerator[AsyncSession, None]:
@@ -57,12 +62,21 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     def get_session_override():
         return session
 
-    app.dependency_overrides[get_session] = get_session_override
+    # If app is wrapped in socketio.ASGIApp, we need to access the inner FastAPI app
+    fastapi_app = app
+    if hasattr(app, "other_asgi_app"):
+        fastapi_app = app.other_asgi_app
+
+    fastapi_app.dependency_overrides[get_session] = get_session_override
     
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    # httpx AsyncClient accepts 'app' or 'transport'
+    # 'transport' is usually preferred for ASGI apps
+    from httpx import ASGITransport
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()
 
 @pytest.fixture
 async def test_client(client):
@@ -80,6 +94,23 @@ async def test_company(session: AsyncSession):
     await session.commit()
     await session.refresh(company)
     return company
+
+@pytest.fixture
+async def test_branch(session: AsyncSession, test_company: Company):
+    uid = uuid.uuid4().hex[:8]
+    branch = Branch(
+        name=f"Test Branch {uid}",
+        code=f"BR-{uid}",
+        company_id=test_company.id,
+        address="123 Test St",
+        phone="555-0100",
+        is_active=True,
+        is_main=True
+    )
+    session.add(branch)
+    await session.commit()
+    await session.refresh(branch)
+    return branch
 
 @pytest.fixture
 async def test_category(session: AsyncSession, test_company: Company):

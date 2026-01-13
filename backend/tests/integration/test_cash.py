@@ -24,7 +24,12 @@ async def test_cash_closure_lifecycle(client: AsyncClient, session: AsyncSession
     # Mock Auth
     from app.auth_deps import get_current_user
     from app.main import app
-    app.dependency_overrides[get_current_user] = lambda: user
+
+    fastapi_app = app
+    if hasattr(app, "other_asgi_app"):
+        fastapi_app = app.other_asgi_app
+
+    fastapi_app.dependency_overrides[get_current_user] = lambda: user
     
     # 2. Open Register
     open_payload = {"initial_cash": 1000.00}
@@ -79,4 +84,4 @@ async def test_cash_closure_lifecycle(client: AsyncClient, session: AsyncSession
     assert closed_data["status"] == "closed"
     assert closed_data["difference"] == "0.00"
 
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()

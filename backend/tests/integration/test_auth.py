@@ -29,9 +29,8 @@ async def test_auth_login_flow(client: AsyncClient, session: AsyncSession):
         role="admin"
     )
     session.add(user)
-    await session.refresh(user)
-    
     await session.commit()
+    await session.refresh(user)
     # await session.refresh(user)
     
     # 2. Test Login
