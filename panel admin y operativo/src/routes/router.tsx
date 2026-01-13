@@ -1,10 +1,10 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import { LoginPage } from '@/features/auth/LoginPage';
-import { RegisterPage } from '@/features/auth/RegisterPage';
-import { MainLayout } from '@/components/layout/MainLayout';
-import { ErrorPage } from '@/components/ErrorPage';
+import { LoginPage } from '../features/auth/LoginPage';
+import { RegisterPage } from '../features/auth/RegisterPage';
+import { MainLayout } from '../components/layout/MainLayout';
+import { ErrorPage } from '../components/ErrorPage';
 import { ProtectedRoute } from './ProtectedRoute';
-import { DashboardPage } from '@/features/admin/DashboardPage';
+import { DashboardPage } from '../features/admin/DashboardPage';
 
 export const router = createBrowserRouter([
     {

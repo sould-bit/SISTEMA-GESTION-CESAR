@@ -1,11 +1,11 @@
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AuthLayout } from '@/components/layout/AuthLayout';
+import { AuthLayout } from '../../components/layout/AuthLayout';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAppDispatch } from '@/stores/store';
-import { setCredentials } from '@/stores/auth.slice';
-import { api } from '@/lib/api';
+import { useAppDispatch } from '../../stores/store';
+import { setCredentials } from '../../stores/auth.slice';
+import { api } from '../../lib/api';
 import { useState } from 'react';
 
 const loginSchema = z.object({
@@ -74,32 +74,32 @@ export const LoginPage = () => {
     return (
         <AuthLayout>
             <div className="flex flex-col items-center mb-8 text-center">
-                <div className="h-14 w-14 bg-gradient-to-br from-asphalt-light to-asphalt border border-asphalt-lighter rounded-xl flex items-center justify-center shadow-xl shadow-fastops-orange/10 mb-3">
-                    <span className="material-symbols-outlined text-3xl text-fastops-orange">restaurant_menu</span>
+                <div className="h-14 w-14 bg-gradient-to-br from-card-dark to-bg-deep border border-border-dark rounded-xl flex items-center justify-center shadow-xl shadow-accent-orange/10 mb-3">
+                    <span className="material-symbols-outlined text-3xl text-accent-orange">restaurant_menu</span>
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight text-white">Bienvenido de nuevo</h1>
-                <p className="text-slate-400 text-sm mt-1">Ingresa a tu panel de control</p>
+                <p className="text-text-muted text-sm mt-1">Ingresa a tu panel de control</p>
             </div>
 
-            <div className="bg-asphalt-light/80 backdrop-blur-xl border border-asphalt-lighter rounded-2xl shadow-2xl p-8">
+            <div className="bg-card-dark/80 backdrop-blur-xl border border-border-dark rounded-2xl shadow-2xl p-8">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                     {error && (
-                        <div className="bg-alert-red/10 border border-alert-red text-alert-red px-4 py-2 rounded text-sm mb-4">
+                        <div className="bg-status-alert/10 border border-status-alert text-status-alert px-4 py-2 rounded text-sm mb-4">
                             {error}
                         </div>
                     )}
 
                     <div className="space-y-1.5 group">
-                        <label className="block text-xs font-semibold text-slate-400 " htmlFor="company-code">
+                        <label className="block text-xs font-semibold text-text-muted " htmlFor="company-code">
                             CÓDIGO DE EMPRESA
                         </label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="material-symbols-outlined text-slate-500 text-[20px]">domain</span>
+                                <span className="material-symbols-outlined text-text-muted text-[20px]">domain</span>
                             </div>
                             <input
                                 {...register('company_code')}
-                                className="block w-full pl-10 pr-3 py-2.5 bg-asphalt border border-asphalt-lighter rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-fastops-orange focus:ring-1 focus:ring-fastops-orange transition-all sm:text-sm"
+                                className="block w-full pl-10 pr-3 py-2.5 bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all sm:text-sm"
                                 id="company-code"
                                 placeholder="ej. mi-restaurante"
                                 type="text"
@@ -109,16 +109,16 @@ export const LoginPage = () => {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="block text-xs font-semibold text-slate-400" htmlFor="username">
+                        <label className="block text-xs font-semibold text-text-muted" htmlFor="username">
                             USUARIO
                         </label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="material-symbols-outlined text-slate-500 text-[20px]">person</span>
+                                <span className="material-symbols-outlined text-text-muted text-[20px]">person</span>
                             </div>
                             <input
                                 {...register('username')}
-                                className="block w-full pl-10 pr-3 py-2.5 bg-asphalt border border-asphalt-lighter rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-fastops-orange focus:ring-1 focus:ring-fastops-orange transition-all sm:text-sm"
+                                className="block w-full pl-10 pr-3 py-2.5 bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all sm:text-sm"
                                 id="username"
                                 placeholder="Ingrese su usuario"
                                 type="text"
@@ -128,16 +128,16 @@ export const LoginPage = () => {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="block text-xs font-semibold text-slate-400" htmlFor="password">
+                        <label className="block text-xs font-semibold text-text-muted" htmlFor="password">
                             CONTRASEÑA
                         </label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="material-symbols-outlined text-slate-500 text-[20px]">lock_open</span>
+                                <span className="material-symbols-outlined text-text-muted text-[20px]">lock_open</span>
                             </div>
                             <input
                                 {...register('password')}
-                                className="block w-full pl-10 pr-3 py-2.5 bg-asphalt border border-asphalt-lighter rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-fastops-orange focus:ring-1 focus:ring-fastops-orange transition-all sm:text-sm"
+                                className="block w-full pl-10 pr-3 py-2.5 bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all sm:text-sm"
                                 id="password"
                                 placeholder="••••••••"
                                 type="password"
@@ -152,14 +152,14 @@ export const LoginPage = () => {
                                 {...register('remember')}
                                 id="remember-me"
                                 type="checkbox"
-                                className="h-4 w-4 text-fastops-orange focus:ring-fastops-orange border-asphalt-lighter rounded bg-asphalt"
+                                className="h-4 w-4 text-accent-orange focus:ring-accent-orange border-border-dark rounded bg-bg-deep"
                             />
-                            <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-400">
+                            <label htmlFor="remember-me" className="ml-2 block text-sm text-text-muted">
                                 Recordarme
                             </label>
                         </div>
                         <div className="text-sm">
-                            <a href="#" className="font-medium text-fastops-orange hover:text-orange-400 transition-colors">
+                            <a href="#" className="font-medium text-accent-orange hover:text-orange-400 transition-colors">
                                 ¿Olvidaste tu contraseña?
                             </a>
                         </div>
@@ -168,15 +168,15 @@ export const LoginPage = () => {
                     <button
                         disabled={loading}
                         type="submit"
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-fastops-orange hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-fastops-orange focus:ring-offset-asphalt transition-all transform hover:scale-[1.01] uppercase tracking-wide disabled:opacity-50"
+                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-accent-orange hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-orange focus:ring-offset-bg-deep transition-all transform hover:scale-[1.01] uppercase tracking-wide disabled:opacity-50"
                     >
                         {loading ? 'Iniciando...' : 'Iniciar Sesión'}
                     </button>
 
                     <div className="mt-4 text-center">
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-text-muted">
                             ¿Aún no tienes cuenta?{' '}
-                            <Link to="/register" className="font-medium text-fastops-orange hover:text-orange-400 transition-colors">
+                            <Link to="/register" className="font-medium text-accent-orange hover:text-orange-400 transition-colors">
                                 Regístrate aquí
                             </Link>
                         </p>
@@ -185,7 +185,7 @@ export const LoginPage = () => {
             </div>
 
             <div className="mt-8 text-center">
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                     &copy; 2026 FastOps Technologies Inc. Todos los derechos reservados.
                 </p>
             </div>

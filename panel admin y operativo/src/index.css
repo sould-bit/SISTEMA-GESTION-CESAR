@@ -1,21 +1,64 @@
 @import "tailwindcss";
 
 @theme {
-    --font-sans: "Plus Jakarta Sans", sans-serif;
+    /* Fonts */
+    --font-sans: "Inter", "Plus Jakarta Sans", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
 
-    --color-asphalt: #0F172A;
-    --color-asphalt-light: #1E293B;
-    --color-asphalt-lighter: #334155;
-    --color-fastops-orange: #FF6B00;
-    --color-alert-red: #EF4444;
-    --color-info-blue: #3B82F6;
-    --color-success-green: #10B981;
+    /* Colors */
+    --color-bg-deep: #0F172A;
+    /* Asfalto Profundo */
+    --color-accent-orange: #FF6B00;
+    /* Naranja FastOps */
 
-    --radius: 0.5rem;
+    /* Semantic Status Colors */
+    --color-status-success: #10B981;
+    --color-status-alert: #EF4444;
+    --color-status-info: #3B82F6;
+
+    /* UI Component Colors */
+    --color-card-dark: #1E293B;
+    --color-card-hover: #334155;
+    --color-border-dark: #334155;
+
+    /* Text Colors */
+    --color-text-muted: #94A3B8;
+    --color-text-body: #CBD5E1;
+    --color-text-white: #FFFFFF;
+
+    /* Spacing & Layout */
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
 }
 
 @layer base {
-    :root {
-        --radius: 0.5rem;
+    body {
+        background-color: var(--color-bg-deep);
+        color: var(--color-text-white);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+    }
+}
+
+@layer utilities {
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--color-bg-deep);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-border-dark);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-text-muted);
     }
 }
