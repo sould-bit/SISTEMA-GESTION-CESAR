@@ -111,8 +111,8 @@ class RegistrationService:
             # 3. Crear Subscription
             subscription = await self._create_subscription(company, data.plan)
             
-            # 4. Crear Branch principal
-            branch = await self._create_default_branch(company)
+            # 4. Crear Branch principal (usando datos del registro si existen)
+            branch = await self._create_default_branch(company, data)
             
             # 5. Obtener o crear Role admin para esta empresa
             admin_role = await self._get_or_create_admin_role(company)
@@ -187,11 +187,18 @@ class RegistrationService:
         logger.info(f"✅ Subscription creada: {plan} ({subscription.status})")
         return subscription
 
-    async def _create_default_branch(self, company: Company) -> Branch:
-        """Crear sucursal principal por defecto."""
+    async def _create_default_branch(self, company: Company, data: RegistrationRequest) -> Branch:
+        """Crear sucursal principal."""
+        
+        name = data.branch_name if data.branch_name else "Principal"
+        address = data.branch_address  # Puede ser None
+        phone = data.branch_phone      # Puede ser None
+        
         branch = Branch(
             company_id=company.id,
-            name="Principal",
+            name=name,
+            address=address,
+            phone=phone,
             code="MAIN",
             is_main=True,
             is_active=True

@@ -32,6 +32,11 @@ class RegistrationRequest(BaseModel):
     # Plan seleccionado
     plan: str = Field(default="free", pattern="^(free|basic|premium)$")
 
+    # Datos iniciales de la sucursal (Opcional)
+    branch_name: Optional[str] = Field(default=None, max_length=100)
+    branch_address: Optional[str] = Field(default=None, max_length=200)
+    branch_phone: Optional[str] = Field(default=None, max_length=50)
+
 
 class RegistrationResponse(BaseModel):
     """Respuesta después del registro exitoso."""

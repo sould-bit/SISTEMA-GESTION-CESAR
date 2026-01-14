@@ -34,3 +34,6 @@ from .delivery_shift import DeliveryShift
 
 # Sistema de Auditoría (v6.0)
 from .audit_log import AuditLog, AuditAction
+
+# Sistema de Modificadores (v6.1)
+from .modifier import ProductModifier, ModifierRecipeItem, OrderItemModifier

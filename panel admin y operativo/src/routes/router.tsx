@@ -1,15 +1,19 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { LoginPage } from '../features/auth/LoginPage';
-import { RegisterPage } from '../features/auth/RegisterPage';
+
+import { GenesisPage } from '../features/genesis/GenesisPage';
 import { MainLayout } from '../components/layout/MainLayout';
 import { ErrorPage } from '../components/ErrorPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { DashboardPage } from '../features/admin/DashboardPage';
+import { InventoryPage } from '../features/admin/InventoryPage';
+import { OrdersPage } from '../features/admin/OrdersPage';
+import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
 
 export const router = createBrowserRouter([
     {
         path: '/',
-        element: <div className="min-h-screen bg-asphalt text-white"><Outlet /></div>,
+        element: <div className="min-h-screen bg-bg-deep text-white"><Outlet /></div>,
         errorElement: <ErrorPage />,
         children: [
             {
@@ -20,9 +24,10 @@ export const router = createBrowserRouter([
                 path: 'login',
                 element: <LoginPage />,
             },
+
             {
-                path: 'register',
-                element: <RegisterPage />
+                path: 'genesis',
+                element: <GenesisPage />
             },
             {
                 path: 'admin',
@@ -36,14 +41,22 @@ export const router = createBrowserRouter([
                                 element: <Navigate to="/admin/dashboard" replace />
                             },
                             {
-                                path: 'products',
-                                element: <div>Products CRUD</div>
-                            },
-                            {
                                 path: 'dashboard',
                                 element: <DashboardPage />
+                            },
+                            {
+                                path: 'inventory',
+                                element: <InventoryPage />
+                            },
+                            {
+                                path: 'orders',
+                                element: <OrdersPage />
                             }
                         ]
+                    },
+                    {
+                        path: 'setup',
+                        element: <UnifiedSetupPage />
                     }
                 ]
             }

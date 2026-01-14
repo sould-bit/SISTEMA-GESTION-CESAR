@@ -131,7 +131,10 @@ class RecipeService:
                 Recipe.company_id == company_id,
                 Recipe.is_active == True
             )
-            .options(selectinload(Recipe.items).selectinload(RecipeItem.ingredient))
+            .options(
+                selectinload(Recipe.items).selectinload(RecipeItem.ingredient),
+                selectinload(Recipe.product)
+            )
         )
         return result.scalar_one_or_none()
 
@@ -304,7 +307,12 @@ class RecipeService:
     async def _get_recipe_by_product(self, product_id: int) -> Optional[Recipe]:
         """Verificar si un producto ya tiene receta."""
         result = await self.db.execute(
-            select(Recipe).where(Recipe.product_id == product_id)
+            select(Recipe)
+            .where(Recipe.product_id == product_id)
+            .options(
+                selectinload(Recipe.items).selectinload(RecipeItem.ingredient),
+                selectinload(Recipe.product)
+            )
         )
         return result.scalar_one_or_none()
 

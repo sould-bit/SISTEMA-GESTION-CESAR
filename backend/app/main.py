@@ -20,8 +20,12 @@ from app.routers import (
     storefront,
     delivery,
     audit,
-    tickets
+    tickets,
+    tickets,
+    uploads,
+    modifiers
 )
+from fastapi.staticfiles import StaticFiles
 from .core.websockets import sio # Import Socket.IO server
 import socketio
 from app.core.exceptions import RBACException, create_rbac_exception_handler
@@ -61,6 +65,11 @@ app.include_router(storefront.router)
 app.include_router(delivery.router)
 app.include_router(audit.router)
 app.include_router(tickets.router)
+app.include_router(uploads.router)
+app.include_router(modifiers.router)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Handler global para excepciones RBAC
 app.add_exception_handler(RBACException, create_rbac_exception_handler())

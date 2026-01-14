@@ -8,7 +8,7 @@ export interface User {
     company_id: number;
 }
 
-interface AuthState {
+export interface AuthState {
     token: string | null;
     user: User | null;
     isAuthenticated: boolean;

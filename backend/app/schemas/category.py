@@ -6,7 +6,7 @@ from sqlmodel import SQLModel
 class CategoryBase(SQLModel):
     """base campos compartidos"""
     name: str
-    description: str | None
+    description: str | None = None
     is_active: bool = True  # ✅ Valor por defecto
 
 #  create : lo que recibimos del cliente 

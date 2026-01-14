@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 const menuItems = [
     { name: 'Orders', path: '/admin/orders', icon: 'receipt_long' },
     { name: 'Inventory', path: '/admin/inventory', icon: 'inventory_2' },
+    { name: 'Engineering', path: '/admin/setup', icon: 'construction' },
     { name: 'Staff', path: '/admin/staff', icon: 'group' },
     { name: 'Analytics', path: '/admin/analytics', icon: 'monitoring' },
     { name: 'Settings', path: '/admin/settings', icon: 'settings' },

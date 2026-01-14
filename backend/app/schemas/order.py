@@ -15,6 +15,7 @@ class OrderItemCreate(BaseModel):
     # para casos especiales, aunque por defecto debería venir del producto.
     # Por ahora simple: cantidad y producto.
     notes: Optional[str] = None
+    modifiers: Optional[List[int]] = []
 
 class OrderItemRead(BaseModel):
     id: int

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from .branch import Branch
     from .payment import Payment
     from .customer import Customer
+    from .modifier import OrderItemModifier
 
 
 class OrderStatus(str, Enum):
@@ -44,6 +45,7 @@ class OrderItem(SQLModel, table=True):
     # Relaciones
     order: "Order" = Relationship(back_populates="items")
     product: "Product" = Relationship()
+    modifiers: List["OrderItemModifier"] = Relationship(sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
     @property
     def product_name(self) -> str:

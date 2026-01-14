@@ -1,8 +1,9 @@
+
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AuthLayout } from '../../components/layout/AuthLayout';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../stores/store';
 import { setCredentials } from '../../stores/auth.slice';
 import { api } from '../../lib/api';
@@ -173,14 +174,16 @@ export const LoginPage = () => {
                         {loading ? 'Iniciando...' : 'Iniciar Sesión'}
                     </button>
 
-                    <div className="mt-4 text-center">
-                        <p className="text-sm text-text-muted">
-                            ¿Aún no tienes cuenta?{' '}
-                            <Link to="/register" className="font-medium text-accent-orange hover:text-orange-400 transition-colors">
-                                Regístrate aquí
-                            </Link>
+                    <div className="mt-8 text-center">
+                        <p className="text-text-muted text-sm">
+                            ¿Nueva franquicia?{' '}
+                            <a href="/genesis" className="text-accent-orange hover:text-orange-400 font-bold transition-colors">
+                                Inicializar Protocolo Génesis
+                            </a>
                         </p>
                     </div>
+
+
                 </form>
             </div>
 

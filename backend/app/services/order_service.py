@@ -17,6 +17,9 @@ from app.services.print_service import PrintService
 from app.services.inventory_service import InventoryService
 from app.services.recipe_service import RecipeService
 from app.services.notification_service import NotificationService
+from app.models.modifier import ProductModifier, OrderItemModifier
+from collections import Counter
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +64,28 @@ class OrderService:
             
             # Map products by ID for easy access
             db_products = {p.id: p for p in products}
+
+            # 2.1 Obtener y validar Modificadores (si existen en el payload)
+            all_modifier_ids = []
+            for item in order_data.items:
+                if item.modifiers:
+                    all_modifier_ids.extend(item.modifiers)
             
+            db_modifiers = {}
+            if all_modifier_ids:
+                stmt_mod = select(ProductModifier).where(
+                    col(ProductModifier.id).in_(all_modifier_ids),
+                    ProductModifier.company_id == company_id
+                ).options(selectinload(ProductModifier.recipe_items))
+                result_mod = await self.db.execute(stmt_mod)
+                db_modifiers = {m.id: m for m in result_mod.scalars().all()}
+                
+                # Validar existencia simplificada (opcional: lanzar error si falta alguno)
+                missing_mods = set(all_modifier_ids) - set(db_modifiers.keys())
+                if missing_mods:
+                    logger.warning(f"⚠️ Modificadores solicitados no encontrados: {missing_mods}")
+
+
             # 3. Calcular totales y construir items
             order_items: List[OrderItem] = []
             subtotal = Decimal("0.00")
@@ -72,14 +96,64 @@ class OrderService:
                 
                 # TODO: Validar stock disponible aquí si Product tiene manejo de inventario estricto
                 
-                # Usamos el precio del producto en DB como base de seguridad
+                # Precio Base
                 unit_price = product.price
                 quantity = user_item.quantity
                 
-                # Calcular montos
-                line_subtotal = unit_price * quantity
-                # Asumimos tax incluido o cero por ahora, o usamos product.tax_rate si existiera
-                # En modelo anterior Product tiene tax_rate, usémoslo si existe
+                # Calcular Monto Base
+                line_base_total = unit_price * quantity
+                
+                # Procesar Modificadores
+                item_modifiers_orm: List[OrderItemModifier] = []
+                modifiers_subtotal = Decimal("0.00")
+                
+                if user_item.modifiers:
+                    # Usamos Counter para manejar cantidades (ej: 2x Extra Queso)
+                    mod_counts = Counter(user_item.modifiers)
+                    for mod_id, mod_qty in mod_counts.items():
+                        if mod_id not in db_modifiers:
+                            continue
+                            
+                        mod_obj = db_modifiers[mod_id]
+                        # Precio unitario del modificador * cantidad de veces que se pidió * cantidad de items (OJO: quantity del item afecta?)
+                        # Usualmente: 1 Hamburguesa con Queso ($1) -> Extra $1.
+                        # 2 Hamburguesas con Queso ($1) -> Extra $2.
+                        # El input `modifiers` viene por item. "Este item tiene estos modifiers".
+                        # Si cantidad=2, ¿aplicamos modifiers a CADA una? SÍ, generalmente.
+                        # Si `modifiers` lista trae [ID_QUESO], y quantity item = 2.
+                        # Significa que son 2 hamburguesas, ambas con queso? O es un item global?
+                        # En POS, usualmente seleccionas item -> quantity -> modifiers.
+                        # Si subo quantity a 2, el modifier se duplica.
+                        # ASUMIMOS: La lista `modifiers` aplica a UNA unidad del producto?
+                        # O a la línea completa?
+                        # Estándar: Aplica a la unidad. Si pido 2 Burgers, y agrego Queso, son 2 Quesos.
+                        # Entonces: total_mod_cost = mod_price * mod_qty * quantity
+                        
+                        cost_per_unit = mod_obj.extra_price * mod_qty
+                        total_mod_cost = cost_per_unit * quantity
+                        modifiers_subtotal += total_mod_cost
+                        
+                        # Crear ORM
+                        # Ojo: OrderItemModifier se asocia al Item.
+                        # Si el item tiene quantity=2, el OrderItemModifier quantity=?
+                        # Option A: quantity = mod_qty (por unidad)
+                        # Option B: quantity = mod_qty * item_quantity (total)
+                        # DB Definition dice: "quantity: int = Field(default=1)". 
+                        # Vamos a usar TOTAL para reflejar el consumo real en inventario posteriormente si iteramos esto.
+                        # Pero conceptualmente es mejor por unidad. 
+                        # Usemos TOTAL para que `unit_price * quantity` de el total correcto en reportes.
+                        
+                        item_modifiers_orm.append(OrderItemModifier(
+                            modifier_id=mod_id,
+                            unit_price=mod_obj.extra_price,
+                            quantity=mod_qty * int(quantity), # Total absoluto de extras en esta línea
+                            cost_snapshot=Decimal("0.00") # TODO: Calcular costo ingredientes real
+                        ))
+
+                # Totales de Línea
+                line_subtotal = line_base_total + modifiers_subtotal
+                
+                # Tax (aplica a todo el subtotal)
                 product_tax_rate = getattr(product, 'tax_rate', Decimal("0.00")) or Decimal("0.00")
                 line_tax = line_subtotal * product_tax_rate
                 
@@ -87,10 +161,11 @@ class OrderService:
                 item = OrderItem(
                     product_id=pid,
                     quantity=quantity,
-                    unit_price=unit_price,
-                    subtotal=line_subtotal,
+                    unit_price=unit_price, # Precio base unitario del producto
+                    subtotal=line_subtotal, # Incluye modifiers
                     tax_amount=line_tax,
-                    notes=user_item.notes
+                    notes=user_item.notes,
+                    modifiers=item_modifiers_orm 
                 )
                 order_items.append(item)
                 
@@ -148,6 +223,28 @@ class OrderService:
                         reference_id=f"ORDER-{order_number}",
                         reason=f"Sale of {product.name}"
                     )
+                
+                # 5.1 Deduct Stock for Modifiers
+                if user_item.modifiers:
+                    mod_counts = Counter(user_item.modifiers)
+                    for mod_id, mod_qty in mod_counts.items():
+                        if mod_id in db_modifiers:
+                            mod_obj = db_modifiers[mod_id]
+                            # Total times modifier applied = items quantity * modifier qty per item
+                            total_mod_applies = quantity * mod_qty
+                            
+                            for mod_recipe_item in mod_obj.recipe_items:
+                                qty_needed_mod = mod_recipe_item.quantity * total_mod_applies
+                                
+                                await inventory_service.update_stock(
+                                    branch_id=order_data.branch_id,
+                                    product_id=mod_recipe_item.ingredient_product_id,
+                                    quantity_delta=-qty_needed_mod,
+                                    transaction_type="SALE",
+                                    user_id=user_id,
+                                    reference_id=f"ORDER-{order_number}",
+                                    reason=f"Extra {mod_obj.name} (Modifier)"
+                                )
 
             # 6. Crear la Orden (Cabecera)
             new_order = Order(
