@@ -152,7 +152,7 @@ export const UnifiedSetupPage = () => {
             setModifiers(mods);
 
             // Extract ingredients for Pantry
-            const ingCat = cats.find(c => c.name === 'Materia Prima');
+            const ingCat = cats.find(c => c.name.toLowerCase() === 'materia prima');
             if (ingCat) {
                 setIngredients(prods.filter(p => p.category_id === ingCat.id));
             }
@@ -174,8 +174,16 @@ export const UnifiedSetupPage = () => {
 
         // Auto-config based on type
         if (type === 'INSUMOS') {
-            const matPrima = categories.find(c => c.name === 'Materia Prima');
-            if (matPrima) handleSelectCategory(matPrima);
+            const matPrima = categories.find(c => c.name.toLowerCase() === 'materia prima');
+            if (matPrima) {
+                handleSelectCategory(matPrima);
+            } else {
+                // If not found in state yet, try reloading
+                loadData().then(() => {
+                    // We need to fetch from state REF or wait, but state won't update immediately.
+                    // Ideally we just wait for user to click retry or rely on useEffect if we added one.
+                });
+            }
         } else if (type === 'EXTRAS') {
             // Extras doesn't need category selection, goes straight to list
             handleNewModifier();
@@ -356,7 +364,22 @@ export const UnifiedSetupPage = () => {
     };
 
     const handleSave = async () => {
-        if (!selectedCategory || !productForm.name) return;
+        if (!productForm.name) {
+            alert("El nombre es requerido");
+            return;
+        }
+
+        // Fallback for INSUMOS if selectedCategory is missing (e.g. case sensitivity race)
+        let targetCat = selectedCategory;
+        if (viewMode === 'INSUMOS' && !targetCat) {
+            targetCat = categories.find(c => c.name.toLowerCase() === 'materia prima') || null;
+        }
+
+        if (!targetCat) {
+            alert("Error crítica: No hay categoría seleccionada. Para Insumos, debe existir 'Materia Prima'. Recargue la página.");
+            return;
+        }
+
         setIsSaving(true);
         try {
             const priceVal = parseFloat(productForm.price) || 0;
@@ -367,7 +390,7 @@ export const UnifiedSetupPage = () => {
                 name: productForm.name,
                 price: priceVal,
                 stock: parseFloat(productForm.stock) || 0,
-                category_id: selectedCategory.id,
+                category_id: targetCat.id,
                 description: isIngredient ? 'Ingrediente' : productForm.description,
                 ...(isIngredient && { unit: productForm.unit }),
                 image_url: productForm.image_url

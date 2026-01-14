@@ -68,7 +68,7 @@ export const setupService = {
     async ensureIngredientCategory(): Promise<number> {
         // 1. Check if exists locally/fetched
         let categories = await this.getCategories();
-        let existing = categories.find(c => c.name === INGREDIENT_CATEGORY_NAME);
+        let existing = categories.find(c => c.name.toLowerCase() === INGREDIENT_CATEGORY_NAME.toLowerCase());
         if (existing) return existing.id;
 
         // 2. Try to create
@@ -84,7 +84,7 @@ export const setupService = {
             // If creation failed but category exists (due to race condition), fetch again
             if (error.response && error.response.status === 400) {
                 categories = await this.getCategories();
-                existing = categories.find(c => c.name === INGREDIENT_CATEGORY_NAME);
+                existing = categories.find(c => c.name.toLowerCase() === INGREDIENT_CATEGORY_NAME.toLowerCase());
                 if (existing) return existing.id;
             }
             throw error;
