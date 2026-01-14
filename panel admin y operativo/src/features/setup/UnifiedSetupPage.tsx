@@ -20,16 +20,17 @@ interface RecipeItemRow {
     unit: string;
 }
 
-// ✨ UX UPGRADE: Paletas de color semánticas para una identificación rápida
+// ✨ UX UPGRADE: Paletas de color semánticas ADAPTADAS A DARK THEME
 const CARDS = [
     {
         id: 'INSUMOS',
         label: 'Despensa & Insumos',
         icon: Package,
-        color: 'text-emerald-600',
-        bg: 'bg-emerald-50',
-        border: 'group-hover:border-emerald-200',
-        ring: 'group-hover:ring-emerald-100',
+        color: 'text-emerald-400',
+        bgIcon: 'bg-emerald-500/10',
+        border: 'hover:border-emerald-500/50',
+        ring: 'group-hover:ring-emerald-500/20',
+        gradient: 'from-emerald-500/5 to-transparent',
         desc: 'Gestiona la materia prima base. Costos, stock y unidades de medida.',
         categoryName: 'Materia Prima'
     },
@@ -37,10 +38,11 @@ const CARDS = [
         id: 'CARTA',
         label: 'Platos de Carta',
         icon: UtensilsCrossed,
-        color: 'text-amber-600',
-        bg: 'bg-amber-50',
-        border: 'group-hover:border-amber-200',
-        ring: 'group-hover:ring-amber-100',
+        color: 'text-amber-400',
+        bgIcon: 'bg-amber-500/10',
+        border: 'hover:border-amber-500/50',
+        ring: 'group-hover:ring-amber-500/20',
+        gradient: 'from-amber-500/5 to-transparent',
         desc: 'Diseña tus productos finales, asigna recetas y define precios de venta.',
         hasRecipe: true
     },
@@ -48,10 +50,11 @@ const CARDS = [
         id: 'BEBIDAS',
         label: 'Bebidas & Cafetería',
         icon: Beer,
-        color: 'text-blue-600',
-        bg: 'bg-blue-50',
-        border: 'group-hover:border-blue-200',
-        ring: 'group-hover:ring-blue-100',
+        color: 'text-blue-400',
+        bgIcon: 'bg-blue-500/10',
+        border: 'hover:border-blue-500/50',
+        ring: 'group-hover:ring-blue-500/20',
+        gradient: 'from-blue-500/5 to-transparent',
         desc: 'Productos directos listos para la venta sin receta compleja.',
         hasRecipe: false
     },
@@ -59,10 +62,11 @@ const CARDS = [
         id: 'EXTRAS',
         label: 'Modificadores & Extras',
         icon: Cookie,
-        color: 'text-purple-600',
-        bg: 'bg-purple-50',
-        border: 'group-hover:border-purple-200',
-        ring: 'group-hover:ring-purple-100',
+        color: 'text-purple-400',
+        bgIcon: 'bg-purple-500/10',
+        border: 'hover:border-purple-500/50',
+        ring: 'group-hover:ring-purple-500/20',
+        gradient: 'from-purple-500/5 to-transparent',
         desc: 'Adicionales, salsas y opciones personalizables para tus platos.',
         hasRecipe: false
     }
@@ -443,25 +447,31 @@ export const UnifiedSetupPage = () => {
     const recipeCost = recipeItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
     const visualMargin = productForm.price ? ((parseFloat(productForm.price) - recipeCost) / parseFloat(productForm.price)) * 100 : 0;
 
-    // --- ✨ UX REFACTOR: HOME VIEW - "THE ATELIER" ---
+    // --- ✨ UX REFACTOR: HOME VIEW - "THE DARK ATELIER" ---
     if (viewMode === 'HOME') {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col font-sans animate-in fade-in duration-500">
+            <div className="min-h-screen bg-bg-deep flex flex-col font-sans text-white relative overflow-hidden animate-in fade-in duration-500">
+                {/* Background Blobs */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-accent-orange/5 rounded-full blur-[120px]"></div>
+                    <div className="absolute top-[60%] -right-[10%] w-[40%] h-[40%] bg-status-info/5 rounded-full blur-[100px]"></div>
+                </div>
+
                 {/* Header Section */}
-                <div className="bg-white border-b border-gray-200 px-8 py-8 shadow-sm">
+                <div className="bg-card-dark border-b border-border-dark px-8 py-8 shadow-sm relative z-10">
                     <div className="max-w-6xl mx-auto flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-amber-100 rounded-2xl text-amber-600 shadow-sm">
+                            <div className="p-3 bg-accent-orange/10 rounded-2xl text-accent-orange shadow-lg shadow-accent-orange/10 border border-accent-orange/20">
                                 <ChefHat size={32} strokeWidth={1.5} />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Ingeniería de Menú</h1>
-                                <p className="text-gray-500">Centro de control de costos y recetas</p>
+                                <h1 className="text-2xl font-bold text-white tracking-tight">Ingeniería de Menú</h1>
+                                <p className="text-text-muted">Centro de control de costos y recetas</p>
                             </div>
                         </div>
                         <button
                             onClick={() => navigate('/admin/dashboard')}
-                            className="px-4 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            className="px-4 py-2 bg-bg-deep border border-border-dark text-text-muted hover:text-white hover:border-accent-orange/50 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
                         >
                             <LayoutGrid size={16} /> Dashboard
                         </button>
@@ -469,11 +479,11 @@ export const UnifiedSetupPage = () => {
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 max-w-6xl mx-auto w-full p-8">
+                <div className="flex-1 max-w-6xl mx-auto w-full p-8 relative z-10">
                     <div className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">¿Qué deseas gestionar hoy?</h2>
-                        <p className="text-gray-500 max-w-2xl">
-                            Selecciona un módulo para configurar tu restaurante. Recuerda que los <span className="font-medium text-emerald-600">Insumos</span> son la base para calcular la rentabilidad de tu <span className="font-medium text-amber-600">Carta</span>.
+                        <h2 className="text-xl font-semibold text-white mb-2">¿Qué deseas gestionar hoy?</h2>
+                        <p className="text-text-muted max-w-2xl">
+                            Selecciona un módulo para configurar tu restaurante. Recuerda que los <span className="font-medium text-emerald-400">Insumos</span> son la base para calcular la rentabilidad de tu <span className="font-medium text-amber-400">Carta</span>.
                         </p>
                     </div>
 
@@ -485,30 +495,29 @@ export const UnifiedSetupPage = () => {
                                     key={card.id}
                                     onClick={() => handleSelectMacro(card.id)}
                                     className={`
-                                        group relative overflow-hidden bg-white p-6 rounded-2xl border border-gray-100 
-                                        shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left
-                                        flex flex-col h-full
-                                        ring-1 ring-transparent ${card.border} ${card.ring}
+                                        group relative overflow-hidden bg-card-dark p-6 rounded-2xl border border-border-dark 
+                                        shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 text-left
+                                        flex flex-col h-full ${card.border} ${card.ring} ring-1 ring-transparent
                                     `}
                                 >
                                     {/* Icon Background Blob */}
-                                    <div className={`absolute top-0 right-0 w-32 h-32 ${card.bg} rounded-bl-full opacity-50 transition-transform group-hover:scale-110`} />
+                                    <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${card.gradient} rounded-bl-full opacity-30 transition-transform group-hover:scale-125`} />
 
                                     <div className="relative z-10 flex-1">
-                                        <div className={`w-14 h-14 ${card.bg} ${card.color} rounded-xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform`}>
+                                        <div className={`w-14 h-14 ${card.bgIcon} ${card.color} rounded-xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform border border-white/5`}>
                                             <Icon size={28} strokeWidth={1.5} />
                                         </div>
 
-                                        <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-gray-900">
+                                        <h3 className="text-xl font-bold text-white mb-2">
                                             {card.label}
                                         </h3>
 
-                                        <p className="text-sm text-gray-500 leading-relaxed">
+                                        <p className="text-sm text-text-muted leading-relaxed">
                                             {card.desc}
                                         </p>
                                     </div>
 
-                                    <div className="relative z-10 mt-6 flex items-center gap-2 text-sm font-bold text-gray-300 group-hover:text-gray-600 transition-colors">
+                                    <div className="relative z-10 mt-6 flex items-center gap-2 text-sm font-bold text-gray-500 group-hover:text-white transition-colors">
                                         <span>Ingresar</span>
                                         <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                                     </div>
@@ -523,25 +532,25 @@ export const UnifiedSetupPage = () => {
 
     // --- WORKSTATION VIEW (The 3-Pane Layout) ---
     return (
-        <div className="h-screen flex text-gray-800 bg-gray-50 overflow-hidden font-sans">
+        <div className="h-screen flex text-gray-200 bg-bg-deep overflow-hidden font-sans">
             {/* PANE 1: NAVIGATION & CATEGORIES */}
-            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shadow-md">
-                <div className="p-4 border-b border-gray-100 flex items-center gap-3">
-                    <button onClick={() => setViewMode('HOME')} className="p-2 hover:bg-gray-100 rounded-lg group" title="Volver al menú principal">
-                        <ArrowLeft size={20} className="text-gray-500 group-hover:text-gray-800 transition-colors" />
+            <aside className="w-64 bg-card-dark border-r border-border-dark flex flex-col z-20 shadow-xl">
+                <div className="p-4 border-b border-border-dark flex items-center gap-3">
+                    <button onClick={() => setViewMode('HOME')} className="p-2 hover:bg-bg-deep rounded-lg group text-text-muted hover:text-white transition-colors" title="Volver al menú principal">
+                        <ArrowLeft size={20} />
                     </button>
                     <div>
-                        <h2 className="font-bold text-gray-800 text-sm leading-tight">
+                        <h2 className="font-bold text-white text-sm leading-tight">
                             {CARDS.find(c => c.id === viewMode)?.label}
                         </h2>
-                        <p className="text-xs text-gray-400">Selector de Categoría</p>
+                        <p className="text-xs text-text-muted">Selector de Categoría</p>
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-3">
                     {/* Category List */}
                     {viewMode === 'INSUMOS' ? (
-                        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-sm font-bold flex items-center gap-2">
+                        <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 text-sm font-bold flex items-center gap-2">
                             <CheckCircle2 size={16} /> Materia Prima
                         </div>
                     ) : (
@@ -559,10 +568,10 @@ export const UnifiedSetupPage = () => {
                                         <button
                                             key={cat.id}
                                             onClick={() => handleSelectCategory(cat)}
-                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all
                                             ${selectedCategory?.id === cat.id
-                                                    ? 'bg-gray-800 text-white shadow-lg shadow-gray-800/20'
-                                                    : 'text-gray-500 hover:bg-gray-100'}
+                                                    ? 'bg-accent-orange text-white shadow-lg shadow-accent-orange/20 border border-orange-500'
+                                                    : 'text-text-muted hover:bg-bg-deep hover:text-white'}
                                         `}
                                         >
                                             {cat.name}
@@ -572,23 +581,23 @@ export const UnifiedSetupPage = () => {
 
                             {/* Create Category */}
                             {isCreatingCategory ? (
-                                <div className="mt-4 p-2 bg-gray-50 rounded-lg border border-gray-200 animate-in fade-in zoom-in-95">
+                                <div className="mt-4 p-2 bg-bg-deep rounded-lg border border-border-dark animate-in fade-in zoom-in-95">
                                     <input
                                         autoFocus
-                                        className="w-full text-sm bg-white border border-gray-300 rounded p-1.5 mb-2 outline-none focus:ring-2 focus:ring-gray-200"
+                                        className="w-full text-sm bg-card-dark border border-border-dark rounded p-1.5 mb-2 outline-none focus:border-accent-orange text-white placeholder-text-muted"
                                         placeholder="Nombre..."
                                         value={newCategoryName}
                                         onChange={e => setNewCategoryName(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleCreateCategory()}
                                     />
-                                    <button onClick={handleCreateCategory} className="w-full bg-gray-800 text-white text-xs py-1.5 rounded hover:bg-gray-900 transition-colors">
+                                    <button onClick={handleCreateCategory} className="w-full bg-accent-orange text-white text-xs py-1.5 rounded hover:bg-orange-600 transition-colors font-bold">
                                         Crear
                                     </button>
                                 </div>
                             ) : (
                                 <button
                                     onClick={() => setIsCreatingCategory(true)}
-                                    className="w-full mt-4 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-400 hover:border-amber-400 hover:text-amber-500 transition-colors flex items-center justify-center gap-1"
+                                    className="w-full mt-4 py-2 border border-dashed border-border-dark rounded-lg text-xs text-text-muted hover:border-accent-orange hover:text-accent-orange transition-colors flex items-center justify-center gap-1"
                                 >
                                     <Plus size={14} /> Nueva Categoría
                                 </button>
@@ -599,16 +608,19 @@ export const UnifiedSetupPage = () => {
             </aside>
 
             {/* PANE 2: LISTER */}
-            <section className="w-72 bg-gray-50/50 border-r border-gray-200 flex flex-col">
-                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white/50 backdrop-blur-sm sticky top-0 z-10">
-                    <h3 className="font-bold text-gray-700 text-sm">
+            <section className="w-72 bg-bg-deep border-r border-border-dark flex flex-col relative">
+                {/* Background ambient */}
+                <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent to-bg-deep z-0" />
+
+                <div className="p-4 border-b border-border-dark flex justify-between items-center bg-card-dark/80 backdrop-blur-md sticky top-0 z-10">
+                    <h3 className="font-bold text-white text-sm">
                         {viewMode === 'EXTRAS' ? 'Mis Extras' : (selectedCategory ? selectedCategory.name : 'Seleccione Categoría')}
                     </h3>
-                    <button onClick={viewMode === 'EXTRAS' ? handleNewModifier : handleNewProduct} className="text-amber-600 hover:bg-amber-100 p-1.5 rounded-lg transition-colors">
+                    <button onClick={viewMode === 'EXTRAS' ? handleNewModifier : handleNewProduct} className="text-accent-orange hover:bg-accent-orange/10 p-1.5 rounded-lg transition-colors">
                         <Plus size={18} />
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div className="flex-1 overflow-y-auto p-2 space-y-2 z-0">
                     {viewMode === 'EXTRAS' ? (
                         modifiers.map(m => (
                             <div
@@ -616,13 +628,13 @@ export const UnifiedSetupPage = () => {
                                 onClick={() => handleSelectModifier(m)}
                                 className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md
                                     ${selectedModifier?.id === m.id
-                                        ? 'bg-white border-purple-400 shadow-md ring-1 ring-purple-100'
-                                        : 'bg-white border-gray-100 hover:border-purple-200'}
+                                        ? 'bg-purple-500/10 border-purple-500/40 shadow-md ring-1 ring-purple-500/20'
+                                        : 'bg-card-dark border-border-dark hover:border-purple-500/30'}
                                 `}
                             >
                                 <div className="flex justify-between">
-                                    <span className="font-bold text-sm text-gray-700">{m.name}</span>
-                                    <span className="text-xs bg-purple-50 px-1.5 py-0.5 rounded text-purple-700 font-mono">+${m.extra_price}</span>
+                                    <span className="font-bold text-sm text-gray-200">{m.name}</span>
+                                    <span className="text-xs bg-purple-500/20 px-1.5 py-0.5 rounded text-purple-300 font-mono">+${m.extra_price}</span>
                                 </div>
                             </div>
                         ))
@@ -633,13 +645,13 @@ export const UnifiedSetupPage = () => {
                                 onClick={() => handleSelectProduct(p)}
                                 className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md
                                 ${selectedProduct?.id === p.id
-                                        ? 'bg-white border-amber-400 shadow-md ring-1 ring-amber-100'
-                                        : 'bg-white border-gray-100 hover:border-amber-200'}
+                                        ? 'bg-accent-orange/10 border-accent-orange/40 shadow-md ring-1 ring-accent-orange/20'
+                                        : 'bg-card-dark border-border-dark hover:border-accent-orange/30'}
                             `}
                             >
                                 <div className="flex justify-between">
-                                    <span className="font-bold text-sm text-gray-700">{p.name}</span>
-                                    <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-mono">${p.price}</span>
+                                    <span className="font-bold text-sm text-gray-200">{p.name}</span>
+                                    <span className="text-xs bg-bg-deep px-1.5 py-0.5 rounded text-text-muted font-mono border border-border-dark">${p.price}</span>
                                 </div>
                             </div>
                         )))}
@@ -647,10 +659,13 @@ export const UnifiedSetupPage = () => {
             </section>
 
             {/* PANE 3: EDITOR (The Core) */}
-            <main className="flex-1 bg-white relative flex flex-col">
+            <main className="flex-1 bg-bg-deep relative flex flex-col">
+                {/* Decoration */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-orange/5 rounded-full blur-[120px] pointer-events-none"></div>
+
                 {!selectedCategory && viewMode !== 'EXTRAS' ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-gray-300">
-                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
+                        <div className="w-20 h-20 bg-card-dark border border-border-dark rounded-full flex items-center justify-center mb-4">
                             <Info size={32} className="opacity-50" />
                         </div>
                         <p className="font-medium">Seleccione una categoría para comenzar</p>
@@ -658,19 +673,19 @@ export const UnifiedSetupPage = () => {
                 ) : (
                     <>
                         {/* Header/Form */}
-                        <div className="p-6 border-b border-gray-100 bg-white z-10 shadow-sm">
+                        <div className="p-6 border-b border-border-dark bg-card-dark z-10 shadow-lg">
                             {viewMode === 'EXTRAS' ? (
                                 // --- MODIFIER FORM HEADER ---
                                 <>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex-1">
-                                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-50 text-xs font-bold text-purple-700 uppercase tracking-wider mb-2">
+                                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 border border-purple-500/20">
                                                 <Cookie size={12} /> Definiendo Modificador
                                             </span>
                                             <div className="flex gap-4 items-center mt-2">
                                                 <div className="flex gap-2 flex-1">
                                                     <input
-                                                        className="block text-2xl font-bold text-gray-900 border-none p-0 focus:ring-0 placeholder-gray-300 w-full"
+                                                        className="block text-2xl font-bold text-white bg-transparent border-none p-0 focus:ring-0 placeholder-gray-600 w-full"
                                                         placeholder="Ej. Queso Extra"
                                                         value={modifierForm.name}
                                                         onChange={e => setModifierForm({ ...modifierForm, name: e.target.value })}
@@ -691,12 +706,12 @@ export const UnifiedSetupPage = () => {
                                             <label className="text-xs font-bold text-gray-400">Precio Extra ($)</label>
                                             <input
                                                 type="number"
-                                                className="block w-32 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 font-bold text-gray-700 outline-none focus:border-purple-400 focus:bg-white transition-all"
+                                                className="block w-32 bg-bg-deep border border-border-dark rounded-lg px-3 py-2 font-bold text-white outline-none focus:border-purple-400 transition-all"
                                                 value={modifierForm.extra_price}
                                                 onChange={e => setModifierForm({ ...modifierForm, extra_price: e.target.value })}
                                             />
                                         </div>
-                                        <div className="flex items-center pb-2 pl-4 border-l border-gray-100 text-xs text-gray-400">
+                                        <div className="flex items-center pb-2 pl-4 border-l border-border-dark text-xs text-gray-500">
                                             Describe la "Mini Receta" de este extra abajo.
                                         </div>
                                     </div>
@@ -706,15 +721,15 @@ export const UnifiedSetupPage = () => {
                                 <>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex-1">
-                                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider mb-2 ${viewMode === 'INSUMOS' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider mb-2 border ${viewMode === 'INSUMOS' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                                                 {viewMode === 'INSUMOS' ? <Package size={12} /> : <UtensilsCrossed size={12} />}
                                                 {viewMode === 'INSUMOS' ? 'Definiendo Insumo' : 'Definiendo Producto'}
                                             </span>
                                             <div className="flex gap-4 items-center mt-1">
                                                 {/* Image Uploader */}
                                                 <div
-                                                    className={`w-16 h-16 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer relative overflow-hidden group transition-all shrink-0
-                                                        ${viewMode === 'INSUMOS' ? 'border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50' : 'border-amber-200 hover:border-amber-400 hover:bg-amber-50'}
+                                                    className={`w-16 h-16 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer relative overflow-hidden group transition-all shrink-0 bg-bg-deep
+                                                        ${viewMode === 'INSUMOS' ? 'border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10' : 'border-amber-500/30 hover:border-amber-500 hover:bg-amber-500/10'}
                                                     `}
                                                     onClick={() => fileInputRef.current?.click()}
                                                 >
@@ -725,7 +740,7 @@ export const UnifiedSetupPage = () => {
                                                             className="w-full h-full object-cover"
                                                         />
                                                     ) : (
-                                                        <Camera size={24} className="text-gray-300 group-hover:text-gray-500" />
+                                                        <Camera size={24} className="text-gray-500 group-hover:text-white" />
                                                     )}
                                                     <input
                                                         type="file"
@@ -744,14 +759,14 @@ export const UnifiedSetupPage = () => {
                                                 {/* Inputs */}
                                                 <div className="flex gap-2 flex-1 items-center">
                                                     <input
-                                                        className="block text-2xl font-bold text-gray-900 border-none p-0 focus:ring-0 placeholder-gray-300 w-full bg-transparent"
+                                                        className="block text-2xl font-bold text-white bg-transparent border-none p-0 focus:ring-0 placeholder-gray-600 w-full"
                                                         placeholder={viewMode === 'INSUMOS' ? "Ej. Carne Molida" : "Ej. Hamburguesa Royal"}
                                                         value={productForm.name}
                                                         onChange={e => setProductForm({ ...productForm, name: e.target.value })}
                                                     />
                                                     {viewMode === 'INSUMOS' && (
                                                         <select
-                                                            className="bg-gray-100 border-none rounded-lg text-sm font-bold text-gray-600 px-3 py-1 outline-none focus:ring-2 focus:ring-emerald-400"
+                                                            className="bg-bg-deep border border-border-dark rounded-lg text-sm font-bold text-gray-300 px-3 py-1 outline-none focus:border-emerald-500"
                                                             value={productForm.unit}
                                                             onChange={e => setProductForm({ ...productForm, unit: e.target.value })}
                                                         >
@@ -771,7 +786,7 @@ export const UnifiedSetupPage = () => {
                                             className={`text-white px-6 py-2.5 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale
                                                 ${viewMode === 'INSUMOS'
                                                     ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
-                                                    : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'}
+                                                    : 'bg-accent-orange hover:bg-orange-600 shadow-accent-orange/20'}
                                             `}
                                         >
                                             <Save size={18} /> {isSaving ? 'Guardando...' : 'Guardar'}
@@ -786,20 +801,15 @@ export const UnifiedSetupPage = () => {
                                             <div className="relative group">
                                                 <input
                                                     type="number"
-                                                    className={`block w-32 bg-gray-50 border rounded-lg px-3 py-2 font-bold text-gray-700 outline-none transition-all
-                                                        ${viewMode === 'INSUMOS' ? 'focus:border-emerald-400' : 'focus:border-amber-400'} border-gray-200
+                                                    className={`block w-32 bg-bg-deep border border-border-dark rounded-lg px-3 py-2 font-bold text-white outline-none transition-all
+                                                        ${viewMode === 'INSUMOS' ? 'focus:border-emerald-500' : 'focus:border-accent-orange'}
                                                     `}
                                                     value={productForm.price}
                                                     onChange={e => setProductForm({ ...productForm, price: e.target.value })}
                                                 />
-                                                {viewMode === 'INSUMOS' && (
-                                                    <div className="absolute top-full left-0 mt-2 w-48 p-2 bg-gray-800 text-white text-[10px] rounded shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                                        Ingresa el costo por la UNIDAD que usarás en las recetas (Ej: Costo de 1 Kg, 1 Lt, o 1 Unidad).
-                                                    </div>
-                                                )}
                                             </div>
                                             {viewMode === 'INSUMOS' && (
-                                                <p className="text-[10px] text-emerald-600 font-medium max-w-[150px] leading-tight pt-1">
+                                                <p className="text-[10px] text-emerald-400 font-medium max-w-[150px] leading-tight pt-1">
                                                     *Costo por {productForm.unit || 'unidad'}
                                                 </p>
                                             )}
@@ -813,7 +823,7 @@ export const UnifiedSetupPage = () => {
                                                 </label>
                                                 <input
                                                     type="number"
-                                                    className="block w-32 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 font-bold text-gray-700 outline-none focus:border-amber-400"
+                                                    className="block w-32 bg-bg-deep border border-border-dark rounded-lg px-3 py-2 font-bold text-white outline-none focus:border-accent-orange"
                                                     value={productForm.stock}
                                                     onChange={e => setProductForm({ ...productForm, stock: e.target.value })}
                                                 />
@@ -821,9 +831,9 @@ export const UnifiedSetupPage = () => {
                                         )}
 
                                         {viewMode === 'CARTA' && (
-                                            <div className="flex items-center pt-5 pl-4 border-l border-gray-100">
-                                                <div className="text-xs text-gray-400 max-w-[150px]">
-                                                    <strong className="block text-amber-600">Sin Stock Directo</strong>
+                                            <div className="flex items-center pt-5 pl-4 border-l border-border-dark">
+                                                <div className="text-xs text-text-muted max-w-[150px]">
+                                                    <strong className="block text-accent-orange">Sin Stock Directo</strong>
                                                     La disponibilidad depende de los insumos.
                                                 </div>
                                             </div>
@@ -832,12 +842,12 @@ export const UnifiedSetupPage = () => {
                                         {viewMode !== 'INSUMOS' && (
                                             <div className="flex items-center pt-5 ml-auto">
                                                 <label className="flex items-center gap-2 cursor-pointer select-none group">
-                                                    <div className={`w-10 h-6 rounded-full p-1 transition-colors ${productForm.hasRecipe ? 'bg-amber-500' : 'bg-gray-200 group-hover:bg-gray-300'}`}
+                                                    <div className={`w-10 h-6 rounded-full p-1 transition-colors ${productForm.hasRecipe ? 'bg-accent-orange' : 'bg-gray-700 group-hover:bg-gray-600'}`}
                                                         onClick={() => setProductForm({ ...productForm, hasRecipe: !productForm.hasRecipe })}
                                                     >
                                                         <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${productForm.hasRecipe ? 'translate-x-4' : 'translate-x-0'}`} />
                                                     </div>
-                                                    <span className="text-sm font-medium text-gray-600 group-hover:text-gray-800 transition-colors">Configurar Receta</span>
+                                                    <span className="text-sm font-medium text-gray-400 group-hover:text-white transition-colors">Configurar Receta</span>
                                                 </label>
                                             </div>
                                         )}
@@ -850,13 +860,13 @@ export const UnifiedSetupPage = () => {
                         {((productForm.hasRecipe && viewMode !== 'INSUMOS' && viewMode !== 'EXTRAS') || (viewMode === 'EXTRAS')) && (
                             <div className="flex-1 flex overflow-hidden">
                                 {/* Pantry (Left) */}
-                                <div className="w-72 bg-gray-50 border-r border-gray-200 flex flex-col">
-                                    <div className="p-3 border-b border-gray-200 bg-gray-100/50">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
+                                <div className="w-72 bg-bg-deep border-r border-border-dark flex flex-col">
+                                    <div className="p-3 border-b border-border-dark bg-card-dark/50">
+                                        <h4 className="text-xs font-bold text-text-muted uppercase flex items-center gap-2">
                                             <Search size={14} /> La Despensa
                                         </h4>
                                         <input
-                                            className="w-full mt-2 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 focus:border-amber-400 outline-none transition-all shadow-sm"
+                                            className="w-full mt-2 text-sm bg-bg-deep border border-border-dark rounded-lg px-3 py-2 focus:border-accent-orange text-white outline-none transition-all shadow-sm placeholder-text-muted"
                                             placeholder="Buscar insumo..."
                                             value={pantrySearch}
                                             onChange={e => setPantrySearch(e.target.value)}
@@ -869,13 +879,13 @@ export const UnifiedSetupPage = () => {
                                                 draggable
                                                 onDragStart={e => handleDragStart(e, ing)}
                                                 onClick={() => addRecipeItem(ing)}
-                                                className="bg-white border border-gray-200 p-2.5 rounded-lg shadow-sm hover:border-amber-400 hover:shadow-md cursor-grab active:cursor-grabbing flex justify-between items-center group select-none transition-all"
+                                                className="bg-card-dark border border-border-dark p-2.5 rounded-lg shadow-sm hover:border-accent-orange hover:shadow-md cursor-grab active:cursor-grabbing flex justify-between items-center group select-none transition-all"
                                             >
                                                 <div>
-                                                    <p className="font-bold text-sm text-gray-700">{ing.name}</p>
-                                                    <p className="text-xs text-green-600 font-mono">${ing.price}</p>
+                                                    <p className="font-bold text-sm text-gray-200">{ing.name}</p>
+                                                    <p className="text-xs text-emerald-400 font-mono">${ing.price}</p>
                                                 </div>
-                                                <GripVertical size={16} className="text-gray-300 group-hover:text-amber-500" />
+                                                <GripVertical size={16} className="text-gray-600 group-hover:text-accent-orange" />
                                             </div>
                                         ))}
                                     </div>
@@ -883,30 +893,30 @@ export const UnifiedSetupPage = () => {
 
                                 {/* Builder (Right) */}
                                 <div
-                                    className="flex-1 flex flex-col bg-slate-50/50"
+                                    className="flex-1 flex flex-col bg-bg-deep/50 relative"
                                     onDragOver={e => e.preventDefault()}
                                     onDrop={handleDrop}
                                 >
-                                    <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="flex-1 overflow-y-auto p-6 z-10">
                                         {recipeItems.length === 0 ? (
-                                            <div className="h-full border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
-                                                <UtensilsCrossed size={48} className="mb-4 opacity-20" />
-                                                <p className="font-medium">Arrastra ingredientes de la despensa aquí</p>
+                                            <div className="h-full border-2 border-dashed border-border-dark rounded-2xl flex flex-col items-center justify-center text-gray-600 bg-card-dark/20">
+                                                <UtensilsCrossed size={48} className="mb-4 opacity-50" />
+                                                <p className="font-medium text-gray-400">Arrastra ingredientes de la despensa aquí</p>
                                                 <p className="text-sm opacity-60">Para armar tu Escandallo / Receta</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-3">
                                                 {recipeItems.map((item, idx) => (
-                                                    <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 animate-in slide-in-from-bottom-2 hover:shadow-md transition-all">
-                                                        <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">
+                                                    <div key={idx} className="bg-card-dark p-3 rounded-xl border border-border-dark shadow-sm flex items-center gap-4 animate-in slide-in-from-bottom-2 hover:shadow-md hover:border-border-dark/80 transition-all">
+                                                        <span className="w-6 h-6 rounded-full bg-accent-orange/20 text-accent-orange flex items-center justify-center text-xs font-bold">
                                                             {idx + 1}
                                                         </span>
                                                         <div className="flex-1">
-                                                            <p className="font-bold text-gray-800">{item.name}</p>
+                                                            <p className="font-bold text-gray-200">{item.name}</p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <input
-                                                                type="number" className="w-20 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-sm font-bold text-center focus:border-amber-400 outline-none"
+                                                                type="number" className="w-20 bg-bg-deep border border-border-dark rounded px-2 py-1 text-sm font-bold text-center focus:border-accent-orange text-white outline-none"
                                                                 value={item.quantity}
                                                                 onChange={e => {
                                                                     const copy = [...recipeItems];
@@ -930,8 +940,8 @@ export const UnifiedSetupPage = () => {
                                                             </select>
                                                         </div>
                                                         <div className="text-right min-w-[80px]">
-                                                            <p className="font-bold text-gray-700">${(item.cost * item.quantity).toFixed(2)}</p>
-                                                            <button onClick={() => setRecipeItems(recipeItems.filter((_, i) => i !== idx))} className="text-xs text-red-400 hover:text-red-600 font-medium">Quitar</button>
+                                                            <p className="font-bold text-white">${(item.cost * item.quantity).toFixed(2)}</p>
+                                                            <button onClick={() => setRecipeItems(recipeItems.filter((_, i) => i !== idx))} className="text-xs text-red-400 hover:text-red-300 font-medium">Quitar</button>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -940,22 +950,22 @@ export const UnifiedSetupPage = () => {
                                     </div>
 
                                     {/* Footer Analysis */}
-                                    <div className="bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                                    <div className="bg-card-dark border-t border-border-dark p-4 shadow-[0_-4px_20px_-1px_rgba(0,0,0,0.2)] z-20">
                                         <div className="flex items-center justify-between">
                                             <div className="flex gap-8">
                                                 <div>
-                                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Costo Ingredientes</p>
-                                                    <p className="text-xl font-bold text-gray-800">${recipeCost.toFixed(2)}</p>
+                                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Costo Ingredientes</p>
+                                                    <p className="text-xl font-bold text-white">${recipeCost.toFixed(2)}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Margen Real</p>
-                                                    <p className={`text-xl font-bold ${visualMargin < 30 ? 'text-red-500' : 'text-green-600'}`}>
+                                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Margen Real</p>
+                                                    <p className={`text-xl font-bold ${visualMargin < 30 ? 'text-red-500' : 'text-emerald-400'}`}>
                                                         {visualMargin.toFixed(1)}%
                                                     </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-sm font-bold px-3 py-1 rounded-full ${visualMargin > 50 ? 'bg-green-100 text-green-700' : visualMargin < 20 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                <p className={`text-sm font-bold px-3 py-1 rounded-full border ${visualMargin > 50 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : visualMargin < 20 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                                                     {visualMargin > 50 ? 'Excelente Margen' : visualMargin < 20 ? 'Margen Crítico' : 'Margen Aceptable'}
                                                 </p>
                                             </div>
@@ -967,12 +977,12 @@ export const UnifiedSetupPage = () => {
 
                         {/* INSUMO EXPLANATION */}
                         {viewMode === 'INSUMOS' && (
-                            <div className="flex-1 flex flex-col items-center justify-center bg-emerald-50/30 p-8 text-center animate-in fade-in">
-                                <div className="bg-emerald-100 p-4 rounded-full mb-4">
-                                    <Package size={48} className="text-emerald-600" />
+                            <div className="flex-1 flex flex-col items-center justify-center bg-emerald-900/5 p-8 text-center animate-in fade-in">
+                                <div className="bg-emerald-500/10 p-4 rounded-full mb-4 border border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                                    <Package size={48} className="text-emerald-500" />
                                 </div>
-                                <h3 className="text-xl font-bold text-emerald-900">Gestión de Insumos</h3>
-                                <p className="text-emerald-700/60 max-w-md mt-2">
+                                <h3 className="text-xl font-bold text-white">Gestión de Insumos</h3>
+                                <p className="text-gray-400 max-w-md mt-2">
                                     Aquí defines los costos base de tu negocio. Asegúrate de actualizar los precios regularmente para que tus cálculos de margen sean precisos.
                                 </p>
                             </div>
