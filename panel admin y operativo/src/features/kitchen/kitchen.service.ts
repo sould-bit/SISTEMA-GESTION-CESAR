@@ -64,7 +64,7 @@ export interface RecipePayload {
 }
 
 export interface Recipe {
-    id: string;
+    id: number;  // INTEGER in database
     product_id: number;
     name: string;
     version: number;

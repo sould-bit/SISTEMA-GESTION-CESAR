@@ -73,7 +73,7 @@ class RecipeService:
         await self.session.refresh(recipe)
         return recipe
 
-    async def recalculate_recipe_cost(self, recipe_id: uuid.UUID) -> Decimal:
+    async def recalculate_recipe_cost(self, recipe_id: int) -> Decimal:
         """
         Recalcula el costo total de una receta basado en los costos actuales de sus ingredientes.
         """

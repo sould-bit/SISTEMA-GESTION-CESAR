@@ -178,9 +178,7 @@ async def get_ingredient_impact(
     """
     Analiza el impacto de un ingrediente en el menú.
     
-    NOTE: The current recipe_items table uses products (ingredient_product_id), 
-    not the separate ingredients table. This endpoint returns ingredient data
-    but cannot analyze recipe impact for separate ingredients.
+    Retorna el número de recetas que lo usan, costo total y uso promedio.
     """
     service = IngredientService(session)
     
@@ -190,13 +188,9 @@ async def get_ingredient_impact(
     if existing.company_id != current_user.company_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # NOTE: Recipes use products as ingredients (ingredient_product_id), 
-    # not the separate ingredients table. Return empty impact for now.
-    # Future: link ingredients to products for full recipe impact analysis.
-    return {
-        "recipes_count": 0,
-        "total_recipes_cost": 0,
-        "avg_usage_per_recipe": 0,
-        "note": "Recipe impact analysis requires linking ingredients to products"
-    }
+    cost_engine = CostEngineService(session)
+    impact = await cost_engine.get_ingredient_impact_analysis(ingredient_id)
+    
+    return impact
+
 
