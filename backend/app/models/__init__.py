@@ -5,6 +5,10 @@ from .subscription import Subscription
 from .category import Category
 from .product import Product
 
+# Sistema de Recetas y Costos (v4.1)
+from .ingredient import Ingredient
+from .unit_conversion import UnitConversion
+
 # Sistema de Permisos y Roles (v3.3)
 from .permission_category import PermissionCategory
 from .permission import Permission

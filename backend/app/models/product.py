@@ -1,9 +1,14 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
+import uuid
 from sqlalchemy import Index, UniqueConstraint, text, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
+if TYPE_CHECKING:
+    from .category import Category
+    from .company import Company
+    from .recipe import Recipe
 
 class Product(SQLModel, table=True):
     """
@@ -45,5 +50,11 @@ class Product(SQLModel, table=True):
     category: Optional["Category"] = Relationship(back_populates="products")
     company: Optional["Company"] = Relationship()
 
-    # Relación con receta (1:1 opcional)
-    recipe: Optional["Recipe"] = Relationship(back_populates="product")
+    # Active Recipe Link
+    active_recipe_id: Optional[uuid.UUID] = Field(default=None, foreign_key="recipes.id", nullable=True)
+
+    # Relationships
+    recipes: List["Recipe"] = Relationship(
+        back_populates="product",
+        sa_relationship_kwargs={"foreign_keys": "Recipe.product_id"}
+    )

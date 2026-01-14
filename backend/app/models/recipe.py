@@ -1,86 +1,60 @@
-from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
-from decimal import Decimal
-from sqlalchemy import Index, UniqueConstraint, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
+from typing import Optional, List, TYPE_CHECKING
+from decimal import Decimal
+import uuid
+from datetime import datetime
+from sqlalchemy import Column, Numeric
 
 if TYPE_CHECKING:
     from .product import Product
-
+    from .company import Company
+    from .ingredient import Ingredient
 
 class RecipeItem(SQLModel, table=True):
-    """
-    Modelo de Item de Receta - Ingredientes individuales.
-    
-    Representa un ingrediente en una receta con su cantidad y costo unitario.
-    El costo unitario se guarda como snapshot al momento de la creación.
-    """
-
     __tablename__ = "recipe_items"
 
-    __table_args__ = (
-        # Índice: búsqueda por receta
-        Index("idx_recipe_items_recipe", "recipe_id"),
-        # Unicidad: un ingrediente solo puede aparecer una vez por receta
-        UniqueConstraint("recipe_id", "ingredient_product_id", name="uq_recipe_item_ingredient"),
-    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    recipe_id: int = Field(foreign_key="recipes.id", nullable=False)
-    ingredient_product_id: int = Field(foreign_key="products.id", nullable=False)
+    # FKs
+    recipe_id: uuid.UUID = Field(foreign_key="recipes.id", index=True, nullable=False)
+    ingredient_id: uuid.UUID = Field(foreign_key="ingredients.id", index=True, nullable=False)
 
-    # Cantidad del ingrediente
-    quantity: Decimal = Field(sa_column=Column(Numeric(10, 3)))
-    unit: str = Field(max_length=50)  # kg, unidad, litro, gramo, etc.
+    # Data
+    gross_quantity: float = Field(description="Cantidad bruta retirada del almacén")
+    net_quantity: float = Field(description="Cantidad neta usada en el plato")
+    measure_unit: str = Field(description="Unidad usada en la receta (ej. gramos vs kg del insumo)")
 
-    # Snapshot del costo al momento de agregar (para histórico)
-    unit_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
+    calculated_cost: Decimal = Field(default=0, sa_column=Column(Numeric(10, 2)), description="Snapshot del costo")
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-    # Relaciones (lazy='selectin' para async)
+    # Relationships
     recipe: Optional["Recipe"] = Relationship(back_populates="items")
-    ingredient: Optional["Product"] = Relationship()
+    ingredient: Optional["Ingredient"] = Relationship()
 
 
 class Recipe(SQLModel, table=True):
-    """
-    Modelo de Receta - Define los ingredientes de un producto.
-    
-    Una receta contiene múltiples items (ingredientes) con sus cantidades.
-    El costo total se calcula automáticamente sumando los costos de los items.
-    Multi-Tenant: Cada receta pertenece a una empresa.
-    """
-
     __tablename__ = "recipes"
 
-    __table_args__ = (
-        # Unicidad: un producto solo puede tener una receta
-        UniqueConstraint("product_id", name="uq_recipe_product"),
-        # Índice: filtro por empresa + activo
-        Index("idx_recipes_company_active", "company_id", "is_active"),
-    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    # FKs
     company_id: int = Field(foreign_key="companies.id", index=True, nullable=False)
-    product_id: int = Field(foreign_key="products.id", nullable=False)
+    product_id: int = Field(foreign_key="products.id", index=True, nullable=False)
 
     name: str = Field(max_length=200)
-    description: Optional[str] = Field(default=None, max_length=500)
-
-    # Costo total calculado (suma de items)
-    total_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2)))
-
+    version: int = Field(default=1)
     is_active: bool = Field(default=True)
+
+    batch_yield: float = Field(default=1.0, description="Rendimiento de la receta (ej. 1 olla de salsa)")
+    total_cost: Decimal = Field(default=0, sa_column=Column(Numeric(10, 2))) # Cache del costo calculado
+    preparation_time: int = Field(default=0, description="minutos")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
 
-    # Relaciones (lazy='selectin' para async)
+    # Relationships
     items: List["RecipeItem"] = Relationship(back_populates="recipe")
-    product: Optional["Product"] = Relationship(back_populates="recipe")
+    product: Optional["Product"] = Relationship(
+        back_populates="recipes",
+        sa_relationship_kwargs={"foreign_keys": "Recipe.product_id"}
+    )
     company: Optional["Company"] = Relationship()
-
-
-# Importar para evitar circular imports
-from .company import Company

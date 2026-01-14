@@ -21,7 +21,7 @@ if str(backend_dir) not in sys.path:
 
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, StaticPool
 from sqlmodel import SQLModel
 
 from app.database import get_session
@@ -37,10 +37,17 @@ if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
 # Engine with NullPool to avoid connection issues
+poolclass = NullPool
+connect_args = {}
+if "sqlite" in DATABASE_URL:
+    poolclass = StaticPool
+    connect_args = {"check_same_thread": False}
+
 engine = create_async_engine(
     DATABASE_URL, 
     echo=False,
-    poolclass=NullPool  # No connection pooling for tests
+    poolclass=poolclass,
+    connect_args=connect_args
 )
 
 TestingSessionLocal = async_sessionmaker(
@@ -61,6 +68,11 @@ def event_loop() -> Generator:
     yield loop
     loop.close()
 
+@pytest.fixture(scope="function", autouse=True)
+async def init_db():
+    if "sqlite" in str(engine.url):
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
 
 @pytest.fixture(scope="function")
 async def session() -> AsyncGenerator[AsyncSession, None]:
