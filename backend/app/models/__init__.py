@@ -17,7 +17,8 @@ from .role import Role
 from .role_permission import RolePermission
 
 # Sistema de Recetas (v4.2)
-from .recipe import Recipe, RecipeItem
+from .recipe import Recipe
+from .recipe_item import RecipeItem
 
 # Sistema de Pedidos y Pagos (v5.1)
 from .order import Order, OrderItem, OrderStatus

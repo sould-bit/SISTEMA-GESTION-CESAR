@@ -8,7 +8,8 @@ import uuid
 from app.models.inventory import Inventory, InventoryTransaction
 from app.models.ingredient_inventory import IngredientInventory, IngredientTransaction
 from app.models.product import Product
-from app.models.recipe import Recipe, RecipeItem
+from app.models.recipe import Recipe
+from app.models.recipe_item import RecipeItem
 from app.models.ingredient import Ingredient
 from app.services.unit_conversion_service import UnitConversionService
 

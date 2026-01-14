@@ -42,7 +42,7 @@ class ProductModifier(SQLModel, table=True):
     
     # Relaciones
     company: "Company" = Relationship()
-    recipe_items: List["ModifierRecipeItem"] = Relationship(back_populates="modifier", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    recipe_items: List["ModifierRecipeItem"] = Relationship(back_populates="modifier", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"})
 
 
 class ModifierRecipeItem(SQLModel, table=True):
@@ -62,7 +62,7 @@ class ModifierRecipeItem(SQLModel, table=True):
     
     # Relaciones
     modifier: Optional["ProductModifier"] = Relationship(back_populates="recipe_items")
-    ingredient: Optional["Product"] = Relationship()
+    ingredient: Optional["Product"] = Relationship(sa_relationship_kwargs={"lazy": "selectin"})
 
 
 class OrderItemModifier(SQLModel, table=True):

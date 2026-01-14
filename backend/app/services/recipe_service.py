@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
 
-from app.models.recipe import Recipe, RecipeItem
+from app.models.recipe import Recipe
+from app.models.recipe_item import RecipeItem
 from app.models.ingredient import Ingredient
 from app.services.unit_conversion_service import UnitConversionService
 
@@ -57,6 +58,7 @@ class RecipeService:
                 id=uuid.uuid4(),
                 recipe_id=recipe.id,
                 ingredient_id=ingredient_id,
+                company_id=company_id,
                 gross_quantity=gross_qty,
                 net_quantity=item_data["net_quantity"],
                 measure_unit=measure_unit,

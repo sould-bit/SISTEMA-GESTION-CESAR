@@ -8,28 +8,7 @@ from sqlalchemy import Column, Numeric
 if TYPE_CHECKING:
     from .product import Product
     from .company import Company
-    from .ingredient import Ingredient
-
-class RecipeItem(SQLModel, table=True):
-    __tablename__ = "recipe_items"
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
-    # FKs
-    recipe_id: uuid.UUID = Field(foreign_key="recipes.id", index=True, nullable=False)
-    ingredient_id: uuid.UUID = Field(foreign_key="ingredients.id", index=True, nullable=False)
-
-    # Data
-    gross_quantity: float = Field(description="Cantidad bruta retirada del almacén")
-    net_quantity: float = Field(description="Cantidad neta usada en el plato")
-    measure_unit: str = Field(description="Unidad usada en la receta (ej. gramos vs kg del insumo)")
-
-    calculated_cost: Decimal = Field(default=0, sa_column=Column(Numeric(10, 2)), description="Snapshot del costo")
-
-    # Relationships
-    recipe: Optional["Recipe"] = Relationship(back_populates="items")
-    ingredient: Optional["Ingredient"] = Relationship()
-
+    from .recipe_item import RecipeItem
 
 class Recipe(SQLModel, table=True):
     __tablename__ = "recipes"

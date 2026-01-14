@@ -8,6 +8,8 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { DashboardPage } from '../features/admin/DashboardPage';
 import { InventoryPage } from '../features/admin/InventoryPage';
 import { OrdersPage } from '../features/admin/OrdersPage';
+import { IngredientsPage } from '../features/admin/IngredientsPage';
+import { MenuEngineeringPage } from '../features/admin/MenuEngineeringPage';
 import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
 
 export const router = createBrowserRouter([
@@ -51,6 +53,14 @@ export const router = createBrowserRouter([
                             {
                                 path: 'orders',
                                 element: <OrdersPage />
+                            },
+                            {
+                                path: 'ingredients',
+                                element: <IngredientsPage />
+                            },
+                            {
+                                path: 'menu-engineering',
+                                element: <MenuEngineeringPage />
                             }
                         ]
                     },
