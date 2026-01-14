@@ -8,6 +8,7 @@ from .product import Product
 # Sistema de Recetas y Costos (v4.1)
 from .ingredient import Ingredient
 from .unit_conversion import UnitConversion
+from .ingredient_inventory import IngredientInventory, IngredientTransaction
 
 # Sistema de Permisos y Roles (v3.3)
 from .permission_category import PermissionCategory
