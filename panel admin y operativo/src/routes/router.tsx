@@ -8,9 +8,9 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { DashboardPage } from '../features/admin/DashboardPage';
 import { InventoryPage } from '../features/admin/InventoryPage';
 import { OrdersPage } from '../features/admin/OrdersPage';
-import { IngredientsPage } from '../features/admin/IngredientsPage';
-import { MenuEngineeringPage } from '../features/admin/MenuEngineeringPage';
-import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
+
+// Kitchen Module (V4.1 - Recetas Vivas)
+import { IngredientManager, RecipesPage, MenuMatrix } from '../features/kitchen';
 
 export const router = createBrowserRouter([
     {
@@ -53,20 +53,37 @@ export const router = createBrowserRouter([
                             {
                                 path: 'orders',
                                 element: <OrdersPage />
+                            }
+                        ]
+                    }
+                ]
+            },
+
+            // Kitchen Routes (V4.1 - Cocina & Menú)
+            {
+                path: 'kitchen',
+                element: <ProtectedRoute />,
+                children: [
+                    {
+                        element: <MainLayout />,
+                        children: [
+                            {
+                                index: true,
+                                element: <Navigate to="/kitchen/ingredients" replace />
                             },
                             {
                                 path: 'ingredients',
-                                element: <IngredientsPage />
+                                element: <IngredientManager />
+                            },
+                            {
+                                path: 'recipes',
+                                element: <RecipesPage />
                             },
                             {
                                 path: 'menu-engineering',
-                                element: <MenuEngineeringPage />
+                                element: <MenuMatrix />
                             }
                         ]
-                    },
-                    {
-                        path: 'setup',
-                        element: <UnifiedSetupPage />
                     }
                 ]
             }

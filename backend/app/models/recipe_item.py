@@ -1,33 +1,43 @@
+"""
+RecipeItem Model - Aligned with existing database schema
+
+The actual database uses:
+- INTEGER ids (not UUID)
+- ingredient_product_id pointing to products table (not separate ingredients)
+- quantity, unit, unit_cost columns
+"""
+
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, TYPE_CHECKING
 from decimal import Decimal
-import uuid
+from datetime import datetime
 from sqlalchemy import Column, Numeric
 
 if TYPE_CHECKING:
     from .recipe import Recipe
-    from .ingredient import Ingredient
-    from .company import Company
+    from .product import Product
+
 
 class RecipeItem(SQLModel, table=True):
+    """
+    Represents an item in a recipe - aligned with existing DB schema.
+    Uses product IDs as "ingredients" since the table references products.
+    """
     __tablename__ = "recipe_items"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
 
-    # FKs
-    recipe_id: uuid.UUID = Field(foreign_key="recipes.id", index=True, nullable=False)
-    ingredient_id: uuid.UUID = Field(foreign_key="ingredients.id", index=True, nullable=False)
-    
-    # Multi-tenant
-    company_id: int = Field(foreign_key="companies.id", index=True, nullable=False)
+    # Foreign Keys - matching actual DB types (INTEGER)
+    recipe_id: int = Field(foreign_key="recipes.id", index=True, nullable=False)
+    ingredient_product_id: int = Field(foreign_key="products.id", index=True, nullable=False)
 
-    # Data
-    gross_quantity: float = Field(description="Cantidad bruta retirada del almacén")
-    net_quantity: float = Field(description="Cantidad neta usada en el plato")
-    measure_unit: str = Field(description="Unidad usada en la receta (ej. gramos vs kg del insumo)")
+    # Data - matching actual DB columns
+    quantity: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 3)))
+    unit: str = Field(max_length=50)
+    unit_cost: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
 
-    calculated_cost: Decimal = Field(default=0, sa_column=Column(Numeric(10, 2)), description="Snapshot del costo")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
     recipe: Optional["Recipe"] = Relationship(back_populates="items")
-    ingredient: Optional["Ingredient"] = Relationship()
+    ingredient_product: Optional["Product"] = Relationship()

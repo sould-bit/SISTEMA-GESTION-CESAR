@@ -7,14 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import datetime
 
-from app.database import get_async_session
+from app.database import get_session
 from app.services.menu_engineering_service import MenuEngineeringService
 from app.schemas.menu_engineering import (
     MenuEngineeringReportResponse,
     RecommendationsResponse,
     RecommendationItem
 )
-from app.dependencies.auth import get_current_user
+from app.auth_deps import get_current_user
 from app.models.user import User
 
 router = APIRouter(prefix="/reports/menu-engineering", tags=["Reports - Menu Engineering"])
@@ -27,7 +27,7 @@ async def get_menu_engineering_report(
     end_date: Optional[datetime] = Query(None, description="Fecha fin (ISO 8601)"),
     category_id: Optional[int] = Query(None, description="Filtrar por categoría"),
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Genera el reporte de ingeniería de menú con clasificación BCG.
@@ -56,7 +56,7 @@ async def get_menu_recommendations(
     end_date: Optional[datetime] = Query(None),
     category_id: Optional[int] = Query(None),
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Genera recomendaciones accionables basadas en el análisis.
@@ -76,7 +76,7 @@ async def get_menu_recommendations(
 @router.get("/summary")
 async def get_menu_summary(
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Resumen rápido del estado del menú (últimos 30 días).
