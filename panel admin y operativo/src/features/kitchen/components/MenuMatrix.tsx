@@ -141,7 +141,9 @@ export const MenuMatrix = () => {
                     <div className="grid grid-cols-2 gap-4 aspect-square max-w-2xl mx-auto">
                         {['plowhorse', 'star', 'dog', 'puzzle'].map((type) => {
                             const config = QUADRANT_CONFIG[type as keyof typeof QUADRANT_CONFIG];
-                            const products = report.matrix[type as keyof typeof report.matrix];
+                            // Map singular type to plural keys in report.matrix
+                            const matrixKey = (type + 's') as keyof typeof report.matrix;
+                            const products = report.matrix[matrixKey] || [];
                             return (
                                 <div key={type} className={`${config.bgClass} rounded-xl p-4 flex flex-col`}>
                                     <div className="flex items-center justify-between mb-2">

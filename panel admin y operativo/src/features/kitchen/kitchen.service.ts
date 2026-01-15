@@ -24,8 +24,29 @@ export interface Ingredient {
     category_id?: number;
     company_id: number;
     is_active: boolean;
+    stock?: number;
     created_at?: string;
     updated_at?: string;
+}
+
+export interface IngredientCostHistory {
+    id: string;
+    previous_cost: number;
+    new_cost: number;
+    reason?: string;
+    user_id?: number;
+    created_at: string;
+}
+
+export interface IngredientBatch {
+    id: string;
+    quantity_initial: number;
+    quantity_remaining: number;
+    cost_per_unit: number;
+    total_cost: number;
+    acquired_at: string;
+    is_active: boolean;
+    supplier?: string;
 }
 
 export interface IngredientCreate {
@@ -155,11 +176,33 @@ export const kitchenService = {
         await api.delete(`/ingredients/${id}`);
     },
 
-    updateIngredientCost: async (id: string, newCost: number, reason?: string): Promise<Ingredient> => {
-        const { data } = await api.post<Ingredient>(`/ingredients/${id}/update-cost`, {
-            new_cost: newCost,
+    async updateIngredientCost(id: string, new_cost: number, reason?: string) {
+        const response = await api.post(`/ingredients/${id}/update-cost`, {
+            new_cost,
             reason
         });
+        return response.data;
+    },
+
+    async updateIngredientStock(id: string, quantity: number, transaction_type: 'IN' | 'OUT' | 'ADJUST', reason?: string, cost_per_unit?: number, supplier?: string) {
+        const response = await api.post(`/ingredients/${id}/stock`, {
+            quantity,
+            transaction_type,
+            reason,
+            cost_per_unit,
+            supplier
+        });
+        return response.data;
+    },
+
+    async getIngredientBatches(id: string, activeOnly: boolean = true): Promise<IngredientBatch[]> {
+        const params = { active_only: activeOnly };
+        const { data } = await api.get<IngredientBatch[]>(`/ingredients/${id}/batches`, { params });
+        return data;
+    },
+
+    async getIngredientHistory(id: string): Promise<IngredientCostHistory[]> {
+        const { data } = await api.get<IngredientCostHistory[]>(`/ingredients/${id}/history`);
         return data;
     },
 

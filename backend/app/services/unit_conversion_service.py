@@ -54,11 +54,31 @@ class UnitConversionService:
         if from_unit == to_unit:
             return quantity
 
+        # Standard Metric Conversions
+        # Mass
+        if from_unit == 'kg' and to_unit == 'g':
+            return quantity * 1000.0
+        if from_unit == 'g' and to_unit == 'kg':
+            return quantity / 1000.0
+        if from_unit == 'lb' and to_unit == 'g':
+            return quantity * 453.592
+        if from_unit == 'oz' and to_unit == 'g':
+            return quantity * 28.3495
+            
+        # Volume
+        if from_unit == 'l' and to_unit == 'ml':
+            return quantity * 1000.0
+        if from_unit == 'ml' and to_unit == 'l':
+            return quantity / 1000.0
+        if from_unit == 'lt' and to_unit == 'ml': # Handle 'lt' alias
+            return quantity * 1000.0
+        if from_unit == 'ml' and to_unit == 'lt':
+            return quantity / 1000.0
+
         factor = await self.get_conversion_factor(from_unit, to_unit)
 
         if factor is None:
             # TODO: Intentar conversion via unidad base intermedia (ej: oz -> g -> kg)
-            # Por ahora, simple.
             raise ValueError(f"No conversion defined from {from_unit} to {to_unit}")
 
         return quantity * factor

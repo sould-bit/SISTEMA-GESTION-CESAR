@@ -9,6 +9,8 @@ from .product import Product
 from .ingredient import Ingredient
 from .unit_conversion import UnitConversion
 from .ingredient_inventory import IngredientInventory, IngredientTransaction
+from .ingredient_cost_history import IngredientCostHistory
+from .ingredient_batch import IngredientBatch
 
 # Sistema de Permisos y Roles (v3.3)
 from .permission_category import PermissionCategory

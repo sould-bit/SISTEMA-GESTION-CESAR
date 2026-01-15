@@ -4,7 +4,9 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { kitchenService, Ingredient, IngredientCreate, IngredientUpdate } from '../kitchen.service';
+import { HelpIcon } from '@/components/ui/Tooltip';
 
 export const IngredientManager = () => {
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -15,8 +17,10 @@ export const IngredientManager = () => {
     // Modal states
     const [showModal, setShowModal] = useState(false);
     const [showCostModal, setShowCostModal] = useState(false);
+    const [showStockModal, setShowStockModal] = useState(false);
     const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
     const [selectedForCost, setSelectedForCost] = useState<Ingredient | null>(null);
+    const [selectedForStock, setSelectedForStock] = useState<Ingredient | null>(null);
 
     // Form state
     const [formData, setFormData] = useState<Partial<IngredientCreate>>({
@@ -28,6 +32,15 @@ export const IngredientManager = () => {
     });
     const [newCost, setNewCost] = useState(0);
     const [costReason, setCostReason] = useState('');
+
+    // Stock Form state
+    const [stockData, setStockData] = useState({
+        quantity: 0,
+        type: 'IN' as 'IN' | 'OUT' | 'ADJUST',
+        reason: '',
+        cost_per_unit: 0,
+        supplier: ''
+    });
 
     useEffect(() => {
         loadIngredients();
@@ -79,6 +92,24 @@ export const IngredientManager = () => {
         }
     };
 
+    const handleUpdateStock = async () => {
+        if (!selectedForStock) return;
+        try {
+            await kitchenService.updateIngredientStock(
+                selectedForStock.id,
+                stockData.quantity,
+                stockData.type,
+                stockData.reason,
+                stockData.type === 'IN' && stockData.cost_per_unit > 0 ? stockData.cost_per_unit : undefined,
+                stockData.type === 'IN' ? stockData.supplier : undefined
+            );
+            await loadIngredients();
+            closeStockModal();
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Error updating stock');
+        }
+    };
+
     const handleUpdateCost = async () => {
         if (!selectedForCost) return;
         try {
@@ -115,6 +146,18 @@ export const IngredientManager = () => {
         setShowCostModal(true);
     };
 
+    const openStockUpdate = (ingredient: Ingredient) => {
+        setSelectedForStock(ingredient);
+        setStockData({
+            quantity: 0,
+            type: 'IN',
+            reason: '',
+            cost_per_unit: ingredient.current_cost, // Default to current cost
+            supplier: ''
+        });
+        setShowStockModal(true); // Need to add this state
+    };
+
     const closeModal = () => {
         setShowModal(false);
         setEditingIngredient(null);
@@ -123,6 +166,11 @@ export const IngredientManager = () => {
     const closeCostModal = () => {
         setShowCostModal(false);
         setSelectedForCost(null);
+    };
+
+    const closeStockModal = () => {
+        setShowStockModal(false); // Need to add this state
+        setSelectedForStock(null);
     };
 
     const formatCurrency = (value: number) => {
@@ -139,6 +187,12 @@ export const IngredientManager = () => {
 
     return (
         <div className="space-y-6">
+            {error && (
+                <div className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg flex items-center gap-2">
+                    <span className="material-symbols-outlined">error</span>
+                    {error}
+                </div>
+            )}
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -202,6 +256,10 @@ export const IngredientManager = () => {
                         <thead className="bg-bg-deep border-b border-border-dark">
                             <tr>
                                 <th className="px-4 py-3 text-left text-text-muted font-medium text-xs uppercase">Nombre / SKU</th>
+                                <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">
+                                    Stock
+                                    <HelpIcon text="Cantidad física actual en inventario." />
+                                </th>
                                 <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">Unidad</th>
                                 <th className="px-4 py-3 text-right text-text-muted font-medium text-xs uppercase">Costo Actual</th>
                                 <th className="px-4 py-3 text-right text-text-muted font-medium text-xs uppercase">Costo Anterior</th>
@@ -211,7 +269,6 @@ export const IngredientManager = () => {
                         </thead>
                         <tbody className="divide-y divide-border-dark">
                             {filteredIngredients.map((ingredient) => {
-                                const mermaPercent = ((1 - ingredient.yield_factor) * 100).toFixed(0);
                                 const costChange = ingredient.current_cost - ingredient.last_cost;
 
                                 return (
@@ -221,6 +278,12 @@ export const IngredientManager = () => {
                                             <div className="text-xs text-text-muted">{ingredient.sku}</div>
                                         </td>
                                         <td className="px-4 py-3 text-center">
+                                            <div className="font-mono text-white text-base">
+                                                {/* Fallback to 0 if stock not available yet */}
+                                                {(ingredient as any).stock || 0}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
                                             <span className="px-2 py-1 bg-white/5 rounded text-gray-300 text-xs font-mono">
                                                 {ingredient.base_unit}
                                             </span>
@@ -228,13 +291,23 @@ export const IngredientManager = () => {
                                         <td className="px-4 py-3 text-right">
                                             <span className="text-white font-mono">{formatCurrency(ingredient.current_cost)}</span>
                                         </td>
+
+                                        {/* Link to History if cost changed or just as a feature */}
+                                        {/* Actually user requested: "que al darle click al costo anterior me lleve a [la nueva pantalla]" */}
+                                        {/* So strict click on Costo Anterior cell content */}
                                         <td className="px-4 py-3 text-right">
-                                            <span className="text-text-muted font-mono">{formatCurrency(ingredient.last_cost)}</span>
-                                            {costChange !== 0 && (
-                                                <span className={`ml-2 text-xs ${costChange > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                                                    {costChange > 0 ? '+' : ''}{((costChange / ingredient.last_cost) * 100).toFixed(1)}%
-                                                </span>
-                                            )}
+                                            <Link
+                                                to={`/kitchen/ingredients/${ingredient.id}/history`}
+                                                className="text-text-muted font-mono hover:text-accent-orange hover:underline transition-colors block"
+                                                title="Ver historial de precios"
+                                            >
+                                                {formatCurrency(ingredient.last_cost)}
+                                                {costChange !== 0 && (
+                                                    <span className={`ml-2 text-xs ${costChange > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                                        {costChange > 0 ? '+' : ''}{((costChange / ingredient.last_cost) * 100).toFixed(1)}%
+                                                    </span>
+                                                )}
+                                            </Link>
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
@@ -251,6 +324,13 @@ export const IngredientManager = () => {
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex items-center justify-end gap-1">
+                                                <button
+                                                    onClick={() => openStockUpdate(ingredient)}
+                                                    className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded transition-colors"
+                                                    title="Ajustar Stock"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">inventory</span>
+                                                </button>
                                                 <button
                                                     onClick={() => openCostUpdate(ingredient)}
                                                     className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
@@ -283,144 +363,264 @@ export const IngredientManager = () => {
             </div>
 
             {/* Create/Edit Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-card-dark border border-border-dark rounded-2xl w-full max-w-md">
-                        <div className="p-6 border-b border-border-dark">
-                            <h3 className="text-lg font-semibold text-white">
-                                {editingIngredient ? 'Editar Insumo' : 'Nuevo Insumo'}
-                            </h3>
-                        </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Nombre</label>
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
-                                    required
-                                />
+            {
+                showModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-card-dark border border-border-dark rounded-2xl w-full max-w-md">
+                            <div className="p-6 border-b border-border-dark">
+                                <h3 className="text-lg font-semibold text-white">
+                                    {editingIngredient ? 'Editar Insumo' : 'Nuevo Insumo'}
+                                </h3>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">SKU</label>
-                                <input
-                                    type="text"
-                                    value={formData.sku}
-                                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
-                                    required
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <form onSubmit={handleSubmit} className="p-6 space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Unidad Base</label>
-                                    <select
-                                        value={formData.base_unit}
-                                        onChange={(e) => setFormData({ ...formData, base_unit: e.target.value as any })}
-                                        className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
-                                    >
-                                        <option value="kg">Kilogramo (kg)</option>
-                                        <option value="g">Gramo (g)</option>
-                                        <option value="lt">Litro (lt)</option>
-                                        <option value="ml">Mililitro (ml)</option>
-                                        <option value="und">Unidad (und)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Costo</label>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                                        Nombre
+                                        <HelpIcon text="Nombre del ingrediente tal como lo compras. Ej: 'Carne Molida', 'Tomate', 'Queso Mozzarella'" />
+                                    </label>
                                     <input
-                                        type="number"
-                                        value={formData.current_cost}
-                                        onChange={(e) => setFormData({ ...formData, current_cost: Number(e.target.value) })}
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
                                         required
                                     />
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">
-                                    Rendimiento (Yield) - {((formData.yield_factor || 1) * 100).toFixed(0)}%
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0.5"
-                                    max="1"
-                                    step="0.01"
-                                    value={formData.yield_factor}
-                                    onChange={(e) => setFormData({ ...formData, yield_factor: Number(e.target.value) })}
-                                    className="w-full"
-                                />
-                                <div className="flex justify-between text-xs text-text-muted">
-                                    <span>50% (Alta merma)</span>
-                                    <span>100% (Sin merma)</span>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                                        SKU
+                                        <HelpIcon text="Código interno para identificar el insumo en inventario. Ej: 'CAR-001', 'TOM-VER-001'" />
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.sku}
+                                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                        required
+                                    />
                                 </div>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={closeModal}
-                                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600"
-                                >
-                                    {editingIngredient ? 'Guardar Cambios' : 'Crear Insumo'}
-                                </button>
-                            </div>
-                        </form>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                                            Unidad Base
+                                            <HelpIcon text="La unidad en que COMPRAS este insumo. Si compras por kilos, pon 'kg'. Si por unidades, pon 'und'." />
+                                        </label>
+                                        <select
+                                            value={formData.base_unit}
+                                            onChange={(e) => setFormData({ ...formData, base_unit: e.target.value as any })}
+                                            className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                        >
+                                            <option value="kg">Kilogramo (kg)</option>
+                                            <option value="g">Gramo (g)</option>
+                                            <option value="lt">Litro (lt)</option>
+                                            <option value="ml">Mililitro (ml)</option>
+                                            <option value="und">Unidad (und)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                                            Costo por unidad
+                                            <HelpIcon text="Precio de COMPRA por cada unidad base. Si compras 20kg por $360,000, pon $18,000 (precio por kg). El sistema calculará el resto." />
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.current_cost}
+                                            onChange={(e) => setFormData({ ...formData, current_cost: Number(e.target.value) })}
+                                            className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                                        Rendimiento (Yield) - {((formData.yield_factor || 1) * 100).toFixed(0)}%
+                                        <HelpIcon text="¿Cuánto del producto aprovechas después de limpiarlo? Si de 1kg de carne quedan 900g después de quitar grasa/nervios, pon 90%. El sistema calcula automáticamente cuánto pagas REALMENTE por el producto aprovechable." position="left" />
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="1"
+                                        step="0.01"
+                                        value={formData.yield_factor}
+                                        onChange={(e) => setFormData({ ...formData, yield_factor: Number(e.target.value) })}
+                                        className="w-full"
+                                    />
+                                    <div className="flex justify-between text-xs text-text-muted">
+                                        <span>50% (Alta merma)</span>
+                                        <span>100% (Sin merma)</span>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={closeModal}
+                                        className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600"
+                                    >
+                                        {editingIngredient ? 'Guardar Cambios' : 'Crear Insumo'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Cost Update Modal */}
-            {showCostModal && selectedForCost && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-card-dark border border-border-dark rounded-2xl w-full max-w-md">
-                        <div className="p-6 border-b border-border-dark">
-                            <h3 className="text-lg font-semibold text-white">Actualizar Costo</h3>
-                            <p className="text-text-muted text-sm">{selectedForCost.name}</p>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-text-muted">Costo Actual:</span>
-                                <span className="text-white font-mono">{formatCurrency(selectedForCost.current_cost)}</span>
+            {
+                showCostModal && selectedForCost && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-card-dark border border-border-dark rounded-2xl w-full max-w-md">
+                            <div className="p-6 border-b border-border-dark">
+                                <h3 className="text-lg font-semibold text-white">Actualizar Costo</h3>
+                                <p className="text-text-muted text-sm">{selectedForCost.name}</p>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Nuevo Costo</label>
-                                <input
-                                    type="number"
-                                    value={newCost}
-                                    onChange={(e) => setNewCost(Number(e.target.value))}
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Razón (opcional)</label>
-                                <input
-                                    type="text"
-                                    value={costReason}
-                                    onChange={(e) => setCostReason(e.target.value)}
-                                    placeholder="Ej: Ajuste de proveedor"
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3 pt-4">
-                                <button onClick={closeCostModal} className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600">
-                                    Cancelar
-                                </button>
-                                <button onClick={handleUpdateCost} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500">
-                                    Actualizar Costo
-                                </button>
+                            <div className="p-6 space-y-4">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-text-muted">Costo Actual:</span>
+                                    <span className="text-white font-mono">{formatCurrency(selectedForCost.current_cost)}</span>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Nuevo Costo</label>
+                                    <input
+                                        type="number"
+                                        value={newCost}
+                                        onChange={(e) => setNewCost(Number(e.target.value))}
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Razón (opcional)</label>
+                                    <input
+                                        type="text"
+                                        value={costReason}
+                                        onChange={(e) => setCostReason(e.target.value)}
+                                        placeholder="Ej: Ajuste de proveedor"
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <button onClick={closeCostModal} className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600">
+                                        Cancelar
+                                    </button>
+                                    <button onClick={handleUpdateCost} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500">
+                                        Actualizar Costo
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+            {/* Stock Update Modal */}
+            {
+                showStockModal && selectedForStock && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-card-dark border border-border-dark rounded-2xl w-full max-w-md">
+                            <div className="p-6 border-b border-border-dark">
+                                <h3 className="text-lg font-semibold text-white">Ajustar Stock</h3>
+                                <p className="text-text-muted text-sm">{selectedForStock.name} ({selectedForStock.base_unit})</p>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Tipo de Movimiento</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setStockData({ ...stockData, type: 'IN' })}
+                                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${stockData.type === 'IN' ? 'bg-emerald-500 text-white' : 'bg-bg-deep text-text-muted hover:text-white'}`}
+                                        >
+                                            Entrada (+IN)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStockData({ ...stockData, type: 'OUT' })}
+                                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${stockData.type === 'OUT' ? 'bg-red-500 text-white' : 'bg-bg-deep text-text-muted hover:text-white'}`}
+                                        >
+                                            Salida (-OUT)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStockData({ ...stockData, type: 'ADJUST' })}
+                                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${stockData.type === 'ADJUST' ? 'bg-blue-500 text-white' : 'bg-bg-deep text-text-muted hover:text-white'}`}
+                                        >
+                                            Ajuste (=SET)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                                        Cantidad {stockData.type === 'ADJUST' ? '(Nuevo Total)' : ''}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={stockData.quantity}
+                                        onChange={(e) => setStockData({ ...stockData, quantity: Number(e.target.value) })}
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                        step="0.001"
+                                        min="0"
+                                    />
+                                </div>
+
+                                {stockData.type === 'IN' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                                                Costo Unitario de Compra
+                                                <HelpIcon text="Si ingresas un costo, se registrará como un LOTE de compra con su propio precio." />
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={stockData.cost_per_unit}
+                                                onChange={(e) => setStockData({ ...stockData, cost_per_unit: Number(e.target.value) })}
+                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                                placeholder="Ej: 15000"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Proveedor (Opcional)</label>
+                                            <input
+                                                type="text"
+                                                value={stockData.supplier}
+                                                onChange={(e) => setStockData({ ...stockData, supplier: e.target.value })}
+                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                                placeholder="Ej: Makro, Plaza minorista..."
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Razón</label>
+                                    <input
+                                        type="text"
+                                        value={stockData.reason}
+                                        onChange={(e) => setStockData({ ...stockData, reason: e.target.value })}
+                                        placeholder="Ej: Compra semanal, Inventario físico..."
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
+                                    />
+                                </div>
+
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <button onClick={closeStockModal} className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600">
+                                        Cancelar
+                                    </button>
+                                    <button onClick={handleUpdateStock} className="px-4 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600">
+                                        Guardar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

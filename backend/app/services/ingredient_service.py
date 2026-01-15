@@ -15,6 +15,9 @@ from sqlalchemy import select, and_
 from fastapi import HTTPException
 
 from app.models.ingredient import Ingredient
+from app.models.ingredient_inventory import IngredientInventory
+from app.models.ingredient_cost_history import IngredientCostHistory
+from app.models.ingredient_batch import IngredientBatch
 
 
 class IngredientService:
@@ -70,15 +73,47 @@ class IngredientService:
         return result.scalar_one_or_none()
 
     async def list_by_company(
-        self, company_id: int, active_only: bool = True, skip: int = 0, limit: int = 100
-    ) -> List[Ingredient]:
-        """Lista ingredientes de una empresa."""
-        stmt = select(Ingredient).where(Ingredient.company_id == company_id)
+        self, company_id: int, active_only: bool = True, skip: int = 0, limit: int = 100, branch_id: Optional[int] = None
+    ) -> List[dict]:
+        """Lista ingredientes de una empresa, opcionalmente con stock de una sucursal."""
+        if branch_id:
+            # Query con JOIN para obtener stock
+            stmt = select(Ingredient, IngredientInventory.stock)\
+                .outerjoin(IngredientInventory, 
+                    and_(
+                        Ingredient.id == IngredientInventory.ingredient_id,
+                        IngredientInventory.branch_id == branch_id
+                    )
+                )\
+                .where(Ingredient.company_id == company_id)
+        else:
+            # Query simple sin stock (solo Ingredient)
+            stmt = select(Ingredient).where(Ingredient.company_id == company_id)
+            
         if active_only:
             stmt = stmt.where(Ingredient.is_active == True)
+        
         stmt = stmt.offset(skip).limit(limit)
         result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        
+        ingredients_data = []
+        if branch_id:
+            # Procesar tuplas (Ingredient, stock)
+            rows = result.all()
+            for ingredient, stock in rows:
+                data = ingredient.model_dump()
+                data["stock"] = stock if stock is not None else Decimal(0)
+                ingredients_data.append(data)
+        else:
+            # Resultado estándar
+            rows = result.scalars().all()
+            for ingredient in rows:
+                data = ingredient.model_dump()
+                # Stock opcional/0 si no se pide branch
+                data["stock"] = Decimal(0) 
+                ingredients_data.append(data)
+                
+        return ingredients_data
 
     async def update(
         self,
@@ -108,8 +143,20 @@ class IngredientService:
             ingredient.base_unit = base_unit
         if current_cost is not None:
             # Guardar costo anterior antes de actualizar
-            ingredient.last_cost = ingredient.current_cost
-            ingredient.current_cost = current_cost
+            previous_cost = ingredient.current_cost
+            if current_cost != previous_cost:
+                ingredient.last_cost = previous_cost
+                ingredient.current_cost = current_cost
+                
+                # Log History
+                history = IngredientCostHistory(
+                    ingredient_id=ingredient.id,
+                    previous_cost=previous_cost,
+                    new_cost=current_cost,
+                    reason="Actualización manual",
+                    created_at=datetime.utcnow()
+                )
+                self.session.add(history)
         if yield_factor is not None:
             ingredient.yield_factor = yield_factor
         if category_id is not None:
@@ -136,19 +183,22 @@ class IngredientService:
         return True
 
     async def update_cost_from_purchase(
-        self, ingredient_id: uuid.UUID, new_cost: Decimal, use_weighted_average: bool = True
+        self, 
+        ingredient_id: uuid.UUID, 
+        new_cost: Decimal, 
+        use_weighted_average: bool = False,
+        user_id: Optional[int] = None,
+        reason: Optional[str] = None
     ) -> Optional[Ingredient]:
         """
-        Actualiza el costo de un ingrediente después de una compra.
-        
-        Si use_weighted_average es True, calcula un promedio ponderado
-        (requiere información de stock, simplificado aquí).
+        Actualiza el costo de un ingrediente y registra el historial.
         """
         ingredient = await self.get_by_id(ingredient_id)
         if not ingredient:
             return None
 
-        ingredient.last_cost = ingredient.current_cost
+        previous_cost = ingredient.current_cost
+        ingredient.last_cost = previous_cost
         
         if use_weighted_average:
             # Promedio simple para MVP (idealmente necesitaría stock actual)
@@ -158,6 +208,38 @@ class IngredientService:
 
         ingredient.updated_at = datetime.utcnow()
         self.session.add(ingredient)
+        
+        # Registrar Historial
+        if ingredient.current_cost != previous_cost:
+            history = IngredientCostHistory(
+                ingredient_id=ingredient.id,
+                previous_cost=previous_cost,
+                new_cost=ingredient.current_cost,
+                reason=reason,
+                user_id=user_id,
+                created_at=datetime.utcnow()
+            )
+            self.session.add(history)
+
         await self.session.commit()
         await self.session.refresh(ingredient)
         return ingredient
+
+    async def get_cost_history(self, ingredient_id: uuid.UUID) -> List[IngredientCostHistory]:
+        """Obtiene el historial de costos de un ingrediente."""
+        stmt = select(IngredientCostHistory)\
+            .where(IngredientCostHistory.ingredient_id == ingredient_id)\
+            .order_by(IngredientCostHistory.created_at.desc())
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_batches(self, ingredient_id: uuid.UUID, active_only: bool = True) -> List[IngredientBatch]:
+        """Obtener lotes de un ingrediente."""
+        stmt = select(IngredientBatch).where(IngredientBatch.ingredient_id == ingredient_id)
+        if active_only:
+            stmt = stmt.where(IngredientBatch.is_active == True)
+        
+        stmt = stmt.order_by(IngredientBatch.acquired_at.desc())
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+

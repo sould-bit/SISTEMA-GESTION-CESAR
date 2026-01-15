@@ -61,6 +61,7 @@ class IngredientListResponse(BaseModel):
     current_cost: Decimal
     yield_factor: float
     is_active: bool
+    stock: Decimal = Field(default=Decimal(0))
 
     class Config:
         from_attributes = True
@@ -69,4 +70,39 @@ class IngredientListResponse(BaseModel):
 class IngredientCostUpdate(BaseModel):
     """Schema para actualizar costo desde una compra."""
     new_cost: Decimal = Field(..., gt=0, description="Nuevo costo del ingrediente")
-    use_weighted_average: bool = Field(default=True, description="Usar promedio ponderado")
+    use_weighted_average: bool = Field(default=False, description="Usar promedio ponderado (False = Costo Estático)")
+    reason: Optional[str] = Field(default=None, description="Razón del cambio de precio")
+
+
+class IngredientCostHistoryResponse(BaseModel):
+    id: uuid.UUID
+    previous_cost: Decimal
+    new_cost: Decimal
+    reason: Optional[str]
+    created_at: datetime
+    user_id: Optional[int]
+
+
+class IngredientStockUpdate(BaseModel):
+    """Schema para actualizar el stock de un ingrediente."""
+    quantity: Decimal = Field(..., description="Cantidad a mover (positiva para IN/ADJ, positiva para OUT que será convertida)")
+    transaction_type: str = Field(..., pattern="^(IN|OUT|ADJ|PURCHASE)$")
+    reference_id: Optional[str] = Field(default=None)
+    reason: Optional[str] = Field(default=None)
+    cost_per_unit: Optional[Decimal] = Field(default=None, gt=0, description="Costo unitario para registrar lote (Solo IN/PURCHASE)")
+    supplier: Optional[str] = Field(default=None, description="Proveedor del lote")
+
+
+class IngredientBatchResponse(BaseModel):
+    """Schema para respuesta de Lotes (Batches)."""
+    id: uuid.UUID
+    quantity_initial: Decimal
+    quantity_remaining: Decimal
+    cost_per_unit: Decimal
+    total_cost: Decimal
+    acquired_at: datetime
+    is_active: bool
+    supplier: Optional[str]
+    
+    class Config:
+        from_attributes = True

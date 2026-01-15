@@ -9,9 +9,10 @@
  * - Profitability indicators
  */
 
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { useState, useEffect, useMemo } from 'react';
 import { kitchenService, Ingredient, RecipePayload } from '../kitchen.service';
+import { HelpIcon } from '@/components/ui/Tooltip';
 
 interface RecipeFormData {
     name: string;
@@ -41,7 +42,7 @@ export const ImprovedRecipeBuilder = ({ productId, onSave, onCancel }: Props) =>
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<RecipeFormData>({
+    const { register, control, handleSubmit, watch, formState: { errors } } = useForm<RecipeFormData>({
         defaultValues: {
             name: '',
             product_id: productId?.toString() || '',
@@ -175,8 +176,9 @@ export const ImprovedRecipeBuilder = ({ productId, onSave, onCancel }: Props) =>
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
                             Nombre de la Receta
+                            <HelpIcon text="Nombre descriptivo para identificar esta receta. Ej: 'Hamburguesa Clásica 200g'" />
                         </label>
                         <input
                             {...register('name', { required: 'Nombre requerido' })}
@@ -197,8 +199,9 @@ export const ImprovedRecipeBuilder = ({ productId, onSave, onCancel }: Props) =>
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
                             Precio de Venta
+                            <HelpIcon text="Precio al que vendes este platillo. Sirve para calcular automáticamente tu margen de ganancia y food cost %." />
                         </label>
                         <input
                             type="number"
@@ -284,10 +287,19 @@ export const ImprovedRecipeBuilder = ({ productId, onSave, onCancel }: Props) =>
                             {/* Header */}
                             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-muted font-medium uppercase">
                                 <div className="col-span-3">Insumo</div>
-                                <div className="col-span-2 text-center">Cantidad Bruta</div>
+                                <div className="col-span-2 text-center flex items-center justify-center gap-1">
+                                    Cantidad Bruta
+                                    <HelpIcon text="La cantidad que SACAS del almacén para hacer este platillo. Ej: 0.140 kg (140 gramos de carne)" position="bottom" />
+                                </div>
                                 <div className="col-span-1 text-center">Unidad</div>
-                                <div className="col-span-2 text-center">Merma</div>
-                                <div className="col-span-2 text-center">Neto</div>
+                                <div className="col-span-2 text-center flex items-center justify-center gap-1">
+                                    Merma
+                                    <HelpIcon text="Porcentaje que pierdes al procesar (grasa, cáscaras, etc). Se calcula automáticamente del rendimiento del insumo." position="bottom" />
+                                </div>
+                                <div className="col-span-2 text-center flex items-center justify-center gap-1">
+                                    Neto
+                                    <HelpIcon text="Cantidad REAL que usas después de aplicar la merma. El sistema la calcula automáticamente." position="bottom" />
+                                </div>
                                 <div className="col-span-1 text-right">Costo</div>
                                 <div className="col-span-1"></div>
                             </div>

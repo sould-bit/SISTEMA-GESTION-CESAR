@@ -11,6 +11,7 @@ from app.models.product import Product
 from app.models.recipe import Recipe
 from app.models.recipe_item import RecipeItem
 from app.models.ingredient import Ingredient
+from app.models.ingredient_batch import IngredientBatch
 from app.services.unit_conversion_service import UnitConversionService
 
 class InventoryService:
@@ -138,22 +139,108 @@ class InventoryService:
         quantity_delta: Decimal,
         transaction_type: str,
         user_id: Optional[int] = None,
-        reference_id: Optional[str] = None
+        reference_id: Optional[str] = None,
+        reason: Optional[str] = None,
+        cost_per_unit: Optional[Decimal] = None,
+        supplier: Optional[str] = None
     ) -> IngredientInventory:
         """
         Update Ingredient Stock (Realidad Física).
+        Maneja creación de Lotes (Batches) para entradas y consumo FIFO para salidas.
         """
         inventory = await self.get_ingredient_stock(branch_id, ingredient_id, for_update=True)
         if not inventory:
             inventory = await self.initialize_ingredient_stock(branch_id, ingredient_id)
 
-        new_balance = inventory.stock + quantity_delta
+        # Determinar el delta real y nuevo balance
+        if transaction_type == "ADJUST":
+            # Si es ajuste absoluto, calculamos la diferencia
+            new_balance = quantity_delta
+            actual_delta = new_balance - inventory.stock
+        else:
+            # Si es delta (IN/OUT/SALE)
+            new_balance = inventory.stock + quantity_delta
+            actual_delta = quantity_delta
 
+        # Validación básica de negativo
         if new_balance < 0 and transaction_type in ["SALE", "OUT"]:
+             # Permitir stock negativo temporalmente si es necesario, O lanzar error.
+             # Por ahora mantenemos la restriccion pero podriamos relajarla si el usuario lo pide.
+             # En FIFO, consumir mÃ¡s de lo que hay en lotes es posible (lotes quedan en 0, stock negativo total)
+             # Pero idealmente no.
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Insumo insuficiente {ingredient_id}. Disponible: {inventory.stock}"
             )
+
+        # ---------------------------------------------------------
+        # MANEJO DE LOTES (FIFO)
+        # ---------------------------------------------------------
+        
+        # CASO 1: ENTRADA DE STOCK (Crear Lote)
+        # Solo si es un aumento positivo Y se provee costo (O es una Compra/Ajuste explÃ­cito)
+        if actual_delta > 0 and cost_per_unit is not None:
+            new_batch = IngredientBatch(
+                ingredient_id=ingredient_id,
+                branch_id=branch_id,
+                quantity_initial=actual_delta,
+                quantity_remaining=actual_delta,
+                cost_per_unit=cost_per_unit,
+                total_cost=actual_delta * cost_per_unit,
+                supplier=supplier,
+                is_active=True
+            )
+            self.db.add(new_batch)
+            
+            # Actualizar costo del ingrediente (Ãšltimo costo registrado)
+            # Opcional: PodrÃ­amos calcular promedio ponderado aquÃ­
+            stmt_ing = select(Ingredient).where(Ingredient.id == ingredient_id)
+            res_ing = await self.db.execute(stmt_ing)
+            ingredient_obj = res_ing.scalar_one_or_none()
+            if ingredient_obj:
+                ingredient_obj.last_cost = ingredient_obj.current_cost # Move current to last
+                ingredient_obj.current_cost = cost_per_unit
+                self.db.add(ingredient_obj)
+
+        # CASO 2: SALIDA DE STOCK (Consumo FIFO)
+        elif actual_delta < 0:
+            qty_to_consume = abs(actual_delta)
+            
+            # Buscar lotes activos ordenados por antigÃ¼edad (oldest first)
+            stmt_batches = select(IngredientBatch).where(
+                IngredientBatch.branch_id == branch_id,
+                IngredientBatch.ingredient_id == ingredient_id,
+                IngredientBatch.is_active == True
+            ).order_by(IngredientBatch.acquired_at.asc())
+            
+            result_batches = await self.db.execute(stmt_batches)
+            active_batches = result_batches.scalars().all()
+            
+            remaining_to_consume = qty_to_consume
+            
+            for batch in active_batches:
+                if remaining_to_consume <= 0:
+                    break
+                
+                available = batch.quantity_remaining
+                
+                if available >= remaining_to_consume:
+                    # Este lote cubre todo lo que falta
+                    batch.quantity_remaining -= remaining_to_consume
+                    remaining_to_consume = 0
+                else:
+                    # Consumimos todo este lote y seguimos
+                    remaining_to_consume -= available
+                    batch.quantity_remaining = Decimal(0)
+                    batch.is_active = False # Lote agotado
+                
+                self.db.add(batch)
+                
+            # Nota: Si remaining_to_consume > 0, significa que se consumiÃ³ "aire" (stock sin lote)
+            # Esto es consistente con permitir que el stock total baje de lo que suman los lotes
+            # si hubo ajustes manuales previos sin lotes.
+
+        # ---------------------------------------------------------
 
         inventory.stock = new_balance
         self.db.add(inventory)
@@ -161,10 +248,11 @@ class InventoryService:
         txn = IngredientTransaction(
             inventory_id=inventory.id,
             transaction_type=transaction_type,
-            quantity=quantity_delta,
+            quantity=actual_delta,
             balance_after=new_balance,
             reference_id=reference_id,
-            user_id=user_id
+            user_id=user_id,
+            reason=reason or supplier # Guardar supplier en reason si aplica
         )
         self.db.add(txn)
         await self.db.commit()

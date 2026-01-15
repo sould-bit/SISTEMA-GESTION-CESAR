@@ -41,7 +41,7 @@ class RecipeItemUpdate(BaseModel):
 class RecipeItemResponse(BaseModel):
     """Schema de respuesta para items de receta V4.1."""
     id: uuid.UUID
-    recipe_id: int
+    recipe_id: uuid.UUID
     ingredient_id: uuid.UUID
     
     gross_quantity: Decimal = Field(description="Cantidad bruta (almacén)")
@@ -98,7 +98,7 @@ class RecipeItemAddOrUpdate(BaseModel):
 
 class RecipeResponse(RecipeBase):
     """Schema de respuesta para recetas V4.1."""
-    id: int
+    id: uuid.UUID
     company_id: int
     product_id: int
     product_name: Optional[str] = Field(None, description="Nombre del producto")
@@ -115,7 +115,7 @@ class RecipeResponse(RecipeBase):
 
 class RecipeListResponse(BaseModel):
     """Schema para listar recetas (sin items detallados)."""
-    id: int
+    id: uuid.UUID
     company_id: int
     product_id: int
     product_name: Optional[str] = None
@@ -131,7 +131,7 @@ class RecipeListResponse(BaseModel):
 
 class RecipeCostRecalculateResponse(BaseModel):
     """Schema de respuesta al recalcular costos."""
-    recipe_id: int
+    recipe_id: uuid.UUID
     old_total_cost: Decimal
     new_total_cost: Decimal
     difference: Decimal

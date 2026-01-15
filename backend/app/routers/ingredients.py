@@ -13,13 +13,20 @@ from app.database import get_session
 from app.auth_deps import get_current_user
 from app.models.user import User
 from app.services.ingredient_service import IngredientService
+from app.services.ingredient_service import IngredientService
 from app.services.cost_engine_service import CostEngineService
+from app.services.inventory_service import InventoryService
+from app.models.ingredient_inventory import IngredientInventory
 from app.schemas.ingredients import (
     IngredientCreate,
     IngredientUpdate,
     IngredientResponse,
     IngredientListResponse,
+    IngredientListResponse,
     IngredientCostUpdate,
+    IngredientStockUpdate,
+    IngredientCostHistoryResponse,
+    IngredientBatchResponse,
 )
 
 router = APIRouter(
@@ -44,6 +51,7 @@ async def list_ingredients(
         active_only=active_only,
         skip=skip,
         limit=limit,
+        branch_id=current_user.branch_id
     )
     return ingredients
 
@@ -160,6 +168,8 @@ async def update_ingredient_cost(
         ingredient_id=ingredient_id,
         new_cost=data.new_cost,
         use_weighted_average=data.use_weighted_average,
+        user_id=current_user.id,
+        reason=data.reason,
     )
     
     # Recalcular recetas afectadas
@@ -167,6 +177,44 @@ async def update_ingredient_cost(
     await cost_engine.recalculate_all_recipes_for_ingredient(ingredient_id)
     
     return ingredient
+
+@router.get("/{ingredient_id}/history", response_model=List[IngredientCostHistoryResponse])
+async def get_cost_history(
+    ingredient_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Obtiene el historial de costos de un ingrediente."""
+    service = IngredientService(session)
+    
+    existing = await service.get_by_id(ingredient_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    if existing.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    history = await service.get_cost_history(ingredient_id)
+    return history
+
+
+@router.get("/{ingredient_id}/batches", response_model=List[IngredientBatchResponse])
+async def get_ingredient_batches(
+    ingredient_id: uuid.UUID,
+    active_only: bool = Query(True),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Obtiene los lotes (batches) de un ingrediente."""
+    service = IngredientService(session)
+    
+    existing = await service.get_by_id(ingredient_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    if existing.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    batches = await service.get_batches(ingredient_id, active_only=active_only)
+    return batches
 
 
 @router.get("/{ingredient_id}/impact", response_model=dict)
@@ -194,3 +242,60 @@ async def get_ingredient_impact(
     return impact
 
 
+    return impact
+
+
+@router.post("/{ingredient_id}/stock", response_model=dict)
+async def update_ingredient_stock(
+    ingredient_id: uuid.UUID,
+    data: IngredientStockUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Actualiza el stock físico de un ingrediente.
+    
+    Usado para:
+    - Registrar inventario inicial
+    - Entrada de compras (si se maneja cantidad)
+    - Ajustes por merma/pérdida
+    """
+    # Verificar propiedad del ingrediente
+    ing_service = IngredientService(session)
+    existing = await ing_service.get_by_id(ingredient_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    if existing.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Preparar cantidad (si es OUT, debe ser negativa)
+    quantity = data.quantity
+    if data.transaction_type == "OUT":
+        quantity = quantity * -1
+        
+    # Usar InventoryService para actualizar el stock
+    inv_service = InventoryService(session)
+    
+    # Obtener el branch_id del usuario actual (asumiendo que el usuario pertenece a un branch activo)
+    # Por ahora usaremos el primer branch de la compañía como fallback o requerir branch en el header
+    # Simplificación: Usar branch_id = 1 o buscar el branch asociado al usuario.
+    # TODO: Implementar lógica robusta de selección de sucursal. Asumiremos branch_id del usuario si existe.
+    branch_id = current_user.branch_id if hasattr(current_user, 'branch_id') and current_user.branch_id else 1
+    
+    inventory = await inv_service.update_ingredient_stock(
+        branch_id=branch_id,
+        ingredient_id=ingredient_id,
+        quantity_delta=quantity,
+        transaction_type=data.transaction_type,
+        user_id=current_user.id,
+        reference_id=data.reference_id,
+        reason=data.reason,
+        cost_per_unit=data.cost_per_unit,
+        supplier=data.supplier
+    )
+    
+    return {
+        "ingredient_id": ingredient_id,
+        "new_stock": inventory.stock,
+        "branch_id": branch_id
+    }

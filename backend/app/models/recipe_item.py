@@ -31,7 +31,7 @@ class RecipeItem(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
 
     # Foreign Keys
-    recipe_id: int = Field(foreign_key="recipes.id", index=True, nullable=False)
+    recipe_id: uuid.UUID = Field(foreign_key="recipes.id", index=True, nullable=False)
     ingredient_id: uuid.UUID = Field(foreign_key="ingredients.id", index=True, nullable=False)
     company_id: int = Field(foreign_key="companies.id", index=True, nullable=False)
 
