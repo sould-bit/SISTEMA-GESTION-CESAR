@@ -3,7 +3,8 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from app.models import Product, Company, Branch, User, Inventory
-from app.models.recipe import Recipe, RecipeItem
+from app.models.recipe import Recipe
+from app.models.recipe_item import RecipeItem
 from app.schemas.order import OrderCreate, OrderItemCreate
 from app.services.order_service import OrderService
 from app.services.inventory_service import InventoryService

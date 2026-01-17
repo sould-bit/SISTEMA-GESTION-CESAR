@@ -29,10 +29,12 @@ class ProductModifierUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 # --- Response Schemas ---
+from app.schemas.products import ProductBase
+
 class ModifierRecipeItemRead(ModifierRecipeItemBase):
     id: int
     modifier_id: int
-    # Optional: include ingredient name if needed
+    ingredient: Optional[ProductBase] = None
     
     model_config = ConfigDict(from_attributes=True)
 

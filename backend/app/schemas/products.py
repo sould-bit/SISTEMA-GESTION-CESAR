@@ -12,7 +12,7 @@ class ProductBase(BaseModel):
     
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=500)
-    price: Decimal = Field(..., gt=0, le=999999999.99)  # > 0, <= 999M
+    price: Decimal = Field(..., ge=0, le=999999999.99)  # >= 0, <= 999M
     tax_rate: Decimal = Field(0, ge=0, le=1)  # 0% a 100%
     stock: Optional[Decimal] = Field(None, ge=0)
     image_url: Optional[str] = Field(None, max_length=500)

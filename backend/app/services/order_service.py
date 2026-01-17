@@ -199,12 +199,17 @@ class OrderService:
                 recipe = await recipe_service.get_recipe_by_product(pid, company_id)
                 
                 if recipe:
-                    # Deduct Ingredients
+                    # Deduct Ingredients (FIFO)
                     for recipe_item in recipe.items:
-                        qty_needed = recipe_item.quantity * quantity
-                        await inventory_service.update_stock(
+                        # Use gross_quantity and ingredient_id (UUID)
+                        # We use InventoryService.update_ingredient_stock which handles FIFO
+                        # Quantity to consume = recipe_item.gross_quantity * quantity
+                        
+                        qty_needed = recipe_item.gross_quantity * Decimal(quantity)
+                        
+                        await inventory_service.update_ingredient_stock(
                             branch_id=order_data.branch_id,
-                            product_id=recipe_item.ingredient_product_id,
+                            ingredient_id=recipe_item.ingredient_id,
                             quantity_delta=-qty_needed,
                             transaction_type="SALE",
                             user_id=user_id,
@@ -212,7 +217,7 @@ class OrderService:
                             reason=f"Sale of {product.name} (Recipe)"
                         )
                 else:
-                    # Deduct Product Directly (Simple Product like Soda)
+                    # Deduct Product Directly (Legacy / Simple Product)
                     await inventory_service.update_stock(
                         branch_id=order_data.branch_id,
                         product_id=pid,
@@ -236,15 +241,28 @@ class OrderService:
                             for mod_recipe_item in mod_obj.recipe_items:
                                 qty_needed_mod = mod_recipe_item.quantity * total_mod_applies
                                 
-                                await inventory_service.update_stock(
-                                    branch_id=order_data.branch_id,
-                                    product_id=mod_recipe_item.ingredient_product_id,
-                                    quantity_delta=-qty_needed_mod,
-                                    transaction_type="SALE",
-                                    user_id=user_id,
-                                    reference_id=f"ORDER-{order_number}",
-                                    reason=f"Extra {mod_obj.name} (Modifier)"
-                                )
+                                # Check if it uses Ingredient (UUID) or Product (ID)
+                                if mod_recipe_item.ingredient_id:
+                                    await inventory_service.update_ingredient_stock(
+                                        branch_id=order_data.branch_id,
+                                        ingredient_id=mod_recipe_item.ingredient_id,
+                                        quantity_delta=-qty_needed_mod,
+                                        transaction_type="SALE",
+                                        user_id=user_id,
+                                        reference_id=f"ORDER-{order_number}",
+                                        reason=f"Extra {mod_obj.name} (Modifier Ing)"
+                                    )
+                                elif mod_recipe_item.ingredient_product_id:
+                                    # Legacy Product-based modifier
+                                    await inventory_service.update_stock(
+                                        branch_id=order_data.branch_id,
+                                        product_id=mod_recipe_item.ingredient_product_id,
+                                        quantity_delta=-qty_needed_mod,
+                                        transaction_type="SALE",
+                                        user_id=user_id,
+                                        reference_id=f"ORDER-{order_number}",
+                                        reason=f"Extra {mod_obj.name} (Modifier Prod)"
+                                    )
 
             # 6. Crear la Orden (Cabecera)
             new_order = Order(

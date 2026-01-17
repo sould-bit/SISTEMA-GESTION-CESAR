@@ -5,6 +5,17 @@ from .subscription import Subscription
 from .category import Category
 from .product import Product
 
+# Sistema de Recetas y Costos (v4.1)
+from .ingredient import Ingredient
+from .unit_conversion import UnitConversion
+from .ingredient_inventory import IngredientInventory, IngredientTransaction
+from .ingredient_cost_history import IngredientCostHistory
+from .ingredient_batch import IngredientBatch
+from .production_event import ProductionEvent
+from .production_event_input import ProductionEventInput
+from .production_event_input_batch import ProductionEventInputBatch
+from .inventory_count import InventoryCount, InventoryCountItem
+
 # Sistema de Permisos y Roles (v3.3)
 from .permission_category import PermissionCategory
 from .permission import Permission
@@ -12,7 +23,8 @@ from .role import Role
 from .role_permission import RolePermission
 
 # Sistema de Recetas (v4.2)
-from .recipe import Recipe, RecipeItem
+from .recipe import Recipe
+from .recipe_item import RecipeItem
 
 # Sistema de Pedidos y Pagos (v5.1)
 from .order import Order, OrderItem, OrderStatus

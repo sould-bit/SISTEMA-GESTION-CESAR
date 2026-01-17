@@ -6,12 +6,12 @@ from sqlmodel import select, Session, SQLModel
 from .database import get_session, engine
 from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte
 from app.routers import (
-    auth, 
-    rbac, 
-    product, 
-    recipe, 
-    category, 
-    inventory, 
+    auth,
+    rbac,
+    product,
+    recipe,
+    category,
+    inventory,
     order,
     payment,
     cash,
@@ -23,7 +23,12 @@ from app.routers import (
     tickets,
     tickets,
     uploads,
-    modifiers
+    modifiers,
+    ingredients,
+    menu_engineering,
+    kitchen_production,
+    inventory_count,
+    intelligence
 )
 from fastapi.staticfiles import StaticFiles
 from .core.websockets import sio # Import Socket.IO server
@@ -67,6 +72,11 @@ app.include_router(audit.router)
 app.include_router(tickets.router)
 app.include_router(uploads.router)
 app.include_router(modifiers.router)
+app.include_router(ingredients.router)
+app.include_router(menu_engineering.router)
+app.include_router(kitchen_production.router)
+app.include_router(inventory_count.router)
+app.include_router(intelligence.router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
