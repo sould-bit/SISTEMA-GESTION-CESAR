@@ -22,6 +22,7 @@ const menuItems: MenuItem[] = [
         icon: 'restaurant',
         submenu: [
             { name: 'Insumos', path: '/kitchen/ingredients', icon: 'nutrition' },
+
             { name: 'Recetas', path: '/kitchen/recipes', icon: 'menu_book' },
             { name: 'Ingeniería de Menú', path: '/kitchen/menu-engineering', icon: 'analytics' },
         ]

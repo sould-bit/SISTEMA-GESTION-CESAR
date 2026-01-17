@@ -15,9 +15,10 @@ import uuid
 class IngredientBase(BaseModel):
     """Base schema para ingredientes."""
     name: str = Field(..., min_length=1, max_length=200, description="Nombre del ingrediente")
-    sku: str = Field(..., min_length=1, max_length=50, description="Código SKU único")
+    sku: Optional[str] = Field(None, min_length=1, max_length=50, description="Código SKU único (opcional, auto-generado si se omite)")
     base_unit: str = Field(..., min_length=1, max_length=20, description="Unidad base: kg, lt, und")
     yield_factor: float = Field(default=1.0, ge=0.01, le=1.0, description="Factor de rendimiento (0.90 = 10% merma)")
+    ingredient_type: str = Field(default="RAW", pattern="^(RAW|PROCESSED)$", description="Tipo: RAW o PROCESSED")
 
 
 class IngredientCreate(IngredientBase):
@@ -61,7 +62,9 @@ class IngredientListResponse(BaseModel):
     current_cost: Decimal
     yield_factor: float
     is_active: bool
-    stock: Decimal = Field(default=Decimal(0))
+    ingredient_type: str
+    stock: Optional[Decimal] = Field(default=Decimal(0))
+    total_inventory_value: Optional[Decimal] = Field(default=Decimal(0))
 
     class Config:
         from_attributes = True
@@ -100,9 +103,20 @@ class IngredientBatchResponse(BaseModel):
     quantity_remaining: Decimal
     cost_per_unit: Decimal
     total_cost: Decimal
+    current_value: Optional[Decimal] = None # Valor del stock restante (qty_remaining * cost_per_unit)
     acquired_at: datetime
     is_active: bool
     supplier: Optional[str]
     
     class Config:
         from_attributes = True
+
+
+class IngredientBatchUpdate(BaseModel):
+    """Schema para actualizar un Lote (Batch)."""
+    quantity_initial: Optional[Decimal] = Field(default=None, ge=0, description="Cantidad inicial comprada")
+    quantity_remaining: Optional[Decimal] = Field(default=None, ge=0, description="Cantidad restante")
+    cost_per_unit: Optional[Decimal] = Field(default=None, ge=0, description="Costo por unidad")
+    total_cost: Optional[Decimal] = Field(default=None, ge=0, description="Costo total de la compra")
+    supplier: Optional[str] = Field(default=None, max_length=100, description="Proveedor")
+    is_active: Optional[bool] = None

@@ -23,6 +23,7 @@ export interface Ingredient {
     yield_factor: number; // Merma (0.90 = 90% aprovechable)
     category_id?: number;
     company_id: number;
+    ingredient_type: 'RAW' | 'PROCESSED';
     is_active: boolean;
     stock?: number;
     created_at?: string;
@@ -54,6 +55,7 @@ export interface IngredientCreate {
     sku: string;
     base_unit: 'kg' | 'lt' | 'und' | 'g' | 'ml';
     current_cost: number;
+    ingredient_type: 'RAW' | 'PROCESSED';
     yield_factor?: number;
     category_id?: number;
 }
@@ -63,13 +65,16 @@ export interface IngredientUpdate {
     sku?: string;
     base_unit?: 'kg' | 'lt' | 'und' | 'g' | 'ml';
     current_cost?: number;
+    ingredient_type?: 'RAW' | 'PROCESSED';
     yield_factor?: number;
     category_id?: number;
     is_active?: boolean;
 }
 
 export interface RecipeItem {
+    id?: string; // Add ID if present
     ingredient_id: string;
+    ingredient_name?: string; // Populate from backend
     gross_quantity: number;
     measure_unit: string;
     // Calculated fields
@@ -87,6 +92,7 @@ export interface RecipePayload {
 export interface Recipe {
     id: number;  // INTEGER in database
     product_id: number;
+    product_name?: string; // Populate from backend
     name: string;
     version: number;
     is_active: boolean;
@@ -206,6 +212,22 @@ export const kitchenService = {
         return data;
     },
 
+    async updateBatch(batchId: string, updates: {
+        quantity_initial?: number;
+        quantity_remaining?: number;
+        cost_per_unit?: number;
+        total_cost?: number;
+        supplier?: string;
+        is_active?: boolean
+    }): Promise<IngredientBatch> {
+        const { data } = await api.patch<IngredientBatch>(`/ingredients/batches/${batchId}`, updates);
+        return data;
+    },
+
+    async deleteBatch(batchId: string): Promise<void> {
+        await api.delete(`/ingredients/batches/${batchId}`);
+    },
+
     // ─────────────────────────────────────────
     // 2. RECIPES (Constructor de Recetas)
     // ─────────────────────────────────────────
@@ -285,6 +307,94 @@ export const kitchenService = {
         const { data } = await api.get('/reports/menu-engineering/summary');
         return data;
     },
+
+    // ─────────────────────────────────────────
+    // 4. INTELLIGENCE (Live Recipe & Calibration)
+    // ─────────────────────────────────────────
+
+    getRecipeEfficiency: async (recipeId: string): Promise<RecipeEfficiency> => {
+        const { data } = await api.get<RecipeEfficiency>(`/intelligence/recipe-efficiency/${recipeId}`);
+        // Ensure recommendations is always an array
+        if (!data.recommendations) data.recommendations = [];
+        return data;
+    },
+
+    calibrateRecipe: async (recipeId: string, items: { ingredient_id: string; new_quantity: number }[]): Promise<CalibrationResult> => {
+        const { data } = await api.post<CalibrationResult>(`/intelligence/calibrate-recipe/${recipeId}`, { items });
+        return data;
+    },
+
+    // ─────────────────────────────────────────
+    // 5. PRODUCTION (Transformations)
+    // ─────────────────────────────────────────
+
+    registerProduction: async (payload: {
+        inputs: { ingredient_id: string; quantity: number }[];
+        output: {
+            ingredient_id?: string;
+            name?: string;
+            base_unit?: string;
+            category_id?: number;
+        };
+        output_quantity: number;
+        notes?: string;
+    }): Promise<any> => {
+        const { data } = await api.post('/kitchen/production/', payload); // Adjusted endpoint
+        return data;
+    },
+
+    getProductionByBatch: async (batchId: string): Promise<ProductionDetail> => {
+        const { data } = await api.get<ProductionDetail>(`/kitchen/production/batch/${batchId}`);
+        return data;
+    }
 };
+
+export interface ProductionInputDetail {
+    ingredient_name: string;
+    quantity: number;
+    unit: string;
+    cost_allocated: number;
+    cost_per_unit: number;
+}
+
+export interface ProductionDetail {
+    id: string;
+    date: string;
+    inputs: ProductionInputDetail[];
+    output_quantity: number;
+    notes?: string;
+}
+
+export interface RecipeEfficiency {
+    recipe_id: string;
+    items: {
+        ingredient_id: string;
+        theoretical_usage: number;
+        real_usage: number;
+        discrepancy: number;
+        efficiency: number;
+        message?: string;
+        suggested_quantity?: number;
+        last_audit_date?: string;
+    }[];
+    recommendations: {
+        ingredient_id: string;
+        efficiency: number;
+        message: string;
+        suggested_quantity: number;
+    }[];
+}
+
+export interface CalibrationResult {
+    status: string;
+    items_updated: number;
+    old_cost: number;
+    new_cost: number;
+    cost_increase: number;
+    current_price: number;
+    suggested_price: number;
+    old_margin_pct: number;
+    new_margin_pct_if_static: number;
+}
 
 export default kitchenService;

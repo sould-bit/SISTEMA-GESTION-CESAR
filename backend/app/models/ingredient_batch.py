@@ -19,12 +19,12 @@ class IngredientBatch(SQLModel, table=True):
     branch_id: int = Field(foreign_key="branches.id", nullable=False, index=True)
     
     # Cantidades
-    quantity_initial: Decimal = Field(sa_column=Column(Numeric(12, 3), nullable=False))
-    quantity_remaining: Decimal = Field(sa_column=Column(Numeric(12, 3), nullable=False))
+    quantity_initial: Decimal = Field(sa_column=Column(Numeric(18, 4), nullable=False))
+    quantity_remaining: Decimal = Field(sa_column=Column(Numeric(18, 4), nullable=False))
     
     # Costos
-    cost_per_unit: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
-    total_cost: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False)) # Calculado: qty * unit_cost
+    cost_per_unit: Decimal = Field(sa_column=Column(Numeric(18, 6), nullable=False))
+    total_cost: Decimal = Field(sa_column=Column(Numeric(18, 2), nullable=False)) # Calculado: qty * unit_cost
     
     # Metadatos
     acquired_at: datetime = Field(default_factory=datetime.utcnow, index=True)
@@ -34,3 +34,9 @@ class IngredientBatch(SQLModel, table=True):
     # Relaciones
     ingredient: Optional[Ingredient] = Relationship()
     branch: Optional[Branch] = Relationship()
+
+    @property
+    def current_value(self) -> Decimal:
+        """Calcula el valor actual del inventario restante en este lote."""
+        return self.quantity_remaining * self.cost_per_unit
+

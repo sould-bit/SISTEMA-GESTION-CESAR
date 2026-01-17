@@ -27,6 +27,7 @@ from app.schemas.ingredients import (
     IngredientStockUpdate,
     IngredientCostHistoryResponse,
     IngredientBatchResponse,
+    IngredientBatchUpdate,
 )
 
 router = APIRouter(
@@ -282,7 +283,7 @@ async def update_ingredient_stock(
     # TODO: Implementar lógica robusta de selección de sucursal. Asumiremos branch_id del usuario si existe.
     branch_id = current_user.branch_id if hasattr(current_user, 'branch_id') and current_user.branch_id else 1
     
-    inventory = await inv_service.update_ingredient_stock(
+    inventory, _, _, _ = await inv_service.update_ingredient_stock(
         branch_id=branch_id,
         ingredient_id=ingredient_id,
         quantity_delta=quantity,
@@ -299,3 +300,72 @@ async def update_ingredient_stock(
         "new_stock": inventory.stock,
         "branch_id": branch_id
     }
+
+
+@router.patch("/batches/{batch_id}", response_model=IngredientBatchResponse)
+async def update_batch(
+    batch_id: uuid.UUID,
+    data: IngredientBatchUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Actualiza un lote específico.
+    
+    Permite modificar cantidad restante, proveedor o desactivar el lote.
+    """
+    service = IngredientService(session)
+    
+    # Obtener el batch y verificar propiedad
+    batch = await service.get_batch_by_id(batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    ingredient = await service.get_by_id(batch.ingredient_id)
+    if not ingredient or ingredient.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Actualizar el batch
+    updated_batch = await service.update_batch(
+        batch_id=batch_id,
+        quantity_initial=data.quantity_initial,
+        quantity_remaining=data.quantity_remaining,
+        cost_per_unit=data.cost_per_unit,
+        total_cost=data.total_cost,
+        supplier=data.supplier,
+        is_active=data.is_active
+    )
+    
+    return updated_batch
+
+
+@router.delete("/batches/{batch_id}", status_code=204)
+async def delete_batch(
+    batch_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Elimina un lote específico.
+    
+    Este es un hard delete. Se recomienda usar PATCH para desactivar.
+    """
+    service = IngredientService(session)
+    
+    # Obtener el batch y verificar propiedad
+    batch = await service.get_batch_by_id(batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    ingredient = await service.get_by_id(batch.ingredient_id)
+    if not ingredient or ingredient.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Intentar revertir producción si aplica
+    # Esto devolverá el stock de materias primas si este lote fue producido internamente
+    from app.services.production_service import ProductionService
+    prod_service = ProductionService(session)
+    await prod_service.revert_production_by_output_batch(batch_id)
+    
+    await service.delete_batch(batch_id)
+    return None

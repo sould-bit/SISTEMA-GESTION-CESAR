@@ -143,10 +143,11 @@ class InventoryService:
         reason: Optional[str] = None,
         cost_per_unit: Optional[Decimal] = None,
         supplier: Optional[str] = None
-    ) -> IngredientInventory:
+    ) -> (IngredientInventory, Decimal, Optional[IngredientBatch]):
         """
         Update Ingredient Stock (Realidad Física).
         Maneja creación de Lotes (Batches) para entradas y consumo FIFO para salidas.
+        Retorna: (Inventory, TotalCostOfTransaction)
         """
         inventory = await self.get_ingredient_stock(branch_id, ingredient_id, for_update=True)
         if not inventory:
@@ -163,19 +164,22 @@ class InventoryService:
             actual_delta = quantity_delta
 
         # Validación básica de negativo
-        if new_balance < 0 and transaction_type in ["SALE", "OUT"]:
-             # Permitir stock negativo temporalmente si es necesario, O lanzar error.
-             # Por ahora mantenemos la restriccion pero podriamos relajarla si el usuario lo pide.
-             # En FIFO, consumir mÃ¡s de lo que hay en lotes es posible (lotes quedan en 0, stock negativo total)
-             # Pero idealmente no.
+        if new_balance < 0 and transaction_type in ["SALE", "OUT", "PRODUCTION_OUT"]:
+             # Permitir stock negativo temporalmente si es necesario
+            stmt_name = select(Ingredient.name).where(Ingredient.id == ingredient_id)
+            res_name = await self.db.execute(stmt_name)
+            ing_name = res_name.scalar_one_or_none() or str(ingredient_id)
+            
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insumo insuficiente {ingredient_id}. Disponible: {inventory.stock}"
+                detail=f"Insumo insuficiente {ing_name}. Disponible: {inventory.stock}"
             )
 
         # ---------------------------------------------------------
         # MANEJO DE LOTES (FIFO)
         # ---------------------------------------------------------
+        
+        transaction_cost = Decimal(0)
         
         # CASO 1: ENTRADA DE STOCK (Crear Lote)
         # Solo si es un aumento positivo Y se provee costo (O es una Compra/Ajuste explÃ­cito)
@@ -191,6 +195,7 @@ class InventoryService:
                 is_active=True
             )
             self.db.add(new_batch)
+            transaction_cost = new_batch.total_cost # Costo de lo que entró
             
             # Actualizar costo del ingrediente (Ãšltimo costo registrado)
             # Opcional: PodrÃ­amos calcular promedio ponderado aquÃ­
@@ -202,46 +207,15 @@ class InventoryService:
                 ingredient_obj.current_cost = cost_per_unit
                 self.db.add(ingredient_obj)
 
+
         # CASO 2: SALIDA DE STOCK (Consumo FIFO)
         elif actual_delta < 0:
             qty_to_consume = abs(actual_delta)
-            
-            # Buscar lotes activos ordenados por antigÃ¼edad (oldest first)
-            stmt_batches = select(IngredientBatch).where(
-                IngredientBatch.branch_id == branch_id,
-                IngredientBatch.ingredient_id == ingredient_id,
-                IngredientBatch.is_active == True
-            ).order_by(IngredientBatch.acquired_at.asc())
-            
-            result_batches = await self.db.execute(stmt_batches)
-            active_batches = result_batches.scalars().all()
-            
-            remaining_to_consume = qty_to_consume
-            
-            for batch in active_batches:
-                if remaining_to_consume <= 0:
-                    break
-                
-                available = batch.quantity_remaining
-                
-                if available >= remaining_to_consume:
-                    # Este lote cubre todo lo que falta
-                    batch.quantity_remaining -= remaining_to_consume
-                    remaining_to_consume = 0
-                else:
-                    # Consumimos todo este lote y seguimos
-                    remaining_to_consume -= available
-                    batch.quantity_remaining = Decimal(0)
-                    batch.is_active = False # Lote agotado
-                
-                self.db.add(batch)
-                
-            # Nota: Si remaining_to_consume > 0, significa que se consumiÃ³ "aire" (stock sin lote)
-            # Esto es consistente con permitir que el stock total baje de lo que suman los lotes
-            # si hubo ajustes manuales previos sin lotes.
+            transaction_cost, batch_consumptions = await self._consume_stock_fifo(branch_id, ingredient_id, qty_to_consume)
+            # batch_consumptions can be used by caller (e.g., ProductionService) to store tracking data
 
         # ---------------------------------------------------------
-
+        
         inventory.stock = new_balance
         self.db.add(inventory)
 
@@ -252,11 +226,225 @@ class InventoryService:
             balance_after=new_balance,
             reference_id=reference_id,
             user_id=user_id,
-            reason=reason or supplier # Guardar supplier en reason si aplica
+            reason=reason or supplier
         )
         self.db.add(txn)
         await self.db.commit()
+        
+        # Return batch_consumptions only if FIFO consumption occurred
+        consumed_batches = batch_consumptions if 'batch_consumptions' in locals() else []
+        return inventory, transaction_cost, new_batch if 'new_batch' in locals() else None, consumed_batches
+
+    async def restore_stock_to_batches(
+        self,
+        branch_id: int,
+        ingredient_id: uuid.UUID,
+        quantity: Decimal,
+        user_id: Optional[int] = None,
+        reason: Optional[str] = None,
+        unit_cost: Optional[Decimal] = None
+    ) -> IngredientInventory:
+        """
+        Restaura stock a un lote existente (Logic Smart Merge).
+        Prioridad:
+        1. Lote Activo con MISMO costo.
+        2. Lote Activo más reciente (cualquier costo).
+        3. Lote Inactivo más reciente (reactivarlo).
+        4. Crear nuevo (Fallback).
+        """
+        # 1. Update Inventory (Single Source of Truth)
+        inventory = await self.get_ingredient_stock(branch_id, ingredient_id, for_update=True)
+        if not inventory:
+             inventory = await self.initialize_ingredient_stock(branch_id, ingredient_id)
+        
+        inventory.stock += quantity
+        self.db.add(inventory)
+
+        # 2. Find Target Batch
+        target_batch = None
+        
+        # Base Query for this ingredient/branch
+        stmt_base = select(IngredientBatch).where(
+            IngredientBatch.branch_id == branch_id,
+            IngredientBatch.ingredient_id == ingredient_id
+        )
+
+        # Priority 1: Active + Exact Cost Match
+        if unit_cost is not None:
+            stmt_p1 = stmt_base.where(
+                IngredientBatch.is_active == True,
+                IngredientBatch.cost_per_unit == unit_cost
+            ).order_by(IngredientBatch.acquired_at.desc())
+            res_p1 = await self.db.execute(stmt_p1)
+            target_batch = res_p1.scalars().first()
+
+        # Priority 2: Active (Any Cost) - Latest
+        if not target_batch:
+            stmt_p2 = stmt_base.where(
+                IngredientBatch.is_active == True
+            ).order_by(IngredientBatch.acquired_at.desc())
+            res_p2 = await self.db.execute(stmt_p2)
+            target_batch = res_p2.scalars().first()
+
+        # Priority 3: Inactive (Latest) - Reactivate
+        if not target_batch:
+            stmt_p3 = stmt_base.order_by(IngredientBatch.acquired_at.desc())
+            res_p3 = await self.db.execute(stmt_p3)
+            target_batch = res_p3.scalars().first()
+
+        # Execute Update or Create New
+        if target_batch:
+            target_batch.quantity_remaining += quantity
+            target_batch.is_active = True # Ensure valid
+            self.db.add(target_batch)
+            actual_cost_per_unit = target_batch.cost_per_unit
+        else:
+            # Fallback: Create new (Should rarely happen if historical data exists)
+            actual_cost_per_unit = unit_cost or Decimal(0)
+            new_batch = IngredientBatch(
+                ingredient_id=ingredient_id,
+                branch_id=branch_id,
+                quantity_initial=quantity,
+                quantity_remaining=quantity,
+                cost_per_unit=actual_cost_per_unit,
+                total_cost=quantity * actual_cost_per_unit,
+                supplier="Restauración (Sin Lote Previo)",
+                is_active=True
+            )
+            self.db.add(new_batch)
+
+        # 3. Transaction Log
+        txn = IngredientTransaction(
+            inventory_id=inventory.id,
+            transaction_type="PRODUCTION_ROLLBACK",
+            quantity=quantity,
+            balance_after=inventory.stock,
+            reference_id=None,
+            user_id=user_id,
+            reason=reason or f"Restaurado a Lote {'Existente' if target_batch else 'Nuevo'}"
+        )
+        self.db.add(txn)
+        
+        await self.db.commit()
         return inventory
+
+    async def _consume_stock_fifo(
+        self, 
+        branch_id: int, 
+        ingredient_id: uuid.UUID, 
+        quantity: Decimal
+    ) -> tuple[Decimal, list[dict]]:
+        """
+        Consume stock de lotes FIFO.
+        
+        Returns:
+            Tuple of (total_cost, batch_consumptions)
+            - total_cost: Costo total de lo consumido.
+            - batch_consumptions: Lista de dicts con {batch_id, quantity_consumed, cost_attributed}.
+        """
+        total_cost = Decimal(0)
+        remaining_to_consume = quantity
+        batch_consumptions = []
+
+        # Buscar lotes activos ordenados por antigüedad (FIFO)
+        stmt_batches = select(IngredientBatch).where(
+            IngredientBatch.branch_id == branch_id,
+            IngredientBatch.ingredient_id == ingredient_id,
+            IngredientBatch.is_active == True
+        ).order_by(IngredientBatch.acquired_at.asc())
+
+        result_batches = await self.db.execute(stmt_batches)
+        active_batches = result_batches.scalars().all()
+
+        for batch in active_batches:
+            if remaining_to_consume <= 0:
+                break
+            
+            available = batch.quantity_remaining
+            
+            if available >= remaining_to_consume:
+                # Este lote cubre todo lo que falta
+                consumed_qty = remaining_to_consume
+                cost_chunk = consumed_qty * batch.cost_per_unit
+                total_cost += cost_chunk
+                
+                batch.quantity_remaining -= consumed_qty
+                remaining_to_consume = Decimal(0)
+            else:
+                # Consumimos todo este lote y seguimos
+                consumed_qty = available
+                cost_chunk = consumed_qty * batch.cost_per_unit
+                total_cost += cost_chunk
+                
+                remaining_to_consume -= consumed_qty
+                batch.quantity_remaining = Decimal(0)
+                batch.is_active = False  # Lote agotado
+            
+            # Record batch consumption for later reversal
+            batch_consumptions.append({
+                "batch_id": batch.id,
+                "quantity_consumed": consumed_qty,
+                "cost_attributed": cost_chunk
+            })
+            
+            self.db.add(batch)
+            
+        return total_cost, batch_consumptions
+
+    async def restore_stock_to_batch(
+        self,
+        batch_id: uuid.UUID,
+        quantity: Decimal,
+        branch_id: int,
+        ingredient_id: uuid.UUID,
+        user_id: Optional[int] = None,
+        reason: Optional[str] = None
+    ) -> None:
+        """
+        Restore stock to a SPECIFIC batch (precise reversal).
+        
+        This is used during production undo to return stock to the exact
+        batch it was consumed from.
+        """
+        # 1. Update Inventory (Single Source of Truth)
+        inventory = await self.get_ingredient_stock(branch_id, ingredient_id, for_update=True)
+        if not inventory:
+            inventory = await self.initialize_ingredient_stock(branch_id, ingredient_id)
+        
+        inventory.stock += quantity
+        self.db.add(inventory)
+
+        # 2. Update the specific batch
+        stmt = select(IngredientBatch).where(IngredientBatch.id == batch_id)
+        result = await self.db.execute(stmt)
+        batch = result.scalar_one_or_none()
+        
+        if batch:
+            batch.quantity_remaining += quantity
+            batch.is_active = True  # Reactivate if was depleted
+            self.db.add(batch)
+        else:
+            # Batch was deleted? Log warning but don't crash
+            import logging
+            logging.warning(f"Batch {batch_id} not found for stock restoration. Creating fallback.")
+            # Fallback: Use smart restoration (legacy behavior)
+            await self.restore_stock_to_batches(
+                branch_id, ingredient_id, quantity, user_id, reason
+            )
+            return
+
+        # 3. Create Transaction
+        txn = IngredientTransaction(
+            inventory_id=inventory.id,
+            transaction_type="PRODUCTION_ROLLBACK",
+            quantity=quantity,
+            balance_after=inventory.stock,
+            user_id=user_id,
+            reason=reason or f"Restaurado a Lote {batch_id}"
+        )
+        self.db.add(txn)
+
+
 
     # =========================================================================
     # LIVE RECIPE EXPLOSION (Level B -> C)

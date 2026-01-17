@@ -1,6 +1,7 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
+import uuid
 from sqlalchemy import Index, UniqueConstraint, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
@@ -8,6 +9,7 @@ if TYPE_CHECKING:
     from .company import Company
     from .product import Product
     from .order import OrderItem
+    from .ingredient import Ingredient
 
 class ProductModifier(SQLModel, table=True):
     """
@@ -55,14 +57,18 @@ class ModifierRecipeItem(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     modifier_id: int = Field(foreign_key="product_modifiers.id", nullable=False)
-    ingredient_product_id: int = Field(foreign_key="products.id", nullable=False)
+    ingredient_product_id: Optional[int] = Field(default=None, foreign_key="products.id", nullable=True)
+    ingredient_id: Optional[uuid.UUID] = Field(default=None, foreign_key="ingredients.id", nullable=True)
     
     quantity: Decimal = Field(sa_column=Column(Numeric(10, 3)))
     unit: str = Field(max_length=50)
     
     # Relaciones
     modifier: Optional["ProductModifier"] = Relationship(back_populates="recipe_items")
-    ingredient: Optional["Product"] = Relationship(sa_relationship_kwargs={"lazy": "selectin"})
+    ingredient: Optional["Product"] = Relationship(sa_relationship_kwargs={"lazy": "selectin"}) # Legacy
+    
+    # New V4.1
+    ingredient_ref: Optional["Ingredient"] = Relationship(sa_relationship_kwargs={"lazy": "selectin"})
 
 
 class OrderItemModifier(SQLModel, table=True):

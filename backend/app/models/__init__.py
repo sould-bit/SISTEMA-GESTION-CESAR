@@ -11,6 +11,10 @@ from .unit_conversion import UnitConversion
 from .ingredient_inventory import IngredientInventory, IngredientTransaction
 from .ingredient_cost_history import IngredientCostHistory
 from .ingredient_batch import IngredientBatch
+from .production_event import ProductionEvent
+from .production_event_input import ProductionEventInput
+from .production_event_input_batch import ProductionEventInputBatch
+from .inventory_count import InventoryCount, InventoryCountItem
 
 # Sistema de Permisos y Roles (v3.3)
 from .permission_category import PermissionCategory
