@@ -692,11 +692,13 @@ export const IngredientManager = () => {
 
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex flex-col items-end">
-                                                    {/* Mostrar total desde cache de lotes si existe, sino calculado */}
+                                                    {/* Mostrar total desde backend (más preciso) o cache de lotes */}
                                                     <span className="font-mono text-emerald-400 font-semibold">
-                                                        {ingredientTotals[ingredient.id]
-                                                            ? formatCurrency(ingredientTotals[ingredient.id].totalInvested, 2)
-                                                            : formatCurrency(((ingredient as any).stock || 0) * ingredient.current_cost, 2)
+                                                        {(ingredient as any).total_inventory_value != null && (ingredient as any).total_inventory_value > 0
+                                                            ? formatCurrency((ingredient as any).total_inventory_value, 2)
+                                                            : ingredientTotals[ingredient.id]
+                                                                ? formatCurrency(ingredientTotals[ingredient.id].totalInvested, 2)
+                                                                : formatCurrency(((ingredient as any).stock || 0) * ingredient.current_cost, 2)
                                                         }
                                                     </span>
                                                     <span className="text-[10px] text-text-muted">

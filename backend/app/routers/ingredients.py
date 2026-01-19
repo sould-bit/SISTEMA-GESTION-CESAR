@@ -362,10 +362,14 @@ async def delete_batch(
         raise HTTPException(status_code=403, detail="Access denied")
     
     # Intentar revertir producción si aplica
-    # Esto devolverá el stock de materias primas si este lote fue producido internamente
+    # Si el lote fue producido internamente, revert_production_by_output_batch 
+    # maneja todo: restaurar inputs, restar output, eliminar batch y evento
     from app.services.production_service import ProductionService
     prod_service = ProductionService(session)
-    await prod_service.revert_production_by_output_batch(batch_id)
+    was_production = await prod_service.revert_production_by_output_batch(batch_id)
     
-    await service.delete_batch(batch_id)
+    if not was_production:
+        # Solo eliminar si NO era de producción (compra/ajuste)
+        await service.delete_batch(batch_id)
+    
     return None

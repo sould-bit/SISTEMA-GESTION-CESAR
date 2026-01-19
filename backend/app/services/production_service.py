@@ -241,8 +241,32 @@ class ProductionService:
                         reason=f"Rollback Producción {event.id} (Legacy)"
                     )
                 
-        # 3. Eliminar el evento (Cascade debería borrar los inputs y batch_consumptions)
+        # 3. Restar stock del OUTPUT y eliminar el lote de salida
+        from app.models.ingredient_batch import IngredientBatch
+        
+        output_batch_stmt = select(IngredientBatch).where(IngredientBatch.id == batch_id)
+        output_batch_result = await self.db.execute(output_batch_stmt)
+        output_batch = output_batch_result.scalar_one_or_none()
+        
+        if output_batch and output_batch.quantity_remaining > 0:
+            # Restar del inventario del output
+            await self.inventory_service.update_ingredient_stock(
+                branch_id=branch_id,
+                ingredient_id=event.output_ingredient_id,
+                quantity_delta=-Decimal(str(output_batch.quantity_remaining)),
+                transaction_type="PROD_ROLLBACK_OUT",
+                user_id=event.user_id,
+                reason=f"Rollback Producción {event.id} (Output)"
+            )
+        
+        # 4. Eliminar el evento PRIMERO (para liberar la FK al batch)
         await self.db.delete(event)
+        await self.db.flush()  # Flush para que el DELETE del evento se ejecute
+        
+        # 5. Ahora eliminar el lote de output (ya no hay FK que lo referencie)
+        if output_batch:
+            await self.db.delete(output_batch)
+        
         await self.db.commit()
         
         return True

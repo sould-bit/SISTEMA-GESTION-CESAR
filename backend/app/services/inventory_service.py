@@ -421,7 +421,9 @@ class InventoryService:
         
         if batch:
             batch.quantity_remaining += quantity
-            batch.is_active = True  # Reactivate if was depleted
+            # Only reactivate if we're actually restoring stock
+            if quantity > 0:
+                batch.is_active = True
             self.db.add(batch)
         else:
             # Batch was deleted? Log warning but don't crash
