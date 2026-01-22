@@ -107,6 +107,14 @@ export const IngredientManager = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'RAW' | 'PROCESSED'>(forcedTab || 'RAW');
+    const [viewMode, setViewMode] = useState<'MENU' | 'LIST' | 'INGRESAR'>('MENU');
+
+    // Reset view mode when tab changes if in list? No, keep context.
+    // Actually, if switching tabs in INGRESAR mode, might want to reset search.
+    useEffect(() => {
+        setSearchQuery('');
+    }, [activeTab]);
+
 
     // Modal states
     const [showModal, setShowModal] = useState(false);
@@ -581,17 +589,21 @@ export const IngredientManager = () => {
                             : 'Inventario de materia prima y compras'}
                     </p>
                 </div>
-                <button
-                    onClick={activeTab === 'RAW' ? openCreate : openFactory}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium shadow-lg ${activeTab === 'RAW'
-                        ? 'bg-accent-orange hover:bg-orange-600 shadow-orange-500/20 text-white'
-                        : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white'
-                        }`}
-                >
-                    <span className="material-symbols-outlined text-[20px]">{activeTab === 'RAW' ? 'add' : 'factory'}</span>
-                    {activeTab === 'RAW' ? 'Crear Insumo (RAW)' : 'Fábrica / Producción'}
-                </button>
+                {/* Header Actions - Hide in MENU mode */}
+                {viewMode !== 'MENU' && (
+                    <button
+                        onClick={activeTab === 'RAW' ? openCreate : openFactory}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium shadow-lg ${activeTab === 'RAW'
+                            ? 'bg-accent-orange hover:bg-orange-600 shadow-orange-500/20 text-white'
+                            : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white'
+                            }`}
+                    >
+                        <span className="material-symbols-outlined text-[20px]">{activeTab === 'RAW' ? 'add' : 'factory'}</span>
+                        {activeTab === 'RAW' ? 'Crear Insumo' : 'Fábrica'}
+                    </button>
+                )}
             </div>
+
 
             {/* Tabs - Only show if NOT in forced navigation mode */}
             {!forcedTab && (
@@ -621,125 +633,251 @@ export const IngredientManager = () => {
 
             {/* Content Logic */}
             <div className="flex flex-col gap-4">
-                {/* Search */}
-                <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={`Buscar ${activeTab === 'RAW' ? 'materia prima' : 'producción'} por nombre o SKU...`}
-                        className="w-full bg-card-dark border border-border-dark rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-accent-orange"
-                    />
-                </div>
 
-                {/* Table */}
-                <div className="bg-card-dark border border-border-dark rounded-xl overflow-hidden shadow-lg">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-bg-deep border-b border-border-dark">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-text-muted font-medium text-xs uppercase">Nombre / SKU</th>
-                                    <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">
-                                        Stock
-                                    </th>
-                                    {activeTab === 'RAW' && (
-                                        <>
-                                            <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">Unidad Compra</th>
-                                            <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">Rendimiento</th>
-                                        </>
-                                    )}
-                                    {activeTab === 'PROCESSED' && (
-                                        <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">Unidad Stock</th>
-                                    )}
-                                    <th className="px-4 py-3 text-right text-text-muted font-medium text-xs uppercase">Costo Total Inv.</th>
-                                    <th className="px-4 py-3 text-right text-text-muted font-medium text-xs uppercase">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border-dark">
-                                {filteredIngredients.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                                            No hay items de tipo {activeTab} registrados.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredIngredients.map((ingredient) => (
-                                        <tr key={ingredient.id} className="hover:bg-white/5 transition-colors">
-                                            <td className="px-4 py-3">
-                                                <div className="font-medium text-white">{ingredient.name}</div>
-                                                <div className="text-xs text-text-muted">{ingredient.sku}</div>
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                <div className="flex flex-col items-center">
-                                                    <span className="font-mono text-white text-base font-semibold">
-                                                        {new Intl.NumberFormat('es-CO', { maximumFractionDigits: 4 }).format((ingredient as any).stock || 0)}
-                                                        <span className="text-xs text-text-muted ml-1">{ingredient.base_unit}</span>
-                                                    </span>
-                                                    <span className="text-[10px] text-amber-400/80 uppercase tracking-wide">
-                                                        Total en inventario
-                                                    </span>
-                                                </div>
-                                            </td>
+                {/* MENU VIEW */}
+                {viewMode === 'MENU' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        {/* Card 1: Ingresar / Registrar */}
+                        <button
+                            onClick={() => setViewMode('INGRESAR')}
+                            className="bg-card-dark border border-border-dark p-8 rounded-2xl hover:bg-white/5 transition-all group text-left relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <span className="material-symbols-outlined text-[120px] text-emerald-500">add_shopping_cart</span>
+                            </div>
+                            <div className="relative z-10">
+                                <span className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 text-3xl group-hover:scale-110 transition-transform">
+                                    <span className="material-symbols-outlined">add_shopping_cart</span>
+                                </span>
+                                <h3 className="text-xl font-bold text-white mb-2">
+                                    {activeTab === 'RAW' ? 'Ingresar Compra' : 'Registrar Producción'}
+                                </h3>
+                                <p className="text-text-muted">
+                                    {activeTab === 'RAW'
+                                        ? 'Agregar stock de insumos o registrar facturas de compra.'
+                                        : 'Registrar una nueva preparación o lote de producción.'}
+                                </p>
+                            </div>
+                        </button>
 
-                                            <td className="px-4 py-3 text-center">
-                                                <span className="px-2 py-1 bg-white/5 rounded text-gray-300 text-xs font-mono">
-                                                    {ingredient.base_unit}
-                                                </span>
-                                            </td>
-
-                                            {activeTab === 'RAW' && (
-                                                <td className="px-4 py-3 text-center">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <div className="w-12 h-1.5 bg-bg-deep rounded-full overflow-hidden">
-                                                            <div
-                                                                className={`h-full ${ingredient.yield_factor >= 0.90 ? 'bg-emerald-400' : ingredient.yield_factor >= 0.80 ? 'bg-amber-400' : 'bg-red-400'}`}
-                                                                style={{ width: `${ingredient.yield_factor * 100}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-xs text-gray-400">{(ingredient.yield_factor * 100).toFixed(0)}%</span>
-                                                    </div>
-                                                </td>
-                                            )}
-
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex flex-col items-end">
-                                                    {/* Mostrar total desde backend (más preciso) o cache de lotes */}
-                                                    <span className="font-mono text-emerald-400 font-semibold">
-                                                        {(ingredient as any).total_inventory_value != null && (ingredient as any).total_inventory_value > 0
-                                                            ? formatCurrency((ingredient as any).total_inventory_value, 2)
-                                                            : ingredientTotals[ingredient.id]
-                                                                ? formatCurrency(ingredientTotals[ingredient.id].totalInvested, 2)
-                                                                : formatCurrency(((ingredient as any).stock || 0) * ingredient.current_cost, 2)
-                                                        }
-                                                    </span>
-                                                    <span className="text-[10px] text-text-muted">
-                                                        {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 6 }).format(ingredient.current_cost)}/{ingredient.base_unit}
-                                                    </span>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <button onClick={() => openBatchModal(ingredient)} className="p-1.5 text-purple-400 hover:bg-purple-500/10 rounded" title="Ver Lotes / Historial Compras">
-                                                        <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                                                    </button>
-                                                    <button onClick={() => openStockUpdate(ingredient)} className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded" title="Registrar Nueva Compra">
-                                                        <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-                                                    </button>
-
-                                                    <button onClick={() => handleDelete(ingredient.id)} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded" title="Eliminar">
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                        {/* Card 2: Gestionar / Inventario */}
+                        <button
+                            onClick={() => setViewMode('LIST')}
+                            className="bg-card-dark border border-border-dark p-8 rounded-2xl hover:bg-white/5 transition-all group text-left relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <span className="material-symbols-outlined text-[120px] text-blue-500">inventory_2</span>
+                            </div>
+                            <div className="relative z-10">
+                                <span className="w-16 h-16 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-4 text-3xl group-hover:scale-110 transition-transform">
+                                    <span className="material-symbols-outlined">inventory_2</span>
+                                </span>
+                                <h3 className="text-xl font-bold text-white mb-2">
+                                    {activeTab === 'RAW' ? 'Gestionar Inventario' : 'Historial de Producciones'}
+                                </h3>
+                                <p className="text-text-muted">
+                                    Ver existencias, auditoría de lotes, costos y gestión general.
+                                </p>
+                            </div>
+                        </button>
                     </div>
-                </div>
+                )}
+
+                {/* INGRESAR VIEW */}
+                {viewMode === 'INGRESAR' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="flex items-center justify-between mb-4">
+                            <button
+                                onClick={() => setViewMode('MENU')}
+                                className="flex items-center gap-2 text-text-muted hover:text-white transition-colors"
+                            >
+                                <span className="material-symbols-outlined">arrow_back</span>
+                                Volver al menú
+                            </button>
+                            <h2 className="text-lg font-semibold text-white">
+                                {activeTab === 'RAW' ? 'Selecciona Insumo a Ingresar' : 'Selecciona Producto a Producir'}
+                            </h2>
+                        </div>
+
+                        {/* Search Bar for Ingresar */}
+                        <div className="relative mb-6">
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500">search</span>
+                            <input
+                                type="text"
+                                autoFocus
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Escribe el nombre para registrar compra..."
+                                className="w-full bg-card-dark border border-emerald-500/30 rounded-xl pl-10 pr-4 py-4 text-white text-lg placeholder-text-muted focus:outline-none focus:border-emerald-500 shadow-lg shadow-emerald-500/5"
+                            />
+                        </div>
+
+                        {/* List Grid for Selection */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredIngredients.map(ingredient => (
+                                <button
+                                    key={ingredient.id}
+                                    onClick={() => {
+                                        if (activeTab === 'RAW') {
+                                            openStockUpdate(ingredient);
+                                        } else {
+                                            // For Processed, maybe open Create Batch? Or same stock update?
+                                            // Processed usually implies Factory. 
+                                            // If "Registrar Produccion", we might want Factory Modal but pre-selected?
+                                            // Currently FactoryModal is a global "Fabrica".
+                                            // Maybe just open Stock Update (manual adjustment) or Factory.
+                                            // For now, let's open Stock Update for 'IN' type, effectively adding stock manually.
+                                            openStockUpdate(ingredient);
+                                        }
+                                    }}
+                                    className="bg-card-dark border border-border-dark p-4 rounded-xl text-left hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all flex justify-between items-center group"
+                                >
+                                    <div>
+                                        <div className="font-semibold text-white group-hover:text-emerald-300 transition-colors">{ingredient.name}</div>
+                                        <div className="text-xs text-text-muted">{ingredient.sku}</div>
+                                    </div>
+                                    <span className="material-symbols-outlined text-border-dark group-hover:text-emerald-500">add_circle</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+
+                {/* LIST VIEW (Original Table) */}
+                {viewMode === 'LIST' && (
+                    <>
+                        <div className="flex items-center gap-2 mb-2">
+                            <button
+                                onClick={() => setViewMode('MENU')}
+                                className="text-xs flex items-center gap-1 text-text-muted hover:text-white"
+                            >
+                                <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                                Volver al menú
+                            </button>
+                        </div>
+
+                        {/* Search */}
+                        <div className="relative">
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={`Buscar ${activeTab === 'RAW' ? 'materia prima' : 'producción'} por nombre o SKU...`}
+                                className="w-full bg-card-dark border border-border-dark rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-accent-orange"
+                            />
+                        </div>
+
+                        {/* Table */}
+                        <div className="bg-card-dark border border-border-dark rounded-xl overflow-hidden shadow-lg">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-bg-deep border-b border-border-dark">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-text-muted font-medium text-xs uppercase">Nombre / SKU</th>
+                                            <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">
+                                                Stock
+                                            </th>
+                                            {activeTab === 'RAW' && (
+                                                <>
+                                                    <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">Unidad Compra</th>
+                                                    <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">Rendimiento</th>
+                                                </>
+                                            )}
+                                            {activeTab === 'PROCESSED' && (
+                                                <th className="px-4 py-3 text-center text-text-muted font-medium text-xs uppercase">Unidad Stock</th>
+                                            )}
+                                            <th className="px-4 py-3 text-right text-text-muted font-medium text-xs uppercase">Costo Total Inv.</th>
+                                            <th className="px-4 py-3 text-right text-text-muted font-medium text-xs uppercase">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border-dark">
+                                        {filteredIngredients.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                                                    No hay items de tipo {activeTab} registrados.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredIngredients.map((ingredient) => (
+                                                <tr key={ingredient.id} className="hover:bg-white/5 transition-colors">
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-medium text-white">{ingredient.name}</div>
+                                                        <div className="text-xs text-text-muted">{ingredient.sku}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="font-mono text-white text-base font-semibold">
+                                                                {new Intl.NumberFormat('es-CO', { maximumFractionDigits: 4 }).format((ingredient as any).stock || 0)}
+                                                                <span className="text-xs text-text-muted ml-1">{ingredient.base_unit}</span>
+                                                            </span>
+                                                            <span className="text-[10px] text-amber-400/80 uppercase tracking-wide">
+                                                                Total en inventario
+                                                            </span>
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className="px-2 py-1 bg-white/5 rounded text-gray-300 text-xs font-mono">
+                                                            {ingredient.base_unit}
+                                                        </span>
+                                                    </td>
+
+                                                    {activeTab === 'RAW' && (
+                                                        <td className="px-4 py-3 text-center">
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <div className="w-12 h-1.5 bg-bg-deep rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className={`h-full ${ingredient.yield_factor >= 0.90 ? 'bg-emerald-400' : ingredient.yield_factor >= 0.80 ? 'bg-amber-400' : 'bg-red-400'}`}
+                                                                        style={{ width: `${ingredient.yield_factor * 100}%` }}
+                                                                    />
+                                                                </div>
+                                                                <span className="text-xs text-gray-400">{(ingredient.yield_factor * 100).toFixed(0)}%</span>
+                                                            </div>
+                                                        </td>
+                                                    )}
+
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex flex-col items-end">
+                                                            {/* Mostrar total desde backend (más preciso) o cache de lotes */}
+                                                            <span className="font-mono text-emerald-400 font-semibold">
+                                                                {(ingredient as any).total_inventory_value != null && (ingredient as any).total_inventory_value > 0
+                                                                    ? formatCurrency((ingredient as any).total_inventory_value, 2)
+                                                                    : ingredientTotals[ingredient.id]
+                                                                        ? formatCurrency(ingredientTotals[ingredient.id].totalInvested, 2)
+                                                                        : formatCurrency(((ingredient as any).stock || 0) * ingredient.current_cost, 2)
+                                                                }
+                                                            </span>
+                                                            <span className="text-[10px] text-text-muted">
+                                                                {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 6 }).format(ingredient.current_cost)}/{ingredient.base_unit}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <button onClick={() => openBatchModal(ingredient)} className="p-1.5 text-purple-400 hover:bg-purple-500/10 rounded" title="Ver Lotes / Historial Compras">
+                                                                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                                                            </button>
+                                                            <button onClick={() => openStockUpdate(ingredient)} className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded" title="Registrar Nueva Compra">
+                                                                <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                                                            </button>
+
+                                                            <button onClick={() => handleDelete(ingredient.id)} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded" title="Eliminar">
+                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Create/Edit Modal */}

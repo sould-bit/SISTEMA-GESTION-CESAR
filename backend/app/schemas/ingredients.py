@@ -18,7 +18,7 @@ class IngredientBase(BaseModel):
     sku: Optional[str] = Field(None, min_length=1, max_length=50, description="Código SKU único (opcional, auto-generado si se omite)")
     base_unit: str = Field(..., min_length=1, max_length=20, description="Unidad base: kg, lt, und")
     yield_factor: float = Field(default=1.0, ge=0.01, le=1.0, description="Factor de rendimiento (0.90 = 10% merma)")
-    ingredient_type: str = Field(default="RAW", pattern="^(RAW|PROCESSED)$", description="Tipo: RAW o PROCESSED")
+    ingredient_type: str = Field(default="RAW", pattern="^(RAW|PROCESSED|MERCHANDISE)$", description="Tipo: RAW, PROCESSED o MERCHANDISE")
 
 
 class IngredientCreate(IngredientBase):

@@ -11,6 +11,7 @@ Evita error MissingGreenlet usando schemas apropiados.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from decimal import Decimal
 
@@ -244,17 +245,23 @@ async def create_beverage(
     Returns:
         dict con product, ingredient, recipe creados
     """
-    return await beverage_service.create_beverage(
-        name=payload.name,
-        cost=payload.cost,
-        sale_price=payload.sale_price,
-        initial_stock=payload.initial_stock,
-        unit=payload.unit,
-        branch_id=branch_id,
-        company_id=current_user.company_id,
-        user_id=current_user.id,
-        image_url=payload.image_url,
-        category_id=payload.category_id,
-        category_name=payload.category_name,
-        description=payload.description
-    )
+    try:
+        return await beverage_service.create_beverage(
+            name=payload.name,
+            cost=payload.cost,
+            sale_price=payload.sale_price,
+            initial_stock=payload.initial_stock,
+            unit=payload.unit,
+            branch_id=branch_id,
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            image_url=payload.image_url,
+            category_id=payload.category_id,
+            category_name=payload.category_name,
+            description=payload.description
+        )
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Ya existe una bebida con el nombre '{payload.name}'"
+        )

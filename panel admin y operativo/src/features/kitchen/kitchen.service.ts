@@ -157,8 +157,10 @@ export const kitchenService = {
     // 1. INGREDIENTS (Materia Prima / Insumos)
     // ─────────────────────────────────────────
 
-    getIngredients: async (search?: string): Promise<Ingredient[]> => {
-        const params = search ? { search } : {};
+    getIngredients: async (search?: string, ingredientType?: string): Promise<Ingredient[]> => {
+        const params: any = {};
+        if (search) params.search = search;
+        if (ingredientType) params.ingredient_type = ingredientType;
         const { data } = await api.get<Ingredient[]>('/ingredients/', { params });
         return data;
     },

@@ -96,9 +96,9 @@ class IngredientService:
         return result.scalar_one_or_none()
 
     async def list_by_company(
-        self, company_id: int, active_only: bool = True, skip: int = 0, limit: int = 100, branch_id: Optional[int] = None
+        self, company_id: int, active_only: bool = True, skip: int = 0, limit: int = 100, branch_id: Optional[int] = None, ingredient_type: Optional[str] = None
     ) -> List[dict]:
-        """Lista ingredientes de una empresa, opcionalmente con stock de una sucursal."""
+        """Lista ingredientes de una empresa, opcionalmente con stock de una sucursal y filtro por tipo."""
         if branch_id:
             # Query con JOIN para obtener stock y valor del inventario
             # Necesitamos sumar (quantity_remaining * cost_per_unit) de los lotes activos
@@ -131,6 +131,16 @@ class IngredientService:
             # Query simple sin stock (solo Ingredient)
             stmt = select(Ingredient).where(Ingredient.company_id == company_id)
             
+        if ingredient_type:
+            # Convert string to Enum if needed for proper comparison
+            from app.models.ingredient import IngredientType
+            try:
+                type_enum = IngredientType(ingredient_type) if isinstance(ingredient_type, str) else ingredient_type
+                stmt = stmt.where(Ingredient.ingredient_type == type_enum)
+            except ValueError:
+                # Invalid type string, filter will return nothing
+                pass
+
         if active_only:
             stmt = stmt.where(Ingredient.is_active == True)
         
