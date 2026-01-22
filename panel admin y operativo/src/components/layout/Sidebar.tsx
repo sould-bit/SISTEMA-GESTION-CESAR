@@ -25,6 +25,7 @@ const menuItems: MenuItem[] = [
 
             { name: 'Recetas', path: '/kitchen/recipes', icon: 'menu_book' },
             { name: 'Ingeniería de Menú', path: '/kitchen/menu-engineering', icon: 'analytics' },
+            { name: '🍺 Setup Unificado', path: '/kitchen/setup', icon: 'tune' },
         ]
     },
     { name: 'Staff', path: '/admin/staff', icon: 'group' },

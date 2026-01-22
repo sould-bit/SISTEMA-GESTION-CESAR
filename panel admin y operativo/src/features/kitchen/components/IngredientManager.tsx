@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { kitchenService, Ingredient, IngredientCreate, IngredientBatch, ProductionDetail, ProductionInputDetail } from '../kitchen.service';
 import { FactoryModal } from './FactoryModal';
 
@@ -98,11 +99,14 @@ const ProductionInputsView = ({ batchId }: { batchId: string }) => {
 };
 
 export const IngredientManager = () => {
+    const [searchParams] = useSearchParams();
+    const forcedTab = searchParams.get('tab') as 'RAW' | 'PROCESSED' | null;
+
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'RAW' | 'PROCESSED'>('RAW');
+    const [activeTab, setActiveTab] = useState<'RAW' | 'PROCESSED'>(forcedTab || 'RAW');
 
     // Modal states
     const [showModal, setShowModal] = useState(false);
@@ -566,10 +570,16 @@ export const IngredientManager = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-accent-orange">nutrition</span>
-                        Gestión de Insumos
+                        <span className="material-symbols-outlined text-accent-orange">
+                            {activeTab === 'PROCESSED' ? 'factory' : 'nutrition'}
+                        </span>
+                        {activeTab === 'PROCESSED' ? 'Producción Interna' : 'Gestión de Insumos'}
                     </h1>
-                    <p className="text-text-muted text-sm">Configura qué existe en tu cocina</p>
+                    <p className="text-text-muted text-sm">
+                        {activeTab === 'PROCESSED'
+                            ? 'Gestión de recetas internas y productos semielaborados'
+                            : 'Inventario de materia prima y compras'}
+                    </p>
                 </div>
                 <button
                     onClick={activeTab === 'RAW' ? openCreate : openFactory}
@@ -583,29 +593,31 @@ export const IngredientManager = () => {
                 </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-border-dark">
-                <button
-                    onClick={() => setActiveTab('RAW')}
-                    className={`px-6 py-3 text-sm font-medium flex items-center gap-2 transition-colors border-b-2 ${activeTab === 'RAW'
-                        ? 'border-accent-orange text-accent-orange'
-                        : 'border-transparent text-text-muted hover:text-white hover:bg-white/5'
-                        }`}
-                >
-                    <span className="material-symbols-outlined text-[18px]">local_shipping</span>
-                    Materia Prima (Compras)
-                </button>
-                <button
-                    onClick={() => setActiveTab('PROCESSED')}
-                    className={`px-6 py-3 text-sm font-medium flex items-center gap-2 transition-colors border-b-2 ${activeTab === 'PROCESSED'
-                        ? 'border-accent-purple text-accent-purple'
-                        : 'border-transparent text-text-muted hover:text-white hover:bg-white/5'
-                        }`}
-                >
-                    <span className="material-symbols-outlined text-[18px]">soup_kitchen</span>
-                    Producciones Internas
-                </button>
-            </div>
+            {/* Tabs - Only show if NOT in forced navigation mode */}
+            {!forcedTab && (
+                <div className="flex border-b border-border-dark">
+                    <button
+                        onClick={() => setActiveTab('RAW')}
+                        className={`px-6 py-3 text-sm font-medium flex items-center gap-2 transition-colors border-b-2 ${activeTab === 'RAW'
+                            ? 'border-accent-orange text-accent-orange'
+                            : 'border-transparent text-text-muted hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        <span className="material-symbols-outlined text-[18px]">local_shipping</span>
+                        Materia Prima (Compras)
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('PROCESSED')}
+                        className={`px-6 py-3 text-sm font-medium flex items-center gap-2 transition-colors border-b-2 ${activeTab === 'PROCESSED'
+                            ? 'border-accent-purple text-accent-purple'
+                            : 'border-transparent text-text-muted hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        <span className="material-symbols-outlined text-[18px]">soup_kitchen</span>
+                        Producciones Internas
+                    </button>
+                </div>
+            )}
 
             {/* Content Logic */}
             <div className="flex flex-col gap-4">

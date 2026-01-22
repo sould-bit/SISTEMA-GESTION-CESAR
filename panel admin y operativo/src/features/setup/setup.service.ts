@@ -1,6 +1,16 @@
 import { api } from '../../lib/api';
 
-// Interfaces based on backend schemas
+
+export type MacroType = 'HOME' | 'INSUMOS' | 'PRODUCCION' | 'CARTA' | 'BEBIDAS' | 'EXTRAS';
+
+export interface RecipeItemRow {
+    ingredientId: number;
+    name: string;
+    cost: number;
+    quantity: number;
+    unit: string;
+}
+
 export interface Product {
     id: number;
     name: string;
@@ -54,6 +64,28 @@ export interface ProductModifier {
     extra_price: number;
     is_active: boolean;
     recipe_items?: ModifierRecipeItem[];
+}
+
+// NEW: Beverage creation payload (1:1 Bridge Pattern)
+export interface BeveragePayload {
+    name: string;
+    cost: number;         // Costo compra (para Ingredient)
+    sale_price: number;   // Precio venta (para Product)
+    initial_stock: number;
+    unit: string;
+    image_url?: string;
+    category_id?: number;
+    description?: string;
+    sku?: string;
+    supplier?: string;
+    category_name?: string;
+}
+
+export interface BeverageResponse {
+    product: Product;
+    ingredient: any; // Simplified, backend returns full ingredient
+    recipe: any;
+    message: string;
 }
 
 const INGREDIENT_CATEGORY_NAME = 'Materia Prima';
@@ -225,6 +257,12 @@ export const setupService = {
 
     async updateModifierRecipe(modifierId: number, items: RecipeItem[]): Promise<ProductModifier> {
         const res = await api.put(`/modifiers/${modifierId}/recipe`, items);
+        return res.data;
+    },
+
+    // NEW: Beverages / Merchandise (1:1 Bridge Pattern)
+    async createBeverage(data: BeveragePayload, branchId: number): Promise<BeverageResponse> {
+        const res = await api.post(`/products/beverage?branch_id=${branchId}`, data);
         return res.data;
     }
 };

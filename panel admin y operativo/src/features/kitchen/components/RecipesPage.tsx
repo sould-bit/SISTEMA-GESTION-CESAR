@@ -106,7 +106,7 @@ export const RecipesPage = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border-dark">
-                                {selectedRecipe.items.map((item, idx) => (
+                                {(selectedRecipe.items || []).map((item, idx) => (
                                     <tr key={idx} className="hover:bg-white/5 transition-colors">
                                         <td className="px-4 py-3 font-medium text-white">
                                             {item.ingredient_name || `Ingrediente ${item.ingredient_id.substring(0, 8)}...`}

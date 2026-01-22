@@ -12,6 +12,7 @@ import { OrdersPage } from '../features/admin/OrdersPage';
 // Kitchen Module (V4.1 - Recetas Vivas)
 import { IngredientManager, RecipesPage, MenuMatrix } from '../features/kitchen';
 import { IngredientHistoryPage } from '../features/kitchen/pages/IngredientHistoryPage';
+import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
 
 export const router = createBrowserRouter([
     {
@@ -87,6 +88,10 @@ export const router = createBrowserRouter([
                             {
                                 path: 'menu-engineering',
                                 element: <MenuMatrix />
+                            },
+                            {
+                                path: 'setup',
+                                element: <UnifiedSetupPage />
                             },
 
                         ]

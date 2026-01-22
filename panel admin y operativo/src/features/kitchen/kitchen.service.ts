@@ -234,7 +234,7 @@ export const kitchenService = {
 
     getRecipes: async (productId?: number): Promise<Recipe[]> => {
         const params = productId ? { product_id: productId } : {};
-        const { data } = await api.get<Recipe[]>('/recipes/', { params });
+        const { data } = await api.get<Recipe[]>('/recipes', { params });
         return data;
     },
 
@@ -244,7 +244,7 @@ export const kitchenService = {
     },
 
     createRecipe: async (payload: RecipePayload): Promise<Recipe> => {
-        const { data } = await api.post<Recipe>('/recipes/', payload);
+        const { data } = await api.post<Recipe>('/recipes', payload);
         return data;
     },
 
