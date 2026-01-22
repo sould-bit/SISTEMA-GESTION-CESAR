@@ -25,14 +25,36 @@ from app.schemas.products import (
     ProductUpdate
 )
 from app.services import ProductService
+from app.services.beverage_service import BeverageService
+from pydantic import BaseModel
 
 
 router = APIRouter(prefix="/products", tags=["products"])
 
 
+# Schema for Beverage creation
+class BeverageCreate(BaseModel):
+    name: str
+    cost: Decimal
+    sale_price: Decimal
+    initial_stock: Decimal = Decimal("0")
+    unit: str = "unidad"
+    sku: Optional[str] = None
+    supplier: Optional[str] = None
+    image_url: Optional[str] = None
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None # For inline creation
+    description: Optional[str] = None
+
+
 def get_product_service(session: AsyncSession = Depends(get_session)) -> ProductService:
     """🛠️ Inyección de dependencia: ProductService"""
     return ProductService(session)
+
+
+def get_beverage_service(session: AsyncSession = Depends(get_session)) -> BeverageService:
+    """🛠️ Inyección de dependencia: BeverageService"""
+    return BeverageService(session)
 
 
 # ============================================
@@ -191,4 +213,48 @@ async def search_products(
         company_id=current_user.company_id,
         search=q,
         active_only=True
+    )
+
+
+# ============================================
+# 🍺 CREAR BEBIDA / MERCADERÍA (ATOMIC 1:1)
+# ============================================
+@router.post("/beverage", status_code=status.HTTP_201_CREATED)
+@require_permission("products.create")
+async def create_beverage(
+    payload: BeverageCreate,
+    branch_id: int = Query(..., description="Branch ID para stock inicial"),
+    current_user: User = Depends(get_current_user),
+    beverage_service: BeverageService = Depends(get_beverage_service)
+):
+    """
+    🍺 CREAR PRODUCTO TIPO BEBIDA/MERCADERÍA
+    
+    Implementa el patrón "Puente 1:1":
+    - Crea Ingredient (MERCHANDISE) para inventario
+    - Crea Product para ventas/POS  
+    - Crea Recipe 1:1 para unificar lógica de deducción de stock
+    
+    Todo en una sola transacción atómica.
+    
+    Args:
+        payload: Datos de la bebida (nombre, costo, precio venta, stock inicial)
+        branch_id: Sucursal donde se registrará el stock inicial
+        
+    Returns:
+        dict con product, ingredient, recipe creados
+    """
+    return await beverage_service.create_beverage(
+        name=payload.name,
+        cost=payload.cost,
+        sale_price=payload.sale_price,
+        initial_stock=payload.initial_stock,
+        unit=payload.unit,
+        branch_id=branch_id,
+        company_id=current_user.company_id,
+        user_id=current_user.id,
+        image_url=payload.image_url,
+        category_id=payload.category_id,
+        category_name=payload.category_name,
+        description=payload.description
     )

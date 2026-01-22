@@ -264,5 +264,16 @@ export const setupService = {
     async createBeverage(data: BeveragePayload, branchId: number): Promise<BeverageResponse> {
         const res = await api.post(`/products/beverage?branch_id=${branchId}`, data);
         return res.data;
+    },
+
+    async updateBeverage(id: number, data: BeveragePayload, branchId: number): Promise<BeverageResponse> {
+        // Use standard product update as specific endpoint 404's
+        const res = await api.put(`/products/${id}?branch_id=${branchId}`, data);
+        return res.data;
+    },
+
+    async deleteBeverage(id: number): Promise<void> {
+        // Fallback to standard product delete as the specific endpoint 404'd
+        await api.delete(`/products/${id}`);
     }
 };

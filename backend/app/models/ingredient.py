@@ -18,6 +18,7 @@ from sqlalchemy import Column, Numeric, Enum as SaEnum
 class IngredientType(str, Enum):
     RAW = "RAW"
     PROCESSED = "PROCESSED"
+    MERCHANDISE = "MERCHANDISE"  # Direct-sale items: Coca-Cola, Beer, etc.
 
 class IngredientBase(SQLModel):
     name: str = Field(index=True)

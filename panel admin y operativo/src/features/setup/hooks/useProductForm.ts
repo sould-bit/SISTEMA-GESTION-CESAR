@@ -1,4 +1,4 @@
-import { useState, useRef, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { Product, BeveragePayload, setupService, MacroType } from '../setup.service';
 import { useAppSelector } from '../../../stores/store';
 
@@ -25,8 +25,32 @@ export const useProductForm = (
         totalCost: ''
     });
 
+    const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Reset form when viewMode changes
+    useEffect(() => {
+        resetForm();
+    }, [viewMode]);
+
+    const handleSelectProduct = (product: any) => {
+        // ... (same as before)
+        setSelectedProduct(product);
+        setProductForm({
+            name: product.name,
+            price: product.price || '',
+            cost: product.cost || '',
+            stock: product.stock || '',
+            unit: product.unit || 'UNIDAD',
+            description: product.description || '',
+            sku: product.sku || '',
+            image_url: product.image_url || '',
+        });
+    };
+
+
+
 
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -41,6 +65,50 @@ export const useProductForm = (
         }
     };
 
+    const handleDelete = async () => {
+        if (!selectedProduct) return;
+        if (!confirm('¿Estás seguro de eliminar este producto? Esta acción no se puede deshacer.')) return;
+
+        setIsSaving(true);
+        try {
+            if (viewMode === 'BEBIDAS') {
+                await setupService.deleteBeverage(selectedProduct.id);
+            } else {
+                // TODO: standard delete if needed
+                alert("Eliminar no implementado para este modo");
+                setIsSaving(false);
+                return;
+            }
+            await refreshData();
+            resetForm();
+            alert("Eliminado correctamente");
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const resetForm = () => {
+        setSelectedProduct(null);
+        setProductForm({
+            name: '',
+            price: '',
+            cost: '',
+            stock: '',
+            unit: 'UNIDAD',
+            description: '',
+            sku: '',
+            minStock: '',
+            supplier: '',
+            categoryName: '',
+            hasRecipe: false,
+            image_url: '',
+            totalCost: ''
+        });
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
@@ -51,10 +119,11 @@ export const useProductForm = (
                 return;
             }
 
-            // Check duplicates (Client side check) - Compare trimmed & ignore case
-            // Also check INACTIVE products because DB constraint is likely unique on name regardless of status
+            // Check duplicates (Client side check)
+            // Exclude current product if editing
             const isDuplicate = existingProducts.some(p =>
-                p.name.trim().toLowerCase() === cleanName.toLowerCase()
+                p.name.trim().toLowerCase() === cleanName.toLowerCase() &&
+                (!selectedProduct || Number(p.id) !== Number(selectedProduct.id))
             );
 
             if (isDuplicate) {
@@ -64,72 +133,62 @@ export const useProductForm = (
             }
 
             if (viewMode === 'BEBIDAS') {
-                // Try to find a default category for beverages if none selected
-                // This logic might need to be robust; assuming 'Bebidas' or 'General' exists or logic is handled
-                // ideally we pass a 'defaultCategoryId' to the hook, but let's try to grab it from selectedCategory if passed or just send as is
-                // If backend requires category_id, we must provide it.
-                // NOTE: 'selectedCategory' in hook props might be null for BEBIDAS mode as per UnifiedSetupPage logic.
+                // Auto-generate SKU if not provided
+                const finalSku = productForm.sku ? productForm.sku : `BEV-${Math.floor(Date.now() / 1000).toString(36).toUpperCase()}`;
 
-                // We will rely on setupService.createBeverage to handle default category logic server side OR 
-                // we should pass it. 
-                // Let's add 'category_id' to payload if available.
                 const payload: BeveragePayload = {
-                    name: cleanName, // Send TRIMMED name
-                    category_id: selectedCategory?.id, // If we passed a default category
-
+                    name: cleanName,
+                    category_id: selectedCategory?.id,
                     cost: Number(productForm.cost),
                     sale_price: Number(productForm.price),
                     initial_stock: Number(productForm.stock),
-                    unit: 'BOTELLA', // Default for beverages
+                    unit: 'BOTELLA',
                     image_url: productForm.image_url,
                     supplier: productForm.supplier,
-                    description: 'Bebida Venta Directa'
+                    description: 'Bebida Venta Directa',
+                    sku: finalSku
                 };
-                // We need branchId. Check how it was handled before. 
-                // It was passing '1'.
+
                 if (!user?.branch_id) {
                     alert('Error: Usuario no tiene sucursal asignada.');
                     setIsSaving(false);
                     return;
                 }
-                await setupService.createBeverage(payload, user.branch_id);
+
+                if (selectedProduct) {
+                    // Update
+                    await setupService.updateBeverage(selectedProduct.id, payload, user.branch_id);
+                } else {
+                    // Create
+                    await setupService.createBeverage(payload, user.branch_id);
+                }
             } else {
-                // Standard logic (Insumos/Carta)
-                // ... Implementation similar to existing handleNewProduct
-                // For simplified refactor, we might iterate this later.
-                // Assuming standard creation:
+                // Standard logic
                 const payload = {
                     ...productForm,
                     category_id: selectedCategory?.id
                 };
                 if (viewMode === 'INSUMOS') {
+                    // Ingredient update not fully implemented in this refactor step, assumes create
                     await setupService.createIngredient(payload);
                 } else {
+                    // Product update not fully implemented in this refactor step
                     await setupService.createProduct(payload);
                 }
             }
 
             await refreshData();
-            // Reset form
-            setProductForm({
-                name: '',
-                price: '',
-                cost: '',
-                stock: '',
-                unit: 'UNIDAD',
-                description: '',
-                sku: '',
-                minStock: '',
-                supplier: '',
-                categoryName: '',
-                hasRecipe: false,
-                image_url: '',
-                totalCost: ''
-            });
+            resetForm();
             alert("Guardado correctamente");
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Error al guardar");
+            if (error.response?.status === 500) {
+                alert("Error del servidor. Posiblemente el nombre ya existe o hay un problema interno.");
+            } else if (error.response?.status === 401) {
+                alert("Sesión expirada. Por favor recarga la página.");
+            } else {
+                alert("Error al guardar. Verifica la consola para más detalles.");
+            }
         } finally {
             setIsSaving(false);
         }
@@ -138,9 +197,13 @@ export const useProductForm = (
     return {
         productForm,
         setProductForm,
+        selectedProduct,
+        handleSelectProduct,
+        handleDelete,
         isSaving,
         fileInputRef,
         handleFileChange,
-        handleSave
+        handleSave,
+        resetForm
     };
 };

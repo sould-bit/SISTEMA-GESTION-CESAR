@@ -23,8 +23,30 @@ export const UnifiedSetupPage = () => {
     const {
         productForm, setProductForm,
         isSaving, fileInputRef,
-        handleFileChange, handleSave: saveProduct
+        handleFileChange, handleSave: saveProduct,
+        selectedProduct, handleSelectProduct, handleDelete, resetForm // New handlers
     } = useProductForm(viewMode, refreshData, selectedCategory, products);
+
+    // ...
+
+    {/* BEBIDAS MODULE */ }
+    {
+        viewMode === 'BEBIDAS' && (
+            <BeverageForm
+                productForm={productForm}
+                setProductForm={setProductForm}
+                fileInputRef={fileInputRef}
+                handleFileChange={handleFileChange}
+                handleSave={saveProduct}
+                onCancel={() => setViewMode('HOME')}
+                isSaving={isSaving}
+                products={products.filter(p => !p.category_id || p.category_name !== 'Materia Prima')}
+                selectedProduct={selectedProduct}
+                onSelectProduct={handleSelectProduct}
+                onDelete={handleDelete}
+            />
+        )
+    }
 
     // --- Category Selection Logic ---
     useEffect(() => {
@@ -137,7 +159,14 @@ export const UnifiedSetupPage = () => {
                         handleSave={saveProduct}
                         onCancel={() => setViewMode('HOME')}
                         isSaving={isSaving}
-                        products={products.filter(p => !p.category_id || p.category_name !== 'Materia Prima')} // Simple filter for now
+                        products={products.filter(p => !p.category_id || p.category_name !== 'Materia Prima')}
+                        selectedProduct={selectedProduct}
+                        onSelectProduct={(p) => {
+                            handleSelectProduct(p);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        onDelete={handleDelete}
+                        onCancelEdit={resetForm}
                     />
                 )}
 

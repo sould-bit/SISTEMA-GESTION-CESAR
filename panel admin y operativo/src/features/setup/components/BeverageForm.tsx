@@ -1,5 +1,6 @@
-import { ArrowLeft, Save, Camera, Beer } from 'lucide-react';
-import { MutableRefObject } from 'react';
+import { ArrowLeft, Save, Camera, Beer, Trash2, X } from 'lucide-react';
+import { MutableRefObject, useState } from 'react';
+import { BatchHistoryModal } from './BatchHistoryModal';
 
 interface BeverageFormProps {
     productForm: any;
@@ -9,7 +10,11 @@ interface BeverageFormProps {
     handleSave: () => void;
     onCancel: () => void;
     isSaving: boolean;
-    products?: any[]; // Add products prop
+    selectedProduct?: any;
+    onSelectProduct?: (product: any) => void;
+    onDelete?: () => void;
+    onCancelEdit?: () => void;
+    products?: any[];
 }
 
 export const BeverageForm = ({
@@ -20,8 +25,15 @@ export const BeverageForm = ({
     handleSave,
     onCancel,
     isSaving,
-    products = [] // Default to empty array
+    products = [], // Default to empty array
+    selectedProduct,
+    onSelectProduct,
+    onDelete,
+    onCancelEdit
 }: BeverageFormProps) => {
+
+    const [showBatchModal, setShowBatchModal] = useState(false);
+
 
     const calculateMargin = () => {
         const cost = Number(productForm.cost) || 0;
@@ -81,7 +93,7 @@ export const BeverageForm = ({
 
                     {/* Header Section */}
                     <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 w-full">
                             <button
                                 onClick={onCancel}
                                 className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors border border-white/10 group"
@@ -89,35 +101,73 @@ export const BeverageForm = ({
                             >
                                 <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                             </button>
-                            <div className="space-y-1">
+                            <div className="space-y-1 flex-1">
                                 <h2 className="text-3xl font-bold text-white tracking-tight">
                                     {productForm.name || <span className="text-gray-600">Nombre de la Bebida</span>}
                                 </h2>
                                 <div className="flex gap-2">
                                     <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 text-xs font-bold uppercase rounded border border-amber-500/20">Bebida / Cafetería</span>
+                                    {selectedProduct && (
+                                        <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 text-xs font-bold uppercase rounded border border-blue-500/20">
+                                            Editando: {selectedProduct.name}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
-                            <button
-                                onClick={handleSave}
-                                disabled={!productForm.name || isSaving}
-                                className="bg-accent-orange hover:bg-orange-600 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95"
-                            >
-                                <Save size={18} /> {isSaving ? 'Guardando...' : 'LANZAR PRODUCTO 🚀'}
-                            </button>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSave}
+                                    disabled={!productForm.name || isSaving}
+                                    className={`${selectedProduct ? 'bg-blue-600 hover:bg-blue-700' : 'bg-accent-orange hover:bg-orange-600'} text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 whitespace-nowrap`}
+                                >
+                                    <Save size={18} /> {isSaving ? 'Guardando...' : (selectedProduct ? 'ACTUALIZAR' : 'LANZAR PRODUCTO 🚀')}
+                                </button>
+                                {selectedProduct && onCancelEdit && (
+                                    <button
+                                        onClick={onCancelEdit}
+                                        className="p-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-full transition-all border border-gray-600"
+                                        title="Cancelar edición"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                )}
+                                {selectedProduct && onDelete && (
+                                    <button
+                                        onClick={onDelete}
+                                        disabled={isSaving}
+                                        className="p-3 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 rounded-full transition-all border border-red-500/20"
+                                        title="Eliminar producto"
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     {/* Inputs Grid */}
                     <div className="bg-card-dark/50 p-6 rounded-2xl border border-border-dark space-y-6">
 
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nombre del Producto</label>
-                            <input
-                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 font-bold text-white focus:border-accent-orange outline-none transition-colors"
-                                placeholder="Ej. Coca Cola Zero"
-                                value={productForm.name}
-                                onChange={e => setProductForm({ ...productForm, name: e.target.value })}
-                            />
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="col-span-2 space-y-1">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nombre del Producto</label>
+                                <input
+                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 font-bold text-white focus:border-accent-orange outline-none transition-colors"
+                                    placeholder="Ej. Coca Cola Zero"
+                                    value={productForm.name}
+                                    onChange={e => setProductForm({ ...productForm, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">SKU / CÓDIGO <span className="text-[10px] text-gray-600 normal-case">(Opcional)</span></label>
+                                <input
+                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 font-bold text-gray-300 focus:border-accent-orange outline-none transition-colors"
+                                    placeholder="BEV-001"
+                                    value={productForm.sku}
+                                    onChange={e => setProductForm({ ...productForm, sku: e.target.value })}
+                                />
+                            </div>
                         </div>
 
                         {/* Calculator Row */}
@@ -210,13 +260,34 @@ export const BeverageForm = ({
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Stock Inicial</label>
-                                <input
-                                    className="w-full bg-bg-deep border border-border-dark rounded px-3 py-2 text-white text-sm focus:border-white/20 outline-none"
-                                    value={productForm.stock}
-                                    disabled
-                                    title="Calculado arriba"
-                                />
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Stock Total</label>
+                                    {selectedProduct && (
+                                        <button
+                                            onClick={() => setShowBatchModal(true)}
+                                            className="text-[10px] text-blue-400 hover:text-white underline"
+                                        >
+                                            Gestionar Lotes
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        className="w-full bg-bg-deep border border-border-dark rounded px-3 py-2 text-white text-sm focus:border-white/20 outline-none"
+                                        value={productForm.stock}
+                                        disabled
+                                        title="Calculado según lotes activos"
+                                    />
+                                    {selectedProduct && (
+                                        <button
+                                            onClick={() => setShowBatchModal(true)}
+                                            className="bg-blue-600/20 text-blue-400 border border-blue-600/40 rounded px-3 hover:bg-blue-600 hover:text-white transition-colors"
+                                            title="Ver historial de lotes"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -238,7 +309,11 @@ export const BeverageForm = ({
                         </div>
                     ) : (
                         products.map((p: any) => (
-                            <div key={p.id} className="group bg-card-dark hover:bg-white/5 border border-border-dark hover:border-accent-orange/50 p-3 rounded-xl transition-all duration-300">
+                            <div
+                                key={p.id}
+                                onClick={() => onSelectProduct && onSelectProduct(p)}
+                                className={`group bg-card-dark hover:bg-white/5 border ${selectedProduct?.id === p.id ? 'border-accent-orange ring-1 ring-accent-orange' : 'border-border-dark'} hover:border-accent-orange/50 p-3 rounded-xl transition-all duration-300 cursor-pointer`}
+                            >
                                 <div className="aspect-square bg-black/20 rounded-lg mb-3 overflow-hidden relative">
                                     {p.image_url ? (
                                         <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={p.name} />
@@ -258,12 +333,22 @@ export const BeverageForm = ({
                                         <span>Stock</span>
                                         <span className={p.stock > 10 ? 'text-emerald-500' : 'text-red-500'}>{p.stock} u</span>
                                     </div>
+                                    {p.sku && <div className="text-[9px] text-gray-500 uppercase tracking-wider">{p.sku}</div>}
                                 </div>
                             </div>
                         ))
                     )}
                 </div>
             </div>
-        </div>
+
+            {showBatchModal && selectedProduct && (
+                <BatchHistoryModal
+                    productId={selectedProduct.id}
+                    productName={selectedProduct.name}
+                    baseUnit={productForm.unit || 'und'}
+                    onClose={() => setShowBatchModal(false)}
+                />
+            )}
+        </div >
     );
 };

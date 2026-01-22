@@ -3,7 +3,8 @@ import uuid
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy import inspect
 from fastapi import HTTPException, status
 
 from app.models.recipe import Recipe
@@ -37,7 +38,7 @@ class RecipeService:
             stmt = stmt.where(Recipe.is_active == True)
         
         stmt = stmt.offset(skip).limit(limit).order_by(Recipe.created_at.desc())
-        stmt = stmt.options(selectinload(Recipe.product)) 
+        stmt = stmt.options(joinedload(Recipe.product), selectinload(Recipe.items)) 
         
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -287,6 +288,15 @@ class RecipeService:
         )
 
     def build_recipe_list_response(self, recipe: Recipe) -> RecipeListResponse:
+        items_count = 0
+        try:
+            # Check if items are loaded to avoid MissingGreenlet
+            ins = inspect(recipe)
+            if "items" not in ins.unloaded and recipe.items:
+                items_count = len(recipe.items)
+        except Exception:
+            pass # Fallback to 0 if inspection fails
+
         return RecipeListResponse(
             id=recipe.id,
             company_id=recipe.company_id,
@@ -295,6 +305,6 @@ class RecipeService:
             name=recipe.name,
             total_cost=recipe.total_cost,
             is_active=recipe.is_active,
-            items_count=len(recipe.items) if recipe.items else 0, # Assuming items might not be loaded, check logic
+            items_count=items_count,
             created_at=recipe.created_at
         )
