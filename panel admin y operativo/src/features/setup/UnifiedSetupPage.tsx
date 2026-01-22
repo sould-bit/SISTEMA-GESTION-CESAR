@@ -33,11 +33,9 @@ export const UnifiedSetupPage = () => {
             const rawCat = categories.find(c => c.name.toLowerCase() === 'materia prima');
             if (rawCat) setSelectedCategory(rawCat);
         } else if (viewMode === 'BEBIDAS') {
-            // Try to find reasonable default for beverages
+            // Strict enforcement: ONLY "Venta Directa"
             const bevCat = categories.find(c =>
-                c.name.toLowerCase().includes('bebida') ||
-                c.name.toLowerCase().includes('cafeteria') ||
-                c.name.toLowerCase().includes('general')
+                c.name.toLowerCase().includes('venta directa')
             );
             if (bevCat) setSelectedCategory(bevCat);
             else setSelectedCategory(null);
