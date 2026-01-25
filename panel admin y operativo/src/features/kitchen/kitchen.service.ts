@@ -23,9 +23,11 @@ export interface Ingredient {
     yield_factor: number; // Merma (0.90 = 90% aprovechable)
     category_id?: number;
     company_id: number;
-    ingredient_type: 'RAW' | 'PROCESSED';
+    ingredient_type: 'RAW' | 'PROCESSED' | 'MERCHANDISE';
     is_active: boolean;
     stock?: number;
+    total_inventory_value?: number;
+    calculated_cost?: number;
     created_at?: string;
     updated_at?: string;
 }

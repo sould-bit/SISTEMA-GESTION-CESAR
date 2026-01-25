@@ -65,6 +65,8 @@ class IngredientListResponse(BaseModel):
     ingredient_type: str
     stock: Optional[Decimal] = Field(default=Decimal(0))
     total_inventory_value: Optional[Decimal] = Field(default=Decimal(0))
+    calculated_cost: Optional[Decimal] = Field(default=Decimal(0))
+
 
     class Config:
         from_attributes = True

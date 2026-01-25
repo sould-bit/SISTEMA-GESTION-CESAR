@@ -265,3 +265,101 @@ async def create_beverage(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Ya existe una bebida con el nombre '{payload.name}'"
         )
+
+
+# Schema for Beverage update
+class BeverageUpdate(BaseModel):
+    name: Optional[str] = None
+    cost: Optional[Decimal] = None
+    sale_price: Optional[Decimal] = None
+    image_url: Optional[str] = None
+    category_id: Optional[int] = None
+    sku: Optional[str] = None
+    additional_stock: Optional[Decimal] = None
+    supplier: Optional[str] = None
+
+
+# ============================================
+# ✏️ ACTUALIZAR BEBIDA / MERCADERÍA (ATOMIC 1:1)
+# ============================================
+@router.put("/beverage/{product_id}")
+@require_permission("products.update")
+async def update_beverage(
+    product_id: int,
+    payload: BeverageUpdate,
+    branch_id: Optional[int] = Query(None, description="Branch ID para stock adicional"),
+    current_user: User = Depends(get_current_user),
+    beverage_service: BeverageService = Depends(get_beverage_service)
+):
+    """
+    ✏️ ACTUALIZAR PRODUCTO TIPO BEBIDA/MERCADERÍA
+    
+    Actualiza Product + Ingredient vinculado (cascada 1:1).
+    Opcionalmente agrega stock adicional si se proporciona.
+    
+    Args:
+        product_id: ID del producto a actualizar
+        payload: Campos a actualizar
+        branch_id: Requerido si se agrega stock adicional
+        
+    Returns:
+        dict con product, ingredient actualizados
+    """
+    try:
+        return await beverage_service.update_beverage(
+            product_id=product_id,
+            name=payload.name,
+            cost=payload.cost,
+            sale_price=payload.sale_price,
+            image_url=payload.image_url,
+            category_id=payload.category_id,
+            sku=payload.sku,
+            additional_stock=payload.additional_stock,
+            branch_id=branch_id,
+            user_id=current_user.id,
+            supplier=payload.supplier
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Error de integridad al actualizar"
+        )
+
+
+# ============================================
+# 🗑️ ELIMINAR BEBIDA / MERCADERÍA (SOFT DELETE CASCADE)
+# ============================================
+@router.delete("/beverage/{product_id}")
+@require_permission("products.delete")
+async def delete_beverage(
+    product_id: int,
+    current_user: User = Depends(get_current_user),
+    beverage_service: BeverageService = Depends(get_beverage_service)
+):
+    """
+    🗑️ ELIMINAR PRODUCTO TIPO BEBIDA/MERCADERÍA
+    
+    Soft-delete con cascada:
+    - Product.is_active = False
+    - Ingredient.is_active = False
+    - Batches.is_active = False
+    - Recipe.is_active = False
+    
+    Args:
+        product_id: ID del producto a eliminar
+        
+    Returns:
+        dict con mensaje de confirmación
+    """
+    try:
+        return await beverage_service.delete_beverage(product_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )

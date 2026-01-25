@@ -163,6 +163,178 @@ class BeverageService:
             "message": f"Bebida '{name}' creada exitosamente con estructura 1:1"
         }
     
+    async def update_beverage(
+        self,
+        product_id: int,
+        name: Optional[str] = None,
+        cost: Optional[Decimal] = None,
+        sale_price: Optional[Decimal] = None,
+        image_url: Optional[str] = None,
+        category_id: Optional[int] = None,
+        sku: Optional[str] = None,
+        additional_stock: Optional[Decimal] = None,
+        branch_id: Optional[int] = None,
+        user_id: Optional[int] = None,
+        supplier: Optional[str] = None
+    ) -> dict:
+        """
+        Updates a beverage and cascades changes to linked Ingredient.
+        
+        - Product: name, price, image_url, category_id
+        - Ingredient: name, current_cost, sku
+        - Optionally add more stock via new batch
+        """
+        # 1. Find the Product
+        product = await self.db.get(Product, product_id)
+        if not product:
+            raise ValueError(f"Product with ID {product_id} not found")
+        
+        # 2. Find the linked Recipe and Ingredient
+        stmt = select(Recipe).where(
+            Recipe.product_id == product_id,
+            Recipe.is_active == True
+        )
+        result = await self.db.execute(stmt)
+        recipe = result.scalar_one_or_none()
+        
+        ingredient = None
+        if recipe:
+            # Get the first (and only) recipe item to find the ingredient
+            stmt = select(RecipeItem).where(RecipeItem.recipe_id == recipe.id)
+            result = await self.db.execute(stmt)
+            recipe_item = result.scalar_one_or_none()
+            if recipe_item:
+                ingredient = await self.db.get(Ingredient, recipe_item.ingredient_id)
+        
+        # FALLBACK: If no recipe found, try to find MERCHANDISE ingredient with same name
+        if not ingredient:
+            stmt = select(Ingredient).where(
+                Ingredient.name == product.name,
+                Ingredient.company_id == product.company_id,
+                Ingredient.ingredient_type == IngredientType.MERCHANDISE,
+                Ingredient.is_active == True
+            )
+            result = await self.db.execute(stmt)
+            ingredient = result.scalar_one_or_none()
+        
+        # Log for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"update_beverage: product={product.name}, recipe_found={recipe is not None}, ingredient_found={ingredient is not None}")
+        
+        # 3. Update Product fields
+        if name is not None:
+            product.name = name
+        if sale_price is not None:
+            product.price = sale_price
+        if image_url is not None:
+            product.image_url = image_url
+        if category_id is not None:
+            product.category_id = category_id
+        
+        # 4. Update Ingredient fields (if linked)
+        if ingredient:
+            if name is not None:
+                ingredient.name = name
+            if cost is not None:
+                # Update current cost reference ONLY
+                # (Do NOT update batches here; batches are historical records)
+                # PROTECT against zeroing out cost accidentally
+                if cost > 0:
+                    ingredient.last_cost = ingredient.current_cost
+                    ingredient.current_cost = cost
+                else:
+                    # Log warning or just ignore
+                    logger.warning(f"Ignored attempt to set cost to {cost} for ingredient {ingredient.name}")
+                
+            if sku is not None:
+                ingredient.sku = sku
+        
+        # 5. Add additional stock as new batch (if provided)
+        if additional_stock and additional_stock > 0 and ingredient and branch_id:
+            unit_cost = cost if cost else ingredient.current_cost
+            await self.inventory_service.update_ingredient_stock(
+                branch_id=branch_id,
+                ingredient_id=ingredient.id,
+                quantity_delta=additional_stock,
+                transaction_type="IN",
+                cost_per_unit=unit_cost,
+                supplier=supplier or "Compra Adicional",
+                user_id=user_id,
+                reason=f"Stock adicional para {product.name}"
+            )
+        
+        await self.db.commit()
+        await self.db.refresh(product)
+        if ingredient:
+            await self.db.refresh(ingredient)
+        
+        return {
+            "product": product,
+            "ingredient": ingredient,
+            "message": f"Bebida '{product.name}' actualizada correctamente"
+        }
+    
+    async def delete_beverage(self, product_id: int) -> dict:
+        """
+        Soft-deletes a beverage and cascades to linked Ingredient and Batches.
+        
+        - Product: is_active = False
+        - Ingredient: is_active = False  
+        - Batches: is_active = False
+        """
+        # 1. Find the Product
+        product = await self.db.get(Product, product_id)
+        if not product:
+            raise ValueError(f"Product with ID {product_id} not found")
+        
+        # 2. Find the linked Recipe and Ingredient
+        stmt = select(Recipe).where(
+            Recipe.product_id == product_id,
+            Recipe.is_active == True
+        )
+        result = await self.db.execute(stmt)
+        recipe = result.scalar_one_or_none()
+        
+        ingredient = None
+        if recipe:
+            # Get the recipe item to find the ingredient
+            stmt = select(RecipeItem).where(RecipeItem.recipe_id == recipe.id)
+            result = await self.db.execute(stmt)
+            recipe_item = result.scalar_one_or_none()
+            if recipe_item:
+                ingredient = await self.db.get(Ingredient, recipe_item.ingredient_id)
+        
+        # 3. Soft-delete Product
+        product.is_active = False
+        
+        # 4. Soft-delete Ingredient (if linked)
+        if ingredient:
+            ingredient.is_active = False
+            
+            # 5. Deactivate all related batches
+            from app.models.ingredient_batch import IngredientBatch
+            stmt = select(IngredientBatch).where(
+                IngredientBatch.ingredient_id == ingredient.id,
+                IngredientBatch.is_active == True
+            )
+            result = await self.db.execute(stmt)
+            batches = result.scalars().all()
+            for batch in batches:
+                batch.is_active = False
+        
+        # 6. Deactivate Recipe
+        if recipe:
+            recipe.is_active = False
+        
+        await self.db.commit()
+        
+        return {
+            "message": f"Bebida '{product.name}' eliminada correctamente",
+            "product_id": product_id,
+            "ingredient_deactivated": ingredient is not None
+        }
+    
     async def get_merchandise_ingredients(self, company_id: int) -> list[Ingredient]:
         """Get all MERCHANDISE type ingredients for a company."""
         stmt = select(Ingredient).where(
@@ -172,3 +344,4 @@ class BeverageService:
         )
         result = await self.db.execute(stmt)
         return result.scalars().all()
+

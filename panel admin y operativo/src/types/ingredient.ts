@@ -15,6 +15,11 @@ export interface Ingredient {
     is_active: boolean;
     created_at: string;
     updated_at: string | null;
+    // Optional fields populated by backend list view
+    stock?: number;
+    calculated_cost?: number;
+    total_inventory_value?: number;
+    ingredient_type?: "RAW" | "PROCESSED" | "MERCHANDISE";
 }
 
 export interface IngredientCreate {

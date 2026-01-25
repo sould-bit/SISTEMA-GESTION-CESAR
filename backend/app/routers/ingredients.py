@@ -37,6 +37,8 @@ router = APIRouter(
 )
 
 
+
+
 @router.get("/", response_model=List[IngredientListResponse])
 async def list_ingredients(
     active_only: bool = Query(True, description="Solo ingredientes activos"),

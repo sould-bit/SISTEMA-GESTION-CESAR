@@ -7,15 +7,16 @@ interface BeverageFormProps {
     productForm: any;
     setProductForm: (form: any) => void;
     fileInputRef: MutableRefObject<HTMLInputElement | null>;
-    handleFileChange: (e: any) => void;
+    handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleSave: () => void;
     onCancel: () => void;
     isSaving: boolean;
+    products?: any[];
     selectedProduct?: any;
     onSelectProduct?: (product: any) => void;
     onDelete?: () => void;
     onCancelEdit?: () => void;
-    products?: any[];
+    allIngredients?: Ingredient[]; // Passed from parent for WAC calculation
 }
 
 export const BeverageForm = ({
@@ -30,7 +31,8 @@ export const BeverageForm = ({
     selectedProduct,
     onSelectProduct,
     onDelete,
-    onCancelEdit
+    onCancelEdit,
+    allIngredients = []
 }: BeverageFormProps) => {
 
     const [showBatchModal, setShowBatchModal] = useState(false);
@@ -39,11 +41,18 @@ export const BeverageForm = ({
     const [localSelectedProduct, setLocalSelectedProduct] = useState<Ingredient | null>(null); // For Inventory view
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
+    // Helper: Format stock without excessive decimals
+    const formatStock = (val: number | string) => {
+        const n = Number(val);
+        if (isNaN(n)) return '0';
+        return Number.isInteger(n) ? Math.round(n).toString() : n.toFixed(2);
+    };
+
     useEffect(() => {
         if (view === 'INVENTORY') {
             kitchenService.getIngredients(undefined, 'MERCHANDISE').then(setIngredients);
         }
-    }, [view]);
+    }, [view, products]);
 
     // Switch to Catalog if a product is selected externally (e.g. from parent)
     // But ONLY if we are in HOME or already in CATALOG. 
@@ -53,14 +62,69 @@ export const BeverageForm = ({
     }, [selectedProduct]);
 
 
-    const calculateMargin = () => {
-        const cost = Number(productForm.cost) || 0;
-        const price = Number(productForm.price) || 0;
-        if (price === 0) return 0;
-        return ((price - cost) / price) * 100;
+
+    // --- VALIDATION AND SAVE ---
+    const handleLocalSave = () => {
+        const name = productForm.name?.trim();
+        if (!name) return;
+
+        // Check for duplicates in ALL ingredients (Raw Material + Merchandise)
+        // This prevents 409 Conflict if trying to use a name that exists as an ingredient but not a product
+        const nameLower = name.toLowerCase();
+        const duplicate = allIngredients.find(i => i.name.trim().toLowerCase() === nameLower);
+
+        if (duplicate) {
+            // If editing, allow if it's the same item (name hasn't changed)
+            if (selectedProduct) {
+                if (selectedProduct.name.trim().toLowerCase() !== nameLower) {
+                    alert(`Conflict: El nombre "${duplicate.name}" ya está en uso por otro insumo o bebida.`);
+                    return;
+                }
+            } else {
+                // If creating, reject immediate duplicates
+                alert(`Conflict: El nombre "${duplicate.name}" ya está en uso por otro insumo o bebida.`);
+                return;
+            }
+        }
+
+        handleSave();
     };
 
-    const margin = calculateMargin();
+
+    // --- FINANCIAL CALCULATIONS (Weighted Average Cost) ---
+    const calculateFinancials = () => {
+        const price = Number(productForm.price) || 0;
+        const stdCost = Number(productForm.cost) || 0;
+
+        // Use the cost from form (which is initialized with Backend Effective Cost)
+        const realCost = stdCost;
+        let isWeighted = false;
+
+        if (allIngredients.length > 0 && productForm.name) {
+            const match = allIngredients.find(i =>
+                i.name.trim().toLowerCase() === productForm.name?.trim().toLowerCase()
+            );
+
+            if (match) {
+                const stock = Number(match.stock);
+                const totalVal = Number(match.total_inventory_value);
+                // Check if it's weighted just for the tooltip
+                if (stock > 0 && totalVal > 0) {
+                    isWeighted = true;
+                }
+            }
+        }
+
+        const margin = price > 0 ? ((price - stdCost) / price) * 100 : 0;
+        const realProfit = price - realCost;
+        const realMargin = price > 0 ? ((price - realCost) / price) * 100 : 0;
+
+        console.log("[DEBUG-FRONTEND] Financials:", { price, stdCost, realCost, realProfit, isWeighted });
+
+        return { stdCost, realCost, margin, realProfit, realMargin, isWeighted };
+    };
+
+    const { realProfit, realMargin, isWeighted } = calculateFinancials();
 
     // Auto-calculate unit cost from Total Cost / Quantity
     const handleTotalCostChange = (total: string, qty: string) => {
@@ -166,8 +230,8 @@ export const BeverageForm = ({
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right text-gray-300 font-mono">
-                                            {/* Estimación simple, el modal dará el real */}
-                                            ${((Number(p.current_cost) || 0) * (Number(p.stock) || 0)).toLocaleString()}
+                                            {/* Valor real calculado desde lotes activos */}
+                                            ${Number(p.total_inventory_value || 0).toLocaleString()}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <button
@@ -254,7 +318,7 @@ export const BeverageForm = ({
 
                                     <div className="flex items-center gap-2">
                                         <button
-                                            onClick={handleSave}
+                                            onClick={handleLocalSave}
                                             disabled={!productForm.name || isSaving}
                                             className={`${selectedProduct ? 'bg-blue-600 hover:bg-blue-700' : 'bg-accent-orange hover:bg-orange-600'} text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 whitespace-nowrap`}
                                         >
@@ -301,7 +365,7 @@ export const BeverageForm = ({
                                         <input
                                             className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 font-bold text-gray-300 focus:border-accent-orange outline-none transition-colors"
                                             placeholder="BEV-001"
-                                            value={productForm.sku}
+                                            value={productForm.sku || ''}
                                             onChange={e => setProductForm({ ...productForm, sku: e.target.value })}
                                         />
                                     </div>
@@ -310,47 +374,85 @@ export const BeverageForm = ({
                                 {/* Calculator Row */}
                                 <div className="grid grid-cols-2 gap-6 pt-4 border-t border-border-dark/50">
 
-                                    {/* COST CALC */}
-                                    <div className="space-y-4">
-                                        <h4 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
-                                            COSTO ADQUISICIÓN (TOTAL)
-                                        </h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-[10px] text-gray-500 block mb-1">Costo Total Lote</label>
-                                                <div className="relative">
-                                                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                    {/* COST CALC - MODE SWITCH */}
+                                    {selectedProduct ? (
+                                        // VIEW MODE: EDIT (Restrictions applied)
+                                        <div className="space-y-4">
+                                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                                                <div className="flex items-start gap-3">
+                                                    <span className="material-symbols-outlined text-blue-400 mt-0.5">info</span>
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-blue-400 mb-1">Gestión de Costos y Stock</h4>
+                                                        <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                                                            Para mantener la integridad del inventario, los costos y existencias no se editan aquí.
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 italic">
+                                                            ¿Necesitas corregir un costo o ajustar stock?
+                                                            <br />Ve a <strong className="text-gray-300">Gestión de Lotes</strong> en la vista de Inventario.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Read-Only Display of Current Values */}
+                                            <div className="grid grid-cols-2 gap-4 opacity-50">
+                                                <div>
+                                                    <label className="text-[10px] text-gray-500 block mb-1">Costo Unitario Actual</label>
+                                                    <div className="bg-bg-deep px-3 py-2 rounded border border-border-dark text-white text-sm">
+                                                        ${Number(productForm.cost).toLocaleString()}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-gray-500 block mb-1">Stock Actual</label>
+                                                    <div className="bg-bg-deep px-3 py-2 rounded border border-border-dark text-white text-sm">
+                                                        {formatStock(productForm.stock)} u
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // VIEW MODE: CREATE (Full Access)
+                                        <div className="space-y-4">
+                                            <h4 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                                                COSTO ADQUISICIÓN (TOTAL)
+                                            </h4>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="text-[10px] text-gray-500 block mb-1">Costo Total Lote</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                                        <input
+                                                            type="number"
+                                                            className="w-full bg-bg-deep pl-7 pr-3 py-2 rounded border border-border-dark text-white text-sm focus:border-emerald-500 outline-none"
+                                                            placeholder="0"
+                                                            value={productForm.totalCost || ''}
+                                                            onChange={e => handleTotalCostChange(e.target.value, productForm.stock)}
+                                                        />
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-500 mt-1">¿Cuánto pagaste por todo el lote?</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-gray-500 block mb-1">Unidades</label>
                                                     <input
                                                         type="number"
-                                                        className="w-full bg-bg-deep pl-7 pr-3 py-2 rounded border border-border-dark text-white text-sm focus:border-emerald-500 outline-none"
-                                                        placeholder="0"
-                                                        value={productForm.totalCost}
-                                                        onChange={e => handleTotalCostChange(e.target.value, productForm.stock)}
+                                                        className="w-full bg-bg-deep px-3 py-2 rounded border border-border-dark text-white text-sm focus:border-emerald-500 outline-none"
+                                                        placeholder="1"
+                                                        value={productForm.stock || ''}
+                                                        onChange={e => handleTotalCostChange(productForm.totalCost, e.target.value)}
                                                     />
+                                                    <p className="text-[10px] text-gray-500 mt-1">Botellas/Unidades que vinieron.</p>
                                                 </div>
-                                                <p className="text-[10px] text-gray-500 mt-1">¿Cuánto pagaste por todo el lote?</p>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] text-gray-500 block mb-1">Unidades</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-bg-deep px-3 py-2 rounded border border-border-dark text-white text-sm focus:border-emerald-500 outline-none"
-                                                    placeholder="1"
-                                                    value={productForm.stock}
-                                                    onChange={e => handleTotalCostChange(productForm.totalCost, e.target.value)}
-                                                />
-                                                <p className="text-[10px] text-gray-500 mt-1">Botellas/Unidades que vinieron.</p>
+                                            <div className="bg-emerald-500/10 p-3 rounded border border-emerald-500/20 flex justify-between items-center">
+                                                <span className="text-xs text-emerald-400 font-bold">COSTO UNITARIO</span>
+                                                <span className="text-lg font-bold text-emerald-400">
+                                                    ${Number(productForm.cost).toLocaleString()}
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="bg-emerald-500/10 p-3 rounded border border-emerald-500/20 flex justify-between items-center">
-                                            <span className="text-xs text-emerald-400 font-bold">COSTO UNITARIO</span>
-                                            <span className="text-lg font-bold text-emerald-400">
-                                                ${Number(productForm.cost).toLocaleString()}
-                                            </span>
-                                        </div>
-                                    </div>
+                                    )}
 
-                                    {/* PRICE CALC */}
+                                    {/* PRICE CALC (Always Visible) */}
                                     <div className="space-y-4 border-l border-border-dark/50 pl-6">
                                         <h4 className="text-sm font-bold text-accent-orange flex items-center gap-2">
                                             PRECIO VENTA (UNITARIO)
@@ -363,22 +465,32 @@ export const BeverageForm = ({
                                                     type="number"
                                                     className="w-full bg-bg-deep pl-7 pr-3 py-2 rounded border border-border-dark text-white text-xl font-bold focus:border-accent-orange outline-none"
                                                     placeholder="0"
-                                                    value={productForm.price}
+                                                    value={productForm.price || ''}
                                                     onChange={e => setProductForm({ ...productForm, price: e.target.value })}
                                                 />
                                             </div>
                                         </div>
-                                        <div className="bg-bg-deep p-3 rounded border border-border-dark flex justify-between items-center">
+                                        <div className="bg-bg-deep p-3 rounded border border-border-dark flex justify-between items-center relative group/profit">
+                                            {isWeighted && (
+                                                <div className="absolute -top-10 left-0 bg-gray-800 text-xs p-2 rounded shadow-xl border border-gray-700 opacity-0 group-hover/profit:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                                                    Calculado con Costo Promedio Ponderado de todos los lotes.
+                                                    <br />Inversión Real vs Precio Venta.
+                                                </div>
+                                            )}
+
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] text-gray-400">PROFIT MARGIN</span>
-                                                <span className={`text-xl font-bold ${margin >= 30 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                    {margin.toFixed(1)}%
+                                                <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                    {isWeighted ? 'MARGEN REAL (PONDERADO)' : 'MARGEN REFERENCIAL'}
+                                                    {isWeighted && <span className="material-symbols-outlined text-[10px] text-emerald-400">verified</span>}
+                                                </span>
+                                                <span className={`text-xl font-bold ${realMargin >= 30 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {realMargin.toFixed(1)}%
                                                 </span>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[10px] text-gray-400 block">Net Profit</span>
                                                 <span className="text-sm font-bold text-white">
-                                                    ${(Number(productForm.price) - Number(productForm.cost)).toLocaleString()}
+                                                    ${realProfit.toLocaleString()}
                                                 </span>
                                             </div>
                                         </div>
@@ -388,13 +500,17 @@ export const BeverageForm = ({
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Proveedor</label>
-                                        <input
-                                            className="w-full bg-bg-deep border border-border-dark rounded px-3 py-2 text-white text-sm focus:border-white/20 outline-none"
-                                            placeholder="Ej. Coca-Cola Company"
-                                            value={productForm.supplier}
-                                            onChange={e => setProductForm({ ...productForm, supplier: e.target.value })}
-                                        />
+                                        {selectedProduct ? null : (
+                                            <>
+                                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Proveedor</label>
+                                                <input
+                                                    className="w-full bg-bg-deep border border-border-dark rounded px-3 py-2 text-white text-sm focus:border-white/20 outline-none"
+                                                    placeholder="Ej. Coca-Cola Company"
+                                                    value={productForm.supplier || ''}
+                                                    onChange={e => setProductForm({ ...productForm, supplier: e.target.value })}
+                                                />
+                                            </>
+                                        )}
                                     </div>
                                     <div>
                                         <div className="flex justify-between items-center mb-1">
@@ -403,7 +519,7 @@ export const BeverageForm = ({
                                         <div className="flex gap-2">
                                             <input
                                                 className="w-full bg-bg-deep border border-border-dark rounded px-3 py-2 text-white text-sm focus:border-white/20 outline-none"
-                                                value={productForm.stock}
+                                                value={formatStock(productForm.stock)}
                                                 disabled
                                                 title="Calculado según lotes activos"
                                             />
@@ -452,7 +568,9 @@ export const BeverageForm = ({
                                             </div>
                                             <div className="flex justify-between items-center text-[10px] text-gray-600">
                                                 <span>Stock</span>
-                                                <span className={p.stock > 10 ? 'text-emerald-500' : 'text-red-500'}>{p.stock} u</span>
+                                                <span className={p.stock > 10 ? 'text-emerald-500' : 'text-red-500'}>
+                                                    {Number.isInteger(Number(p.stock)) ? Math.round(p.stock) : Number(p.stock).toFixed(2)} u
+                                                </span>
                                             </div>
                                             {p.sku && <div className="text-[9px] text-gray-500 uppercase tracking-wider">{p.sku}</div>}
                                         </div>

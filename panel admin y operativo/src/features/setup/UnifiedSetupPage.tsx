@@ -6,6 +6,7 @@ import { BeverageForm } from './components/BeverageForm';
 import { StandardForm } from './components/StandardForm';
 import { ModifierForm } from './components/ModifierForm';
 import { setupService, RecipeItemRow } from './setup.service';
+import { type Ingredient as KitchenIngredient } from '@/features/kitchen/kitchen.service';
 
 export const UnifiedSetupPage = () => {
     // --- Global Data Hook ---
@@ -24,29 +25,17 @@ export const UnifiedSetupPage = () => {
         productForm, setProductForm,
         isSaving, fileInputRef,
         handleFileChange, handleSave: saveProduct,
-        selectedProduct, handleSelectProduct, handleDelete, resetForm // New handlers
+        selectedProduct, handleSelectProduct, handleDelete, resetForm
     } = useProductForm(viewMode, refreshData, selectedCategory, products);
 
-    // ...
-
-    {/* BEBIDAS MODULE */ }
-    {
-        viewMode === 'BEBIDAS' && (
-            <BeverageForm
-                productForm={productForm}
-                setProductForm={setProductForm}
-                fileInputRef={fileInputRef}
-                handleFileChange={handleFileChange}
-                handleSave={saveProduct}
-                onCancel={() => setViewMode('HOME')}
-                isSaving={isSaving}
-                products={products.filter(p => !p.category_id || p.category_name !== 'Materia Prima')}
-                selectedProduct={selectedProduct}
-                onSelectProduct={handleSelectProduct}
-                onDelete={handleDelete}
-            />
-        )
-    }
+    // Aliases for different form modes (since all use the same unified hook logic)
+    const handleSaveStandard = saveProduct;
+    // Modifiers might need separate logic or use the same hook
+    // (Assuming ModifierForm expects a specific signature, checking usage temporarily aliased)
+    const handleSaveModifier = async (data: any) => {
+        // Placeholder if distinct logic is needed, or reuse saveProduct if compatible
+        console.warn("Modifier save logic not fully integrated yet");
+    };
 
     // --- Category Selection Logic ---
     useEffect(() => {
@@ -65,60 +54,6 @@ export const UnifiedSetupPage = () => {
             setSelectedCategory(null);
         }
     }, [viewMode, categories]);
-
-    // --- Save Handlers Wrappers ---
-    const handleSaveStandard = async () => {
-        // Inject recipe items into payload logic if needed
-        // For now, useProductForm's handleSave handles basic fields
-        // But for StandardForm + Recipe, we need to handle RecipeItems
-        // Refactoring opportunity: handling recipe within hook or passing as arg
-        // For simplicity: We will assume useProductForm can't see recipeItems unless passed
-        // We might need to augment saveProduct to accept payload override
-
-        // Actually, existing useProductForm didn't include recipeItems.
-        // Let's modify logic briefly:
-        // Or we pass 'recipe_items' inside 'productForm' before calling save?
-        const formWithRecipe = { ...productForm, recipe_items: recipeItems };
-
-        // Quick patch: pass logic to service directly here if complex, 
-        // OR update hook to accept recipeItems.
-        // Let's rely on saveProduct doing the "Basic" save, 
-        // but for Recipes we need `createProduct` with `recipe_items`.
-
-        // Since I can't easily edit the hook now without another step, 
-        // I will implement a local wrapper that calls service directly if HAS RECIPE
-        if (productForm.hasRecipe && viewMode !== 'INSUMOS') {
-            try {
-                // ... validation ...
-                await setupService.createProduct({
-                    ...productForm,
-                    category_id: selectedCategory?.id,
-                    recipe_items: recipeItems
-                });
-                await refreshData();
-                setProductForm({ ...productForm, name: '', price: '' }); // Partial reset
-                setRecipeItems([]);
-                alert("Producto con receta guardado.");
-            } catch (e) {
-                console.error(e);
-                alert("Error al guardar receta.");
-            }
-        } else {
-            await saveProduct();
-        }
-    };
-
-    const handleSaveModifier = async (data: any) => {
-        try {
-            // Need service method
-            // await setupService.createModifier(data); // If exists
-            // Or update product
-            alert("Guardado (Simulado - falta implementar servicio createModifier)");
-            await refreshData();
-        } catch (e) {
-            console.error(e);
-        }
-    };
 
     if (isLoading) {
         return <div className="text-white p-10 flex justify-center">Cargando datos del sistema...</div>;
@@ -159,12 +94,60 @@ export const UnifiedSetupPage = () => {
                         handleSave={saveProduct}
                         onCancel={() => setViewMode('HOME')}
                         isSaving={isSaving}
-                        products={products.filter(p => !p.category_id || p.category_name !== 'Materia Prima')}
+                        products={products
+                            .filter(p => !p.category_id || p.category_name !== 'Materia Prima')
+                            .map(p => {
+                                // Enrich with stock from linked ingredient (Single Source of Truth)
+                                const linkedIng = (ingredients as unknown as KitchenIngredient[]).find(i =>
+                                    i.name.trim().toLowerCase() === p.name.trim().toLowerCase()
+                                );
+                                return {
+                                    ...p,
+                                    stock: linkedIng?.stock ?? p.stock ?? 0
+                                };
+                            })
+                        }
                         selectedProduct={selectedProduct}
                         onSelectProduct={(p) => {
-                            handleSelectProduct(p);
+                            // Enrich with ingredient cost/stock if available (Bridge 1:1)
+                            const linkedIng = (ingredients as unknown as KitchenIngredient[]).find(i =>
+                                i.name.trim().toLowerCase() === p.name.trim().toLowerCase()
+                            );
+
+                            let finalCost = p.cost; // Default
+                            let finalStock = p.stock;
+
+                            if (linkedIng) {
+                                console.log(`[DEBUG-SETUP] Linked Ingredient found for ${p.name}:`, {
+                                    id: linkedIng.id,
+                                    stock: linkedIng.stock,
+                                    calc_cost: linkedIng.calculated_cost,
+                                    curr_cost: linkedIng.current_cost,
+                                    total_val: linkedIng.total_inventory_value
+                                });
+
+                                finalStock = linkedIng.stock;
+                                // Use Backend calculated Effective Cost
+                                if (linkedIng.calculated_cost && linkedIng.calculated_cost > 0) {
+                                    finalCost = linkedIng.calculated_cost;
+                                    console.log("[DEBUG-SETUP] Using Backend Effective Cost:", finalCost);
+                                } else {
+                                    finalCost = linkedIng.current_cost;
+                                    console.log("[DEBUG-SETUP] Fallback to Current Cost:", finalCost);
+                                }
+                            } else {
+                                console.log(`[DEBUG-SETUP] No Linked Ingredient found for ${p.name}`);
+                            }
+
+                            const enriched = {
+                                ...p,
+                                cost: finalCost || 0,
+                                stock: finalStock || 0
+                            };
+                            handleSelectProduct(enriched);
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
+                        allIngredients={ingredients as any}
                         onDelete={handleDelete}
                         onCancelEdit={resetForm}
                     />

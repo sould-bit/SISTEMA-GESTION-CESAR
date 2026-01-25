@@ -105,15 +105,32 @@ class IngredientService:
             from sqlalchemy import func
             
             # Subquery para stock total
+            # Subquery para stock total (Calculated from Batches for accuracy)
             stock_subquery = select(
-                IngredientInventory.ingredient_id,
-                IngredientInventory.stock
-            ).where(IngredientInventory.branch_id == branch_id).subquery()
+                IngredientBatch.ingredient_id,
+                func.sum(IngredientBatch.quantity_remaining).label("stock")
+            ).where(
+                IngredientBatch.branch_id == branch_id, 
+                IngredientBatch.is_active == True
+            ).group_by(IngredientBatch.ingredient_id).subquery()
             
             # Subquery para valor del inventario (Total Invested)
+            # PRECISIÓN MEJORADA: Si no hay consumo, usa total_cost directamente
+            # Si hay consumo parcial, usa fórmula proporcional
+            from sqlalchemy import case
+            value_expr = case(
+                # Si no hay consumo (remaining == initial), usar total_cost directo
+                (IngredientBatch.quantity_remaining == IngredientBatch.quantity_initial, 
+                 IngredientBatch.total_cost),
+                # Si hay consumo parcial, calcular proporcional
+                else_=IngredientBatch.total_cost * (
+                    IngredientBatch.quantity_remaining / 
+                    func.nullif(IngredientBatch.quantity_initial, 0)
+                )
+            )
             value_subquery = select(
                 IngredientBatch.ingredient_id,
-                func.sum(IngredientBatch.quantity_remaining * IngredientBatch.cost_per_unit).label("total_value")
+                func.sum(value_expr).label("total_value")
             ).where(
                 IngredientBatch.branch_id == branch_id,
                 IngredientBatch.is_active == True
@@ -128,8 +145,46 @@ class IngredientService:
                 .outerjoin(value_subquery, Ingredient.id == value_subquery.c.ingredient_id)\
                 .where(Ingredient.company_id == company_id)
         else:
-            # Query simple sin stock (solo Ingredient)
-            stmt = select(Ingredient).where(Ingredient.company_id == company_id)
+            # Query global (all branches) with aggregation
+            from sqlalchemy import func
+            
+            # Subquery for total stock across all branches
+            # Subquery for total stock across all branches directly from BATCHES (Source of Truth)
+            stock_subquery = select(
+                IngredientBatch.ingredient_id,
+                func.sum(IngredientBatch.quantity_remaining).label("stock")
+            ).join(IngredientBatch.ingredient).where(
+                Ingredient.company_id == company_id,
+                IngredientBatch.is_active == True
+            ).group_by(IngredientBatch.ingredient_id).subquery()
+            
+            # Subquery for total value (active batches) across all branches
+            # PRECISIÓN MEJORADA: Si no hay consumo, usa total_cost directamente
+            from sqlalchemy import case
+            value_expr = case(
+                (IngredientBatch.quantity_remaining == IngredientBatch.quantity_initial, 
+                 IngredientBatch.total_cost),
+                else_=IngredientBatch.total_cost * (
+                    IngredientBatch.quantity_remaining / 
+                    func.nullif(IngredientBatch.quantity_initial, 0)
+                )
+            )
+            value_subquery = select(
+                IngredientBatch.ingredient_id,
+                func.sum(value_expr).label("total_value")
+            ).join(IngredientBatch.ingredient).where(
+                Ingredient.company_id == company_id,
+                IngredientBatch.is_active == True
+            ).group_by(IngredientBatch.ingredient_id).subquery()
+
+            stmt = select(
+                    Ingredient, 
+                    stock_subquery.c.stock,
+                    value_subquery.c.total_value
+                )\
+                .outerjoin(stock_subquery, Ingredient.id == stock_subquery.c.ingredient_id)\
+                .outerjoin(value_subquery, Ingredient.id == value_subquery.c.ingredient_id)\
+                .where(Ingredient.company_id == company_id)
             
         if ingredient_type:
             # Convert string to Enum if needed for proper comparison
@@ -146,27 +201,47 @@ class IngredientService:
         
         stmt = stmt.offset(skip).limit(limit)
         result = await self.session.execute(stmt)
+        rows = result.all()
         
-        ingredients_data = []
-        if branch_id:
-            # Procesar tuplas (Ingredient, stock, total_value)
-            rows = result.all()
-            for ingredient, stock, total_value in rows:
-                data = ingredient.model_dump()
-                data["stock"] = stock if stock is not None else Decimal(0)
-                data["total_inventory_value"] = total_value if total_value is not None else Decimal(0)
-                ingredients_data.append(data)
-        else:
-            # Resultado estándar
-            rows = result.scalars().all()
-            for ingredient in rows:
-                data = ingredient.model_dump()
-                # Stock opcional/0 si no se pide branch
-                data["stock"] = Decimal(0) 
-                data["total_inventory_value"] = Decimal(0)
-                ingredients_data.append(data)
-                
-        return ingredients_data
+        # Process rows to calculate cost and return dicts
+        final_results = []
+        for row in rows:
+            # row structure is (Ingredient, stock, total_value) due to the select keys
+            ingredient = row[0]
+            stock = row[1] or 0
+            total_value = row[2] or 0
+            
+            # --- BACKEND FINANCIAL LOGIC ---
+            # Calculate Effective Cost (WAC vs Reference)
+            if stock > 0 and total_value > 0:
+                calculated_cost = total_value / stock
+                print(f"[DEBUG-BACKEND] WAC Calc for {ingredient.name}: Stock={stock}, Val={total_value} -> EffCost={calculated_cost}")
+            else:
+                calculated_cost = ingredient.current_cost
+                print(f"[DEBUG-BACKEND] Fallback Cost for {ingredient.name}: Stock={stock} -> EffCost={calculated_cost}")
+            
+            # Serialize to dict (Manual mapping for performance/custom fields)
+            ing_dict = {
+                "id": ingredient.id,
+                "company_id": ingredient.company_id,
+                "name": ingredient.name,
+                "sku": ingredient.sku,
+                "ingredient_type": ingredient.ingredient_type,
+                "base_unit": ingredient.base_unit,
+                "yield_factor": ingredient.yield_factor,
+                "current_cost": ingredient.current_cost,
+                "last_cost": ingredient.last_cost,
+                "category_id": ingredient.category_id,
+                "is_active": ingredient.is_active,
+                "created_at": ingredient.created_at,
+                "updated_at": ingredient.updated_at,
+                "stock": stock,
+                "total_inventory_value": total_value,
+                "calculated_cost": calculated_cost 
+            }
+            final_results.append(ing_dict)
+            
+        return final_results
 
     async def update(
         self,
@@ -365,24 +440,127 @@ class IngredientService:
         return batch
 
     async def delete_batch(self, batch_id: uuid.UUID) -> bool:
-        """Elimina un lote (hard delete) y actualiza el inventario."""
+        """
+        Elimina un lote (hard delete) y actualiza el inventario.
+        
+        IMPORTANTE: NO usa update_ingredient_stock() para evitar que el FIFO
+        consuma de otros lotes. Solo decrementa directamente el inventario.
+        """
         batch = await self.get_batch_by_id(batch_id)
         if not batch:
             return False
 
-        # Actualizar stock (Restar lo que queda en el lote)
+        # Actualizar stock directamente (SIN FIFO)
         if batch.quantity_remaining > 0:
-            from app.services.inventory_service import InventoryService
-            inv_service = InventoryService(self.session)
-            await inv_service.update_ingredient_stock(
-                branch_id=batch.branch_id,
-                ingredient_id=batch.ingredient_id,
-                quantity_delta=-batch.quantity_remaining,
-                transaction_type="BATCH_DELETION", # Use custom type for Delta update
-                reason=f"Eliminación de lote {batch.id}"
-            )
+            from app.models.ingredient_inventory import IngredientInventory, IngredientTransaction
+            
+            # 1. Obtener inventario
+            stmt = select(IngredientInventory).where(
+                IngredientInventory.branch_id == batch.branch_id,
+                IngredientInventory.ingredient_id == batch.ingredient_id
+            ).with_for_update()
+            result = await self.session.execute(stmt)
+            inventory = result.scalar_one_or_none()
+            
+            if inventory:
+                # 2. Decrementar stock directamente
+                inventory.stock -= batch.quantity_remaining
+                self.session.add(inventory)
+                
+                # 3. Registrar transacción
+                txn = IngredientTransaction(
+                    inventory_id=inventory.id,
+                    transaction_type="BATCH_DELETION",
+                    quantity=-batch.quantity_remaining,
+                    balance_after=inventory.stock,
+                    reference_id=None,
+                    user_id=None,
+                    reason=f"Eliminación de lote {batch.id}"
+                )
+                self.session.add(txn)
 
         await self.session.delete(batch)
         await self.session.commit()
         return True
+
+    async def sync_inventory_from_batches(self, company_id: int):
+        """
+        FORCE SYNC: Updates ingredient_inventory and ingredient cost 
+        based on the SUM of active batches.
+        Serves as the 'Single Source of Truth' repair tool.
+        """
+        from sqlalchemy import select, func
+        from app.models.ingredient import Ingredient
+        from app.models.ingredient_batch import IngredientBatch
+        from app.models.ingredient_inventory import IngredientInventory
+        
+        # 1. Get all ingredients for company
+        stmt = select(Ingredient).where(Ingredient.company_id == company_id)
+        result = await self.session.execute(stmt)
+        ingredients = result.scalars().all()
+        
+        sync_log = []
+        
+        for ing in ingredients:
+            # 2. Get Real Stock from Batches (Grouped by Branch)
+            batch_query = select(
+                IngredientBatch.branch_id,
+                func.sum(IngredientBatch.quantity_remaining).label("real_stock")
+            ).where(
+                IngredientBatch.ingredient_id == ing.id,
+                IngredientBatch.is_active == True
+            ).group_by(IngredientBatch.branch_id)
+            
+            batches_result = await self.session.execute(batch_query)
+            batches_data = batches_result.fetchall()
+            
+            # Map branch_id -> stock
+            real_stock_map = {row.branch_id: row.real_stock for row in batches_data}
+            
+            # 3. Update Inventory Records
+            # First, get existing inventory records
+            inv_query = select(IngredientInventory).where(IngredientInventory.ingredient_id == ing.id)
+            inv_result = await self.session.execute(inv_query)
+            inventories = inv_result.scalars().all()
+            
+            existing_branches = set()
+            
+            for inv in inventories:
+                existing_branches.add(inv.branch_id)
+                real_val = real_stock_map.get(inv.branch_id, 0)
+                
+                if float(inv.stock) != float(real_val):
+                    old_val = inv.stock
+                    inv.stock = real_val
+                    sync_log.append(f"Updated {ing.name} (Branch {inv.branch_id}): {old_val} -> {real_val}")
+            
+            # Create missing records if batches exist for a branch but no inventory record
+            for branch_id, real_val in real_stock_map.items():
+                if branch_id not in existing_branches:
+                    new_inv = IngredientInventory(
+                        ingredient_id=ing.id,
+                        branch_id=branch_id,
+                        stock=real_val,
+                        min_stock=0,
+                        max_stock=100
+                    )
+                    self.session.add(new_inv)
+                    sync_log.append(f"Created Inv {ing.name} (Branch {branch_id}): {real_val}")
+            
+            # 4. Repair Cost (If 0 and batches exist)
+            if ing.current_cost == 0:
+                latest_batch_q = select(IngredientBatch).where(
+                    IngredientBatch.ingredient_id == ing.id,
+                    IngredientBatch.is_active == True,
+                    IngredientBatch.cost_per_unit > 0
+                ).order_by(IngredientBatch.acquired_at.desc()).limit(1)
+                lb_res = await self.session.execute(latest_batch_q)
+                latest_batch = lb_res.scalar_one_or_none()
+                
+                if latest_batch:
+                   ing.current_cost = latest_batch.cost_per_unit
+                   sync_log.append(f"Fixed Cost {ing.name}: $0 -> ${latest_batch.cost_per_unit}")
+
+        await self.session.commit()
+        return sync_log
 
