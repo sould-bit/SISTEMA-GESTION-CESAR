@@ -1,6 +1,16 @@
 import { api } from '../../lib/api';
 
-// Interfaces based on backend schemas
+
+export type MacroType = 'HOME' | 'INSUMOS' | 'PRODUCCION' | 'CARTA' | 'BEBIDAS' | 'EXTRAS';
+
+export interface RecipeItemRow {
+    ingredientId: number;
+    name: string;
+    cost: number;
+    quantity: number;
+    unit: string;
+}
+
 export interface Product {
     id: number;
     name: string;
@@ -54,6 +64,28 @@ export interface ProductModifier {
     extra_price: number;
     is_active: boolean;
     recipe_items?: ModifierRecipeItem[];
+}
+
+// NEW: Beverage creation payload (1:1 Bridge Pattern)
+export interface BeveragePayload {
+    name: string;
+    cost: number;         // Costo compra (para Ingredient)
+    sale_price: number;   // Precio venta (para Product)
+    initial_stock: number;
+    unit: string;
+    image_url?: string;
+    category_id?: number;
+    description?: string;
+    sku?: string;
+    supplier?: string;
+    category_name?: string;
+}
+
+export interface BeverageResponse {
+    product: Product;
+    ingredient: any; // Simplified, backend returns full ingredient
+    recipe: any;
+    message: string;
 }
 
 const INGREDIENT_CATEGORY_NAME = 'Materia Prima';
@@ -122,13 +154,8 @@ export const setupService = {
     },
 
     async getIngredients(): Promise<Product[]> {
-        // Ideally filter by category_id of 'Materia Prima'
-        // For now, get all and filter client side or assume we'll build a specific endpoint later
-        // Optimally: await api.get('/products/?category_id=...');
-        const res = await api.get('/products/');
-        // We can't easily filter by category name without joining or separate call unless backend supports it
-        // We'll rely on the UI to match IDs for now, or fetch all.
-        // Let's assume we filter on frontend by the known category ID.
+        // Use the dedicated Ingredients endpoint to get Stock/WAC data
+        const res = await api.get('/ingredients/');
         return res.data;
     },
 
@@ -226,5 +253,33 @@ export const setupService = {
     async updateModifierRecipe(modifierId: number, items: RecipeItem[]): Promise<ProductModifier> {
         const res = await api.put(`/modifiers/${modifierId}/recipe`, items);
         return res.data;
+    },
+
+    // NEW: Beverages / Merchandise (1:1 Bridge Pattern)
+    async createBeverage(data: BeveragePayload, branchId: number): Promise<BeverageResponse> {
+        const res = await api.post(`/products/beverage?branch_id=${branchId}`, data);
+        return res.data;
+    },
+
+    async updateBeverage(id: number, data: BeveragePayload, branchId: number): Promise<BeverageResponse> {
+        // Use cascade endpoint that updates Product + Ingredient
+        const payload = {
+            name: data.name,
+            cost: data.cost,
+            sale_price: data.sale_price,
+            image_url: data.image_url,
+            category_id: data.category_id,
+            sku: data.sku,
+            supplier: data.supplier
+        };
+        console.log('[updateBeverage] Request:', { id, branchId, payload });
+        const res = await api.put(`/products/beverage/${id}?branch_id=${branchId}`, payload);
+        console.log('[updateBeverage] Response:', res.data);
+        return res.data;
+    },
+
+    async deleteBeverage(id: number): Promise<void> {
+        // Use cascade endpoint that soft-deletes Product + Ingredient + Batches
+        await api.delete(`/products/beverage/${id}`);
     }
 };

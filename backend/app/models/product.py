@@ -1,9 +1,14 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Index, UniqueConstraint, text, Column, Numeric
+import uuid
+from sqlalchemy import Index, text, Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
+if TYPE_CHECKING:
+    from .category import Category
+    from .company import Company
+    from .recipe import Recipe
 
 class Product(SQLModel, table=True):
     """
@@ -16,8 +21,11 @@ class Product(SQLModel, table=True):
     __tablename__ = "products"
 
     __table_args__ = (
-        # Unicidad: nombre único por empresa
-        UniqueConstraint("company_id", "name", name="uq_products_company_name"),
+        # NOTA: La unicidad de nombre por empresa se maneja via índice parcial
+        # en la BD (uq_products_company_name_active). Este índice solo aplica
+        # a productos ACTIVOS, permitiendo reutilizar nombres de productos inactivos.
+        # Ver migración: b001_partial_unique_products.py
+        
         # Índice: filtro por empresa + activo (listados)
         Index("idx_products_company_active", "company_id", "is_active"),
         # Índice: búsqueda por categoría
@@ -45,5 +53,11 @@ class Product(SQLModel, table=True):
     category: Optional["Category"] = Relationship(back_populates="products")
     company: Optional["Company"] = Relationship()
 
-    # Relación con receta (1:1 opcional)
-    recipe: Optional["Recipe"] = Relationship(back_populates="product")
+    # Active Recipe Link
+    active_recipe_id: Optional[uuid.UUID] = Field(default=None, foreign_key="recipes.id", nullable=True)
+
+    # Relationships
+    recipes: List["Recipe"] = Relationship(
+        back_populates="product",
+        sa_relationship_kwargs={"foreign_keys": "Recipe.product_id"}
+    )

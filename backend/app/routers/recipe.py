@@ -6,6 +6,7 @@ Incluye CRUD completo y recálculo de costos.
 """
 
 from typing import List
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -71,7 +72,7 @@ async def list_recipes(
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)
 async def get_recipe(
-    recipe_id: int,
+    recipe_id: uuid.UUID,
     company_id: int = Depends(verify_current_user_company),
     recipe_service: RecipeService = Depends(get_recipe_service)
 ):
@@ -107,14 +108,19 @@ async def create_recipe(
     - Los ingredientes deben ser productos válidos de la empresa
     - El costo total se calcula automáticamente
     """
-    recipe = await recipe_service.create_recipe(recipe_data, company_id)
+    recipe = await recipe_service.create_recipe(
+        product_id=recipe_data.product_id,
+        company_id=company_id,
+        name=recipe_data.name,
+        items_data=[item.model_dump() for item in recipe_data.items]
+    )
     logger.info(f"Usuario {current_user.username} creó receta: {recipe.name}")
     return recipe_service.build_recipe_response(recipe)
 
 
 @router.put("/{recipe_id}", response_model=RecipeResponse)
 async def update_recipe(
-    recipe_id: int,
+    recipe_id: uuid.UUID,
     update_data: RecipeUpdate,
     company_id: int = Depends(verify_current_user_company),
     recipe_service: RecipeService = Depends(get_recipe_service)
@@ -131,7 +137,7 @@ async def update_recipe(
 
 @router.put("/{recipe_id}/items", response_model=RecipeResponse)
 async def update_recipe_items(
-    recipe_id: int,
+    recipe_id: uuid.UUID,
     items_data: RecipeItemAddOrUpdate,
     company_id: int = Depends(verify_current_user_company),
     recipe_service: RecipeService = Depends(get_recipe_service)
@@ -150,7 +156,7 @@ async def update_recipe_items(
 
 @router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_recipe(
-    recipe_id: int,
+    recipe_id: uuid.UUID,
     company_id: int = Depends(verify_current_user_company),
     recipe_service: RecipeService = Depends(get_recipe_service)
 ):
@@ -169,7 +175,7 @@ async def delete_recipe(
 
 @router.post("/{recipe_id}/recalculate", response_model=RecipeCostRecalculateResponse)
 async def recalculate_recipe_cost(
-    recipe_id: int,
+    recipe_id: uuid.UUID,
     company_id: int = Depends(verify_current_user_company),
     recipe_service: RecipeService = Depends(get_recipe_service)
 ):
