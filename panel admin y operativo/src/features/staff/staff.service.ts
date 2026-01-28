@@ -7,6 +7,7 @@ export interface User {
     full_name: string;
     role: string; // code
     role_id: string; // uuid
+    role_name: string;
     is_active: boolean;
     company_id: number;
 }

@@ -41,9 +41,13 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: Props) => {
         try {
             const data = await StaffService.getRoles();
             setRoles(data);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError("Error al cargar roles");
+            if (err.response && err.response.status === 403) {
+                setError("No tienes permiso para ver los roles. Contacta al administrador.");
+            } else {
+                setError("Error al cargar roles");
+            }
         }
     };
 

@@ -23,13 +23,22 @@ export const StaffPage = () => {
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('¿Estás seguro de desactivar este usuario?')) return;
+    const handleToggleStatus = async (user: User) => {
+        // Validación de protección: No permitir desactivar al admin
+        if (user.role === 'admin' || user.role === 'owner' || user.username === 'admin') {
+            alert("No puedes desactivar al usuario administrador principal.");
+            return;
+        }
+
+        const action = user.is_active ? 'desactivar' : 'activar';
+        if (!confirm(`¿Estás seguro de ${action} este usuario?`)) return;
+
         try {
-            await StaffService.deleteUser(id);
+            await StaffService.updateUser(user.id, { is_active: !user.is_active });
             loadUsers();
         } catch (error) {
             console.error(error);
+            alert("Error actualizando estado del usuario");
         }
     };
 
@@ -103,7 +112,7 @@ export const StaffPage = () => {
                                     <td className="px-6 py-4 text-gray-300">{user.email}</td>
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 text-xs font-medium border border-blue-500/20">
-                                            {user.role}
+                                            {user.role_name || user.role}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
@@ -115,14 +124,24 @@ export const StaffPage = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => handleDelete(user.id)}
-                                                className="p-1 hover:bg-white/10 rounded text-red-400"
-                                                title="Desactivar"
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">block</span>
-                                            </button>
+                                        <div className="flex gap-2">
+                                            {/* Ocultar botón de bloqueo si es admin */}
+                                            {user.role !== 'admin' && user.role !== 'owner' ? (
+                                                <button
+                                                    onClick={() => handleToggleStatus(user)}
+                                                    className={`p-1 rounded transition-colors ${user.is_active
+                                                        ? 'hover:bg-red-500/20 text-red-400'
+                                                        : 'hover:bg-green-500/20 text-green-400'
+                                                        }`}
+                                                    title={user.is_active ? "Desactivar usuario" : "Activar usuario"}
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">
+                                                        {user.is_active ? 'block' : 'check_circle'}
+                                                    </span>
+                                                </button>
+                                            ) : (
+                                                <span className="text-gray-600 text-xs italic px-2">Protegido</span>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
