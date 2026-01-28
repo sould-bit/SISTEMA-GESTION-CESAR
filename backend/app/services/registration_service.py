@@ -343,12 +343,14 @@ class RegistrationService:
             {"category": "settings", "code": "settings.read", "name": "Ver configuración", "resource": "settings", "action": "read"},
             {"category": "settings", "code": "settings.update", "name": "Modificar configuración", "resource": "settings", "action": "update"},
             # Admin RBAC
-            {"category": "admin", "code": "admin.roles.create", "name": "Crear roles", "resource": "admin.roles", "action": "create"},
-            {"category": "admin", "code": "admin.roles.read", "name": "Ver roles", "resource": "admin.roles", "action": "read"},
-            {"category": "admin", "code": "admin.roles.update", "name": "Editar roles", "resource": "admin.roles", "action": "update"},
-            {"category": "admin", "code": "admin.roles.delete", "name": "Eliminar roles", "resource": "admin.roles", "action": "delete"},
-            {"category": "admin", "code": "admin.permissions.read", "name": "Ver permisos", "resource": "admin.permissions", "action": "read"},
-            {"category": "admin", "code": "admin.permissions.update", "name": "Asignar permisos", "resource": "admin.permissions", "action": "update"},
+            {"category": "admin", "code": "roles.create", "name": "Crear roles", "resource": "roles", "action": "create"},
+            {"category": "admin", "code": "roles.read", "name": "Ver roles", "resource": "roles", "action": "read"},
+            {"category": "admin", "code": "roles.update", "name": "Editar roles", "resource": "roles", "action": "update"},
+            {"category": "admin", "code": "roles.delete", "name": "Eliminar roles", "resource": "roles", "action": "delete"},
+            {"category": "admin", "code": "permissions.read", "name": "Ver permisos", "resource": "permissions", "action": "read"},
+            {"category": "admin", "code": "permissions.update", "name": "Asignar permisos", "resource": "permissions", "action": "update"},
+            {"category": "admin", "code": "categories.read", "name": "Ver categorías", "resource": "categories", "action": "read"},
+            {"category": "admin", "code": "categories.create", "name": "Crear categorías", "resource": "categories", "action": "create"},
         ]
         
         # Crear categorías

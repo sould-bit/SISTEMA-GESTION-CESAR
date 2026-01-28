@@ -25,7 +25,12 @@ export const StaffPage = () => {
 
     const handleToggleStatus = async (user: User) => {
         // Validación de protección: No permitir desactivar al admin
-        if (user.role === 'admin' || user.role === 'owner' || user.username === 'admin') {
+        if (
+            user.role === 'admin' ||
+            user.role === 'owner' ||
+            user.username === 'admin' ||
+            (user.role_name && user.role_name.toLowerCase() === 'administrador')
+        ) {
             alert("No puedes desactivar al usuario administrador principal.");
             return;
         }
@@ -126,7 +131,7 @@ export const StaffPage = () => {
                                     <td className="px-6 py-4">
                                         <div className="flex gap-2">
                                             {/* Ocultar botón de bloqueo si es admin */}
-                                            {user.role !== 'admin' && user.role !== 'owner' ? (
+                                            {user.role !== 'admin' && user.role !== 'owner' && (user.role_name && user.role_name.toLowerCase() !== 'administrador') ? (
                                                 <button
                                                     onClick={() => handleToggleStatus(user)}
                                                     className={`p-1 rounded transition-colors ${user.is_active

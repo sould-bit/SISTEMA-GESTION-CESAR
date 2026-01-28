@@ -4,6 +4,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.models.user import User
 from app.models.role import Role
@@ -26,13 +29,18 @@ class UserService:
 
     async def create_user(self, company_id: int, user_data: UserCreate) -> User:
         # Check if email/username exists in company
-        stmt = select(User).where(
-            (User.email == user_data.email) | (User.username == user_data.username),
-            User.company_id == company_id
-        )
-        result = await self.session.execute(stmt)
-        if result.scalar_one_or_none():
-            raise ValueError("Email or Username already exists in this company")
+        # Check collision separately for better error message
+        # Check email
+        stmt_email = select(User).where(User.email == user_data.email, User.company_id == company_id)
+        if (await self.session.execute(stmt_email)).scalar_one_or_none():
+            logger.warning(f"Registration failed: Email {user_data.email} already exists in company {company_id}")
+            raise ValueError(f"El email '{user_data.email}' ya está registrado en esta empresa.")
+
+        # Check username
+        stmt_username = select(User).where(User.username == user_data.username, User.company_id == company_id)
+        if (await self.session.execute(stmt_username)).scalar_one_or_none():
+             logger.warning(f"Registration failed: Username {user_data.username} already exists in company {company_id}")
+             raise ValueError(f"El usuario '{user_data.username}' ya existe en esta empresa.")
 
         # Validate Role
         role = await self.session.get(Role, user_data.role_id)
@@ -55,6 +63,10 @@ class UserService:
         self.session.add(new_user)
         await self.session.commit()
         await self.session.refresh(new_user)
+        
+        # Populate relationship for response serialization
+        new_user.user_role = role
+        
         return new_user
 
     async def update_user(self, user_id: int, company_id: int, user_data: UserUpdate) -> User:
