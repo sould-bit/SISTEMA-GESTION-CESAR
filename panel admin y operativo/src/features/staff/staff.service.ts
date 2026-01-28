@@ -94,8 +94,6 @@ export const StaffService = {
         await api.delete(`/users/${id}`);
     },
 
-},
-
     // RBAC MANAGEMENT
 
     getRoles: async () => {
@@ -103,45 +101,45 @@ export const StaffService = {
         return response.data;
     },
 
-        getRoleDetails: async (roleId: string) => {
-            const response = await api.get<Role>('/rbac/roles/' + roleId);
-            return response.data;
-        },
+    getRoleDetails: async (roleId: string) => {
+        const response = await api.get<Role>('/rbac/roles/' + roleId);
+        return response.data;
+    },
 
-            createRole: async (data: CreateRoleDto) => {
-                const response = await api.post<Role>('/rbac/roles', data);
-                return response.data;
-            },
+    createRole: async (data: CreateRoleDto) => {
+        const response = await api.post<Role>('/rbac/roles', data);
+        return response.data;
+    },
 
-                updateRole: async (id: string, data: UpdateRoleDto) => {
-                    const response = await api.put<Role>(`/rbac/roles/${id}`, data);
-                    return response.data;
-                },
+    updateRole: async (id: string, data: UpdateRoleDto) => {
+        const response = await api.put<Role>(`/rbac/roles/${id}`, data);
+        return response.data;
+    },
 
-                    deleteRole: async (id: string) => {
-                        await api.delete(`/rbac/roles/${id}`);
-                    },
+    deleteRole: async (id: string) => {
+        await api.delete(`/rbac/roles/${id}`);
+    },
 
-                        getPermissions: async () => {
-                            const response = await api.get<Permission[]>('/rbac/permissions');
-                            return response.data;
-                        },
+    getPermissions: async () => {
+        const response = await api.get<Permission[]>('/rbac/permissions');
+        return response.data;
+    },
 
-                            getCategories: async () => {
-                                const response = await api.get<PermissionCategory[]>('/rbac/categories');
-                                return response.data;
-                            },
+    getCategories: async () => {
+        const response = await api.get<PermissionCategory[]>('/rbac/categories');
+        return response.data;
+    },
 
-                                assignPermission: async (roleId: string, permissionId: string) => {
-                                    await api.post(`/rbac/roles/${roleId}/permissions/${permissionId}`);
-                                },
+    assignPermission: async (roleId: string, permissionId: string) => {
+        await api.post(`/rbac/roles/${roleId}/permissions/${permissionId}`);
+    },
 
-                                    revokePermission: async (roleId: string, permissionId: string) => {
-                                        await api.delete(`/rbac/roles/${roleId}/permissions/${permissionId}`);
-                                    },
+    revokePermission: async (roleId: string, permissionId: string) => {
+        await api.delete(`/rbac/roles/${roleId}/permissions/${permissionId}`);
+    },
 
-                                        fixRoles: async () => {
-                                            const response = await api.post<{ message: string }>('/users/fix-roles');
-                                            return response.data;
-                                        }
+    fixRoles: async () => {
+        const response = await api.post<{ message: string }>('/users/fix-roles');
+        return response.data;
+    }
 };
