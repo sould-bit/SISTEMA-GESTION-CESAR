@@ -13,6 +13,7 @@ import { OrdersPage } from '../features/admin/OrdersPage';
 import { IngredientManager, RecipesPage, MenuMatrix } from '../features/kitchen';
 import { IngredientHistoryPage } from '../features/kitchen/pages/IngredientHistoryPage';
 import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
+import { StaffPage } from '../features/staff/StaffPage';
 
 export const router = createBrowserRouter([
     {
@@ -55,6 +56,14 @@ export const router = createBrowserRouter([
                             {
                                 path: 'orders',
                                 element: <OrdersPage />
+                            },
+                            {
+                                path: 'setup',
+                                element: <UnifiedSetupPage />
+                            },
+                            {
+                                path: 'staff',
+                                element: <StaffPage />
                             }
                         ]
                     }
@@ -89,10 +98,7 @@ export const router = createBrowserRouter([
                                 path: 'menu-engineering',
                                 element: <MenuMatrix />
                             },
-                            {
-                                path: 'setup',
-                                element: <UnifiedSetupPage />
-                            },
+
 
                         ]
                     }

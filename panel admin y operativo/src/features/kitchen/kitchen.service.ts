@@ -13,6 +13,31 @@ import { api } from '@/lib/api';
 // TYPES - Aligned with Backend V4.1
 // ============================================
 
+export interface ProductSummary {
+    id: number;
+    name: string;
+    price: number;
+    stock: number;
+    category_id?: number;
+    category_name?: string;
+}
+
+export interface Category {
+    id: number;
+    name: string;
+    description?: string;
+    is_active: boolean;
+}
+
+export interface ProductCreate {
+    name: string;
+    price: number;
+    category_id?: number;
+    description?: string;
+    stock?: number;
+    image_url?: string;
+}
+
 export interface Ingredient {
     id: string;
     name: string;
@@ -101,6 +126,7 @@ export interface Recipe {
     batch_yield: number;
     total_cost: number;
     preparation_time: number;
+    recipe_type: 'REAL' | 'AUTO' | 'PROCESSED';  // Type of recipe
     items: RecipeItem[];
 }
 
@@ -164,6 +190,25 @@ export const kitchenService = {
         if (search) params.search = search;
         if (ingredientType) params.ingredient_type = ingredientType;
         const { data } = await api.get<Ingredient[]>('/ingredients/', { params });
+        return data;
+    },
+
+    // Products
+    getProducts: async (search?: string): Promise<ProductSummary[]> => {
+        const params: any = {};
+        if (search) params.search = search;
+        const { data } = await api.get<ProductSummary[]>('/products', { params });
+        return data;
+    },
+
+    createProduct: async (product: ProductCreate): Promise<ProductSummary> => {
+        const { data } = await api.post<ProductSummary>('/products/', product);
+        return data;
+    },
+
+    // Categories
+    getCategories: async (): Promise<Category[]> => {
+        const { data } = await api.get<Category[]>('/categories/');
         return data;
     },
 

@@ -291,7 +291,7 @@ class MasterSeeder:
                     role_permission = RolePermission(
                         role_id=role.id,
                         permission_id=permission.id,
-                        granted_by=1  # Usuario admin por defecto
+                        granted_by=None  # Evitar hardcodear ID para prevenir IntegrityError
                     )
                     self.session.add(role_permission)
                     print(f"✅ Permiso asignado: {role.name} -> {permission.name}")
@@ -469,15 +469,53 @@ class MasterSeeder:
 
         if reset:
             print("🗑️  Reset activado - limpiando datos existentes...")
-            # Aquí iría código para limpiar datos si fuera necesario
+            await self.clean_database()
+
+    async def clean_database(self):
+        """Elimina todos los datos de las tablas principales"""
+        from sqlalchemy import text
+        
+        tables = [
+            # Orden transaccional/dependiente primero
+            "order_item_modifiers", "order_items", "orders", "payments",
+            "cash_closures", "audit_logs", "print_jobs",
+            "recipe_items", "active_recipes", "recipes",
+            "ingredient_transactions", "ingredient_batches", "product_modifiers",
+            "inventory_transactions", "inventory_counts", "inventory_count_items",
+            "production_event_input_batches", "production_event_inputs", "production_events",
+            
+            # Tablas principales
+            "ingredients", "products", "categories", "inventories",
+            "users", "role_permissions", "roles", "permissions", "permission_categories",
+            "branches", "companies", 
+            "customers", "customer_addresses", "delivery_shifts"
+        ]
+        
+        # Disable triggers temporarily to avoid conflicts during truncate? 
+        # Actually TRUNCATE CASCADE handles most constraints, simply listing standard tables.
+        
+        print("⚠️  Limpiando tablas...")
+        for table in tables:
+            try:
+                # Use CASCADE to handle FKs automatically
+                await self.session.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
+                print(f"   - {table} limpiada")
+            except Exception as e:
+                # Si la tabla no existe o error, solo loguear warning
+                print(f"   ⚠️ No se pudo limpiar {table} (quizás no existe aun): {e}")
+
+        await self.session.commit()
+        print("✨ Base de datos limpia")
 
         try:
+            """los datos configuracionales como categorias , permisos roles , y datos para funcion del sistema por defecto """
             # 1. Compañías
-            print("🏢 Creando compañías...")
-            company = await self.seed_companies()
+            #para produccion no nesesitamos cargar datos de compañiaas ya que son datos de usuario y prueba no configuracionales del sistema por default 
+            #print("🏢 Creando compañías...")
+            #company = await self.seed_companies()
 
-            # 2. Categorías
-            print("📂 Creando categorías...")
+            # 2. Categorías de permisos
+            print("📂 Creando categorías de permisos...")
             categories = await self.seed_categories(company)
 
             # 3. Permisos
@@ -489,12 +527,12 @@ class MasterSeeder:
             roles = await self.seed_roles(company)
 
             # 5. Sucursales
-            print("🏪 Creando sucursales...")
-            branches = await self.seed_branches(company)
+            #print("🏪 Creando sucursales...")
+            #branches = await self.seed_branches(company)
 
             # 6. Usuarios
-            print("👤 Creando usuarios...")
-            await self.seed_users(company, roles, branches)
+            #print("👤 Creando usuarios...")
+            #await self.seed_users(company, roles, branches)
 
             # 6. Asignaciones rol-permiso
             print("🔗 Asignando permisos a roles...")
@@ -505,12 +543,12 @@ class MasterSeeder:
             prod_categories = await self.seed_product_categories(company)
 
             # 8. Productos
-            print("🍎 Creando productos...")
-            await self.seed_products(company, prod_categories)
+            #print("🍎 Creando productos...")
+            #await self.seed_products(company, prod_categories)
 
             # 9. Inventario inicial
-            print("📦 Creando inventario inicial...")
-            await self.seed_inventory(company, branches)
+            #print("📦 Creando inventario inicial...")
+            #await self.seed_inventory(company, branches)
 
             if not dry_run:
                 await self.session.commit()

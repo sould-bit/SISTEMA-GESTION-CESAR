@@ -133,7 +133,8 @@ class BeverageService:
             name=f"Receta Auto: {name}",
             description="Receta 1:1 generada automáticamente para mercadería",
             company_id=company_id,
-            is_active=True
+            is_active=True,
+            recipe_type="AUTO"  # Mark as auto-generated
         )
         self.db.add(recipe)
         await self.db.flush()  # Get recipe ID
@@ -304,6 +305,17 @@ class BeverageService:
             recipe_item = result.scalar_one_or_none()
             if recipe_item:
                 ingredient = await self.db.get(Ingredient, recipe_item.ingredient_id)
+        
+        # FALLBACK: If no recipe found, try to find MERCHANDISE ingredient with same name
+        if not ingredient:
+            stmt = select(Ingredient).where(
+                Ingredient.name == product.name,
+                Ingredient.company_id == product.company_id,
+                Ingredient.ingredient_type == IngredientType.MERCHANDISE,
+                Ingredient.is_active == True
+            )
+            result = await self.db.execute(stmt)
+            ingredient = result.scalar_one_or_none()
         
         # 3. Soft-delete Product
         product.is_active = False

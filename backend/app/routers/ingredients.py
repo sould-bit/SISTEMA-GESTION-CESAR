@@ -43,6 +43,7 @@ router = APIRouter(
 async def list_ingredients(
     active_only: bool = Query(True, description="Solo ingredientes activos"),
     ingredient_type: str = Query(None, description="Filtrar por tipo (RAW, PROCESSED, MERCHANDISE)"),
+    search: str = Query(None, description="Buscar por nombre o SKU"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
@@ -56,7 +57,8 @@ async def list_ingredients(
         skip=skip,
         limit=limit,
         branch_id=current_user.branch_id,
-        ingredient_type=ingredient_type
+        ingredient_type=ingredient_type,
+        search=search,
     )
     return ingredients
 

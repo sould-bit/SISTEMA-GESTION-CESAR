@@ -112,9 +112,9 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: jnonstiiven@gmail.com # Tu email de admin
       PGADMIN_DEFAULT_PASSWORD: admin123 # Tu contraseña
-      PGADMIN_CONFIG_SERVER_MODE: 'False' # Modo standalone
+      PGADMIN_CONFIG_SERVER_MODE: 'True' # Modo servidor (recomendado para Docker)
     ports:
-      - "5050:80" # Puerto PC : Puerto Contenedor (usaremos 5050 para evitar conflictos)
+      - "5051:80" # Puerto PC : Puerto Contenedor (usaremos 5051 para evitar conflictos)
     depends_on:
       db:
         condition: service_healthy
@@ -122,6 +122,19 @@ services:
       - postgres_network
     volumes:
       - pgadmin_data:/var/lib/pgadmin # Persistencia de configuración
+
+  # Adminer - Alternativa ligera para DB
+  adminer:
+    image: adminer
+    container_name: adminer_FastOps
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - postgres_network
 
 # ==========================================
 # Volúmenes

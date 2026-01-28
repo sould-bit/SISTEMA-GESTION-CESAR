@@ -12,6 +12,7 @@ export const RecipesPage = () => {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [loading, setLoading] = useState(false);
+    const [recipeTypeFilter, setRecipeTypeFilter] = useState<'REAL' | 'AUTO' | 'ALL'>('REAL');
 
     useEffect(() => {
         loadRecipes();
@@ -147,41 +148,91 @@ export const RecipesPage = () => {
 
             {loading ? (
                 <div className="text-center py-12 text-gray-500">Cargando recetas...</div>
-            ) : recipes.length === 0 ? (
-                <div className="text-center py-12 bg-card-dark border border-border-dark rounded-2xl">
-                    <span className="material-symbols-outlined text-4xl text-gray-600 mb-2">menu_book</span>
-                    <p className="text-gray-400">No hay recetas configuradas aún</p>
-                </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {recipes.map((recipe) => (
-                        <div
-                            key={recipe.id}
-                            onClick={() => selectRecipe(recipe)}
-                            className="bg-card-dark border border-border-dark rounded-xl p-4 cursor-pointer hover:border-accent-purple/50 transition-all hover:shadow-lg hover:shadow-purple-500/10 group"
+                <>
+                    {/* Filter Tabs */}
+                    <div className="flex gap-2 border-b border-border-dark pb-4">
+                        <button
+                            onClick={() => setRecipeTypeFilter('REAL')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${recipeTypeFilter === 'REAL'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                                : 'text-gray-400 hover:bg-white/5'
+                                }`}
                         >
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-bold text-white group-hover:text-accent-purple transition-colors">{recipe.name}</h3>
-                                {recipe.is_active ?
-                                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span> :
-                                    <span className="w-2 h-2 rounded-full bg-red-400"></span>
-                                }
-                            </div>
-                            <p className="text-sm text-text-muted mb-3 line-clamp-1">
-                                {recipe.product_name || 'Sin producto vinculado'}
-                            </p>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">{recipe.items?.length || 0} ingredientes</span>
-                                <span className="font-mono text-emerald-400 font-medium">
-                                    {formatCurrency(recipe.total_cost)}
-                                </span>
-                            </div>
+                            🍳 Recetas Reales
+                            <span className="ml-2 text-xs opacity-70">
+                                ({recipes.filter(r => r.recipe_type === 'REAL').length})
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setRecipeTypeFilter('AUTO')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${recipeTypeFilter === 'AUTO'
+                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                                : 'text-gray-400 hover:bg-white/5'
+                                }`}
+                        >
+                            🤖 Recetas Auto
+                            <span className="ml-2 text-xs opacity-70">
+                                ({recipes.filter(r => r.recipe_type === 'AUTO').length})
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setRecipeTypeFilter('ALL')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${recipeTypeFilter === 'ALL'
+                                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                                : 'text-gray-400 hover:bg-white/5'
+                                }`}
+                        >
+                            📋 Todas
+                            <span className="ml-2 text-xs opacity-70">
+                                ({recipes.length})
+                            </span>
+                        </button>
+                    </div>
+
+                    {/* Filtered Recipes Grid */}
+                    {recipes
+                        .filter(r => recipeTypeFilter === 'ALL' || r.recipe_type === recipeTypeFilter)
+                        .length === 0 ? (
+                        <div className="text-center py-12 bg-card-dark border border-border-dark rounded-2xl">
+                            <span className="material-symbols-outlined text-4xl text-gray-600 mb-2">menu_book</span>
+                            <p className="text-gray-400">No hay recetas en esta categoría</p>
                         </div>
-                    ))}
-                </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {recipes
+                                .filter(r => recipeTypeFilter === 'ALL' || r.recipe_type === recipeTypeFilter)
+                                .map((recipe) => (
+                                    <div
+                                        key={recipe.id}
+                                        onClick={() => selectRecipe(recipe)}
+                                        className="bg-card-dark border border-border-dark rounded-xl p-4 cursor-pointer hover:border-accent-purple/50 transition-all hover:shadow-lg hover:shadow-purple-500/10 group"
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h3 className="font-bold text-white group-hover:text-accent-purple transition-colors">{recipe.name}</h3>
+                                            {recipe.is_active ?
+                                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span> :
+                                                <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                                            }
+                                        </div>
+                                        <p className="text-sm text-text-muted mb-3 line-clamp-1">
+                                            {recipe.product_name || 'Sin producto vinculado'}
+                                        </p>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-500">{recipe.items?.length || 0} ingredientes</span>
+                                            <span className="font-mono text-emerald-400 font-medium">
+                                                {formatCurrency(recipe.total_cost)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
 };
 
 export default RecipesPage;
+

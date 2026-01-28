@@ -28,7 +28,8 @@ from app.routers import (
     menu_engineering,
     kitchen_production,
     inventory_count,
-    intelligence
+    intelligence,
+    users
 )
 from fastapi.staticfiles import StaticFiles
 from .core.websockets import sio # Import Socket.IO server
@@ -48,8 +49,10 @@ app = FastAPI(
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:3000", 
-    "*"
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -82,6 +85,7 @@ app.include_router(menu_engineering.router)
 app.include_router(kitchen_production.router)
 app.include_router(inventory_count.router)
 app.include_router(intelligence.router)
+app.include_router(users.router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

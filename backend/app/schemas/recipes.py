@@ -104,6 +104,7 @@ class RecipeResponse(RecipeBase):
     product_name: Optional[str] = Field(None, description="Nombre del producto")
     total_cost: Decimal = Field(description="Costo total calculado")
     is_active: bool
+    recipe_type: str = Field(description="Tipo de receta: REAL, AUTO, PROCESSED")
     created_at: datetime
     updated_at: Optional[datetime]
     items: List[RecipeItemResponse] = Field(default_factory=list)
@@ -120,8 +121,10 @@ class RecipeListResponse(BaseModel):
     product_id: int
     product_name: Optional[str] = None
     name: str
+
     total_cost: Decimal
     is_active: bool
+    recipe_type: str
     items_count: int = 0
     created_at: datetime
 

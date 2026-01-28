@@ -9,7 +9,8 @@ import { useState } from 'react';
 const foundationSchema = z.object({
     companyName: z.string().min(2, 'El nombre es muy corto'),
     nitRut: z.string().min(5, 'Identificador legal requerido'),
-    slogan: z.string().optional()
+    ownerName: z.string().min(3, 'Nombre del fundador requerido'),
+    phone: z.string().min(7, 'Teléfono requerido')
 });
 
 type FoundationForm = z.infer<typeof foundationSchema>;
@@ -24,7 +25,8 @@ export const Step1Foundation = () => {
         defaultValues: {
             companyName: foundation.companyName,
             nitRut: foundation.nitRut,
-            slogan: foundation.slogan
+            ownerName: foundation.ownerName,
+            phone: foundation.phone
         }
     });
 
@@ -107,11 +109,19 @@ export const Step1Foundation = () => {
                     />
 
                     <TextInput
-                        label="Lema / Slogan (Opcional)"
-                        icon="record_voice_over"
-                        placeholder="Ej. Calidad y servicio superior"
-                        {...register('slogan')}
-                        error={errors.slogan?.message}
+                        label="Nombre del Fundador"
+                        icon="person"
+                        placeholder="Ej. Tony Stark"
+                        {...register('ownerName')}
+                        error={errors.ownerName?.message}
+                    />
+
+                    <TextInput
+                        label="Teléfono de Contacto"
+                        icon="call"
+                        placeholder="Ej. +57 300 123 4567"
+                        {...register('phone')}
+                        error={errors.phone?.message}
                     />
 
                     <div className="pt-8">

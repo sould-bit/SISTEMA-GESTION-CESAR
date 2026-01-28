@@ -6,7 +6,7 @@
  * - Ejemplos: Aceite, Harina, Tomates, Carne.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useIngredients } from '../../hooks/useIngredients';
 import { Ingredient, IngredientCreate } from '../../types/ingredient';
 
@@ -22,7 +22,7 @@ const BASE_UNITS = [
 ];
 
 export const IngredientsPage = () => {
-    const { ingredients, loading, error, createIngredient, updateIngredient, deleteIngredient, updateCost } = useIngredients();
+    const { ingredients, loading, error, createIngredient, updateIngredient, deleteIngredient, updateCost, fetchIngredients } = useIngredients();
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [showCostModal, setShowCostModal] = useState(false);
@@ -39,15 +39,17 @@ export const IngredientsPage = () => {
     });
     const [newCost, setNewCost] = useState<number>(0);
 
-    const filteredIngredients = useMemo(() => {
-        if (!searchTerm) return ingredients;
-        const term = searchTerm.toLowerCase();
-        return ingredients.filter(
-            (ing) =>
-                ing.name.toLowerCase().includes(term) ||
-                ing.sku.toLowerCase().includes(term)
-        );
-    }, [ingredients, searchTerm]);
+
+
+    // Server-side search with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchIngredients(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm, fetchIngredients]);
+
+    const filteredIngredients = ingredients;
 
     const openCreateModal = () => {
         setEditingIngredient(null);

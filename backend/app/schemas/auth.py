@@ -28,22 +28,43 @@ class TokenData(BaseModel):
     permissions: List[str] = []  # Lista de códigos de permisos
 
 class LoginRequest(BaseModel):
-    """datos para iniciar sesion"""
-
-    model_config  = {
-            "example": {
-                "username": "admin",
-                "password": "admin123", 
-                "company_slug": "salchipapa-burguer"
-            }
+    """
+    Datos para iniciar sesión.
+    
+    Estrategia v3.5 (Smart Auth):
+    - Se requiere email y password.
+    - company_slug es opcional (se usa para desempate si el email existe en varias empresas).
+    """
+    model_config = {
+        "example": {
+            "email": "admin@imperio.com",
+            "password": "securePass123",
+            "company_slug": "opcional-para-desempate"
         }
+    }
 
-    username: str
+    email: str
     password: str
-    company_slug: str
+    company_slug: str | None = None
+    # username obsoleto para login, pero mantenemos compatibilidad si se envía
+    username: str | None = None
 
 
-   
+class CompanyOption(BaseModel):
+    """Opción de empresa para usuarios multi-tenant"""
+    name: str
+    slug: str
+    role: str
+
+class LoginResponse(BaseModel):
+    """
+    Respuesta polimórfica de login:
+    - Si login exitoso: devuelve 'token'
+    - Si requiere selección: devuelve 'options'
+    """
+    token: Token | None = None
+    options: List[CompanyOption] | None = None
+    requires_selection: bool = False
         
 
 class UserResponse(BaseModel):

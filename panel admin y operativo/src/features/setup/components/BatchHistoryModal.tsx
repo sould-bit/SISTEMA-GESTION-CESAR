@@ -327,7 +327,7 @@ export const BatchHistoryModal = ({ productId, productName, baseUnit, onClose }:
                                         </div>
                                         <div className="text-right">
                                             <div className="text-emerald-400 font-mono font-bold">{formatCurrency(batch.total_cost, 0)}</div>
-                                            <div className="text-[10px] text-gray-500">{formatCurrency(batch.cost_per_unit, 0)} / {baseUnit}</div>
+                                            <div className="text-[10px] text-gray-500">{formatCurrency(batch.cost_per_unit, 2)} / {baseUnit}</div>
                                         </div>
                                     </div>
 

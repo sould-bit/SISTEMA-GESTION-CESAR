@@ -100,6 +100,9 @@ class RegistrationService:
                 owner_name=data.owner_name,
                 owner_email=data.owner_email,
                 owner_phone=data.owner_phone,
+                # Datos Legales
+                legal_name=data.legal_name,
+                tax_id=data.tax_id,
                 plan=data.plan,
                 is_active=True
             )
@@ -119,6 +122,9 @@ class RegistrationService:
             
             # 5.5 Crear permisos por defecto y asignarlos al admin
             await self._create_default_permissions(company, admin_role)
+            
+            # 5.6 CREAR ROLES POR DEFECTO (Managers, Cajeros, etc)
+            await self._create_operational_roles(company)
             
             # 6. Crear User admin (owner)
             user = await self._create_admin_user(
@@ -244,8 +250,8 @@ class RegistrationService:
         data: RegistrationRequest
     ) -> User:
         """Crear usuario admin (owner del negocio)."""
-        # Usar email como username (más fácil de recordar)
-        username = data.owner_email.split("@")[0]
+        # Usar username proporcionado
+        username = data.username
         
         user = User(
             username=username,
@@ -262,6 +268,11 @@ class RegistrationService:
         await self.db.flush()
         logger.info(f"✅ User admin creado: {user.username}")
         return user
+
+    async def _create_operational_roles(self, company: Company):
+        """Crear roles operativos base (Cajero, Cocinero, etc)."""
+        from app.utils.role_seeder import seed_default_roles
+        await seed_default_roles(self.db, company.id)
 
     async def _generate_tokens(self, user: User, company: Company) -> tuple[str, str]:
         """Generar tokens JWT para el usuario."""

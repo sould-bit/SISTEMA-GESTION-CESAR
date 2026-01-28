@@ -10,7 +10,7 @@ interface UseIngredientsReturn {
     ingredients: Ingredient[];
     loading: boolean;
     error: string | null;
-    fetchIngredients: () => Promise<void>;
+    fetchIngredients: (search?: string) => Promise<void>;
     createIngredient: (data: IngredientCreate) => Promise<Ingredient>;
     updateIngredient: (id: string, data: IngredientUpdate) => Promise<Ingredient>;
     deleteIngredient: (id: string) => Promise<void>;
@@ -22,11 +22,12 @@ export const useIngredients = (): UseIngredientsReturn => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchIngredients = useCallback(async () => {
+    const fetchIngredients = useCallback(async (search?: string) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await api.get<Ingredient[]>('/ingredients/');
+            const params = search ? { search } : {};
+            const response = await api.get<Ingredient[]>('/ingredients/', { params });
             setIngredients(response.data);
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Error al cargar ingredientes');

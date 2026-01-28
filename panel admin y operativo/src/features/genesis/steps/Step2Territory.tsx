@@ -8,8 +8,7 @@ import { TextInput } from '../../../components/ui/TextInput';
 
 const territorySchema = z.object({
     branchName: z.string().min(3, 'Nombre de sede requerido'),
-    address: z.string().min(5, 'Dirección requerida'),
-    phone: z.string().min(7, 'Teléfono requerido')
+    address: z.string().min(5, 'Dirección requerida')
 });
 
 type TerritoryForm = z.infer<typeof territorySchema>;
@@ -17,14 +16,12 @@ type TerritoryForm = z.infer<typeof territorySchema>;
 export const Step2Territory = () => {
     const dispatch = useAppDispatch();
     const territory = useAppSelector(state => state.genesis.territory);
-    const [isPinDragging, setIsPinDragging] = useState(false);
 
     const { register, handleSubmit, formState: { errors } } = useForm<TerritoryForm>({
         resolver: zodResolver(territorySchema),
         defaultValues: {
             branchName: territory.branchName,
-            address: territory.address,
-            phone: territory.phone
+            address: territory.address
         }
     });
 
@@ -99,13 +96,7 @@ export const Step2Territory = () => {
                         error={errors.address?.message}
                     />
 
-                    <TextInput
-                        label="Teléfono de Contacto"
-                        icon="call"
-                        placeholder="Ej. +57 300 123 4567"
-                        {...register('phone')}
-                        error={errors.phone?.message}
-                    />
+
 
                     <div className="pt-6 flex gap-4">
                         <button

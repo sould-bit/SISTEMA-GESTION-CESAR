@@ -22,6 +22,9 @@ class Recipe(SQLModel, table=True):
     name: str = Field(max_length=200)
     version: int = Field(default=1)
     is_active: bool = Field(default=True)
+    
+    # Recipe type: REAL (manual recipe), AUTO (auto-generated for beverages), PROCESSED (for processed ingredients)
+    recipe_type: str = Field(default="REAL", max_length=20)
 
     batch_yield: float = Field(default=1.0, description="Rendimiento de la receta (ej. 1 olla de salsa)")
     total_cost: Decimal = Field(default=0, sa_column=Column(Numeric(10, 2))) # Cache del costo calculado

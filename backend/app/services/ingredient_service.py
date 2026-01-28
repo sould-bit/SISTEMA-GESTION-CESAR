@@ -11,7 +11,7 @@ import uuid
 from decimal import Decimal
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from fastapi import HTTPException
 
 from app.models.ingredient import Ingredient
@@ -96,7 +96,10 @@ class IngredientService:
         return result.scalar_one_or_none()
 
     async def list_by_company(
-        self, company_id: int, active_only: bool = True, skip: int = 0, limit: int = 100, branch_id: Optional[int] = None, ingredient_type: Optional[str] = None
+        self, company_id: int, active_only: bool = True, skip: int = 0, limit: int = 100,
+        branch_id: Optional[int] = None,
+        ingredient_type: Optional[str] = None,
+        search: Optional[str] = None,
     ) -> List[dict]:
         """Lista ingredientes de una empresa, opcionalmente con stock de una sucursal y filtro por tipo."""
         if branch_id:
@@ -185,6 +188,15 @@ class IngredientService:
                 .outerjoin(stock_subquery, Ingredient.id == stock_subquery.c.ingredient_id)\
                 .outerjoin(value_subquery, Ingredient.id == value_subquery.c.ingredient_id)\
                 .where(Ingredient.company_id == company_id)
+
+        # Common Filters (Apply search BEFORE offset/limit)
+        if search:
+            stmt = stmt.where(
+                or_(
+                    Ingredient.name.ilike(f"%{search}%"),
+                    Ingredient.sku.ilike(f"%{search}%")
+                )
+            )
             
         if ingredient_type:
             # Convert string to Enum if needed for proper comparison

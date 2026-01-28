@@ -52,7 +52,7 @@ export const GenesisLayout = ({ children }: GenesisLayoutProps) => {
                             <span className="text-xs font-semibold uppercase tracking-wider">
                                 {step === 1 && 'Fundación'}
                                 {step === 2 && 'Territorio'}
-                                {step === 3 && 'Comando'}
+                                {step === 3 && 'Datos De Inicio'}
                             </span>
                         </div>
                     ))}
