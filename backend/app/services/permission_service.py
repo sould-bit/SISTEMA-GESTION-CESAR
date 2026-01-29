@@ -243,6 +243,17 @@ class PermissionService:
         Returns:
             Objeto RolePermission creado
         """
+        # 0. Obtener company_id del rol (y validar existencia)
+        # Esto previene errores de Lazy Loading (MissingGreenlet) más adelante
+        role_stmt = select(Role).where(Role.id == role_id)
+        role_res = await self.session.execute(role_stmt)
+        role = role_res.scalar_one_or_none()
+        
+        if not role:
+            raise ValueError(f"Rol {role_id} no encontrado")
+            
+        company_id = role.company_id
+
         # Verificar si ya existe
         result = await self.session.execute(
             select(RolePermission)
@@ -270,14 +281,14 @@ class PermissionService:
 
         # Invalidar cache de usuarios con este rol
         if self.cache:
-            await self.cache.invalidate_role_permissions(str(role_id), role_permission.role.company_id)
+            await self.cache.invalidate_role_permissions(str(role_id), company_id)
 
         self.logger.info(
             f"Permiso otorgado a rol {role_id}, cache invalidado",
             extra={
                 "role_id": str(role_id),
                 "permission_id": str(permission_id),
-                "company_id": role_permission.role.company_id,
+                "company_id": company_id,
                 "action": "grant_permission"
             }
         )

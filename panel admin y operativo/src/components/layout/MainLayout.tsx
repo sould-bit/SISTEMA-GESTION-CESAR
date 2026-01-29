@@ -5,12 +5,12 @@ import { useAppSelector } from '../../stores/store';
 import { AccessDenied } from '../../features/shared/AccessDenied';
 
 export const MainLayout = () => {
-    const isAccessDenied = useAppSelector(state => state.ui.accessDenied);
+    const { accessDenied: isAccessDenied, isAccessDeniedBlocking } = useAppSelector(state => state.ui);
 
     return (
         <div className="h-screen w-full bg-bg-deep text-text-body font-sans flex overflow-hidden">
             {/* Global Access Denied Overlay */}
-            {isAccessDenied && <AccessDenied />}
+            {isAccessDenied && <AccessDenied isBlocking={isAccessDeniedBlocking} />}
 
             {/* Sidebar */}
             <div className="hidden lg:flex flex-col h-full shrink-0">

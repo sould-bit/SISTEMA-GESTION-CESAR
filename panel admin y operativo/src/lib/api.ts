@@ -32,7 +32,8 @@ api.interceptors.response.use(
             } else if (error.response.status === 403) {
                 console.warn("⛔ 403 Forbidden detected. Dispatching Access Denied...");
                 // Bloqueo global de UI cuando se detecta falta de permisos
-                store.dispatch(setAccessDenied(true));
+                // isBlocking: false permite al usuario cerrar la alerta
+                store.dispatch(setAccessDenied({ isOpen: true, isBlocking: false }));
             }
         }
         return Promise.reject(error);

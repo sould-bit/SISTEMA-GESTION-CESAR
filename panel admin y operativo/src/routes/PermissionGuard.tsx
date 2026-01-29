@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAppSelector } from '../stores/store';
-import { AccessDenied } from '../features/shared/AccessDenied';
+import { useAppDispatch, useAppSelector } from '../stores/store';
+import { setAccessDenied } from '../stores/ui.slice';
+import { useEffect } from 'react';
 
 interface Props {
     requiredPermission?: string;
@@ -9,6 +10,7 @@ interface Props {
 
 export const PermissionGuard = ({ requiredPermission, allowedRoles }: Props) => {
     const { user } = useAppSelector(state => state.auth);
+    const dispatch = useAppDispatch();
 
     if (!user) {
         return <Navigate to="/login" replace />;
@@ -37,12 +39,28 @@ export const PermissionGuard = ({ requiredPermission, allowedRoles }: Props) => 
         }
     }
 
-    // 4. Default Allow (if no props)
-    // If neither prop is passed, we assume the route is just authenticated (Protected)
-    // which is already handled by user check above.
+    // Handle Access Denied via Redux (Side Effect)
+    useEffect(() => {
+        if (!isAllowed) {
+            dispatch(setAccessDenied({ isOpen: true, isBlocking: true }));
+        } else {
+            // Ensure we clear the state if we are allowed (e.g. navigation change)
+            // But be careful not to clear it if it was set by API error?
+            // Actually, if we are in a Guarded Route and we are allowed, we shouldn't implicitly clear it 
+            // unless we want to "reset" the view. 
+            // Ideally, navigation clears it.
+            dispatch(setAccessDenied({ isOpen: false }));
+        }
+
+        // Cleanup on unmount seems risky if we navigate away? 
+        return () => {
+            dispatch(setAccessDenied({ isOpen: false }));
+        };
+    }, [isAllowed, dispatch, requiredPermission]);
 
     if (!isAllowed) {
-        return <AccessDenied isBlocking={true} />;
+        // Render nothing, MainLayout will handle the overlay via Redux
+        return null;
     }
 
     return <Outlet />;
