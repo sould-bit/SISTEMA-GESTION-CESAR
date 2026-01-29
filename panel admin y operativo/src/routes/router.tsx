@@ -5,6 +5,7 @@ import { GenesisPage } from '../features/genesis/GenesisPage';
 import { MainLayout } from '../components/layout/MainLayout';
 import { ErrorPage } from '../components/ErrorPage';
 import { ProtectedRoute } from './ProtectedRoute';
+import { PermissionGuard } from './PermissionGuard';
 import { DashboardPage } from '../features/admin/DashboardPage';
 import { InventoryPage } from '../features/admin/InventoryPage';
 import { OrdersPage } from '../features/admin/OrdersPage';
@@ -51,19 +52,31 @@ export const router = createBrowserRouter([
                             },
                             {
                                 path: 'inventory',
-                                element: <InventoryPage />
+                                element: <PermissionGuard requiredPermission="inventory.read" />,
+                                children: [
+                                    { index: true, element: <InventoryPage /> }
+                                ]
                             },
                             {
                                 path: 'orders',
-                                element: <OrdersPage />
+                                element: <PermissionGuard requiredPermission="orders.read" />,
+                                children: [
+                                    { index: true, element: <OrdersPage /> }
+                                ]
                             },
                             {
                                 path: 'setup',
-                                element: <UnifiedSetupPage />
+                                element: <PermissionGuard requiredPermission="settings.read" />,
+                                children: [
+                                    { index: true, element: <UnifiedSetupPage /> }
+                                ]
                             },
                             {
                                 path: 'staff',
-                                element: <StaffPage />
+                                element: <PermissionGuard requiredPermission="users.read" />,
+                                children: [
+                                    { index: true, element: <StaffPage /> }
+                                ]
                             }
                         ]
                     }

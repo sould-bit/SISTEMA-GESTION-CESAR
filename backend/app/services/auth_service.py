@@ -173,8 +173,38 @@ class AuthService:
             user: Usuario ya validado por middleware
 
         Returns:
-            UserResponse: Datos públicos del usuario
+            UserResponse: Datos públicos del usuario con permisos
         """
+        permissions = []
+        role_code = None
+        
+        # Cargar permisos y role_code si tiene rol asignado
+        if user.role_id:
+            from app.services.permission_service import PermissionService
+            from app.models.role import Role
+            
+            # Fetch Permissions
+            perm_service = PermissionService(self.db)
+            try:
+                permissions = await perm_service.get_user_permission_codes(user.id, user.company_id)
+            except Exception as e:
+                logger.warning(f"Error fetching permissions for user {user.id}: {e}")
+
+            # Fetch Role Code
+            try:
+                # Try accessing relationship first
+                if user.user_role:
+                    role_code = user.user_role.code
+            except:
+                # Relationship likely not loaded, fetch manually
+                try:
+                    role_result = await self.db.execute(select(Role).where(Role.id == user.role_id))
+                    role_obj = role_result.scalar_one_or_none()
+                    if role_obj:
+                        role_code = role_obj.code
+                except Exception as e:
+                    logger.warning(f"Error fetching role for user {user.id}: {e}")
+
         return UserResponse(
             id=user.id,
             username=user.username,
@@ -183,7 +213,9 @@ class AuthService:
             role=user.role,
             is_active=user.is_active,
             company_id=user.company_id,
-            branch_id=user.branch_id
+            branch_id=user.branch_id,
+            role_code=role_code,
+            permissions=permissions
         )
 
     async def verify_user_token(self, user: User) -> TokenVerification:

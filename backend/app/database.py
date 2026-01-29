@@ -5,7 +5,7 @@ from .config import settings
 # Crear el engine ASÍNCRONO
 engine = create_async_engine(
     settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=True  # muestra las SQL en consola
+    echo=False  # muestra las SQL en consola
 )
 
 # Crear sessionmaker ASÍNCRONO

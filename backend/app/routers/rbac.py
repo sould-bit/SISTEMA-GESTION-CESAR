@@ -147,7 +147,7 @@ async def delete_role(
 # ============================================================================
 
 @router.get("/permissions", response_model=List[PermissionRead])
-@require_permission("permissions.read")
+@require_permission("roles.read")
 async def list_permissions(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -199,7 +199,7 @@ async def revoke_permission(
 # ============================================================================
 
 @router.get("/categories", response_model=List[PermissionCategoryRead])
-@require_permission("categories.read")
+@require_permission("roles.read")
 async def list_categories(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),

@@ -78,6 +78,10 @@ class UserResponse(BaseModel):
     is_active: bool
     company_id: int
     branch_id: int | None
+    
+    # RBAC Fields
+    role_code: str | None = None
+    permissions: List[str] = []
 
     class Config:
         from_attributes = True # permite convertir desde modelos SQLmodel

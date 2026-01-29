@@ -1,10 +1,17 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { useAppSelector } from '../../stores/store';
+import { AccessDenied } from '../../features/shared/AccessDenied';
 
 export const MainLayout = () => {
+    const isAccessDenied = useAppSelector(state => state.ui.accessDenied);
+
     return (
         <div className="h-screen w-full bg-bg-deep text-text-body font-sans flex overflow-hidden">
+            {/* Global Access Denied Overlay */}
+            {isAccessDenied && <AccessDenied />}
+
             {/* Sidebar */}
             <div className="hidden lg:flex flex-col h-full shrink-0">
                 <Sidebar />

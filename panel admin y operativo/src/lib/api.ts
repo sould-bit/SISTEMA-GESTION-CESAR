@@ -18,12 +18,22 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+import { setAccessDenied } from '../stores/ui.slice';
+
+// ... existing code ...
+
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
-            store.dispatch(logout());
-            window.location.href = '/login';
+        if (error.response) {
+            if (error.response.status === 401) {
+                store.dispatch(logout());
+                window.location.href = '/login';
+            } else if (error.response.status === 403) {
+                console.warn("⛔ 403 Forbidden detected. Dispatching Access Denied...");
+                // Bloqueo global de UI cuando se detecta falta de permisos
+                store.dispatch(setAccessDenied(true));
+            }
         }
         return Promise.reject(error);
     }

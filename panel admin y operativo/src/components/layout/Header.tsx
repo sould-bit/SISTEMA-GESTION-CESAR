@@ -1,10 +1,14 @@
-import { useAppDispatch } from '../../stores/store';
+import { useAppDispatch, useAppSelector } from '../../stores/store';
 import { logout } from '../../stores/auth.slice';
 import { useNavigate } from 'react-router-dom';
 
 export const Header = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
+
+    const user = useAppSelector(state => state.auth.user);
+    const userInitials = user?.username ? user.username.substring(0, 2).toUpperCase() : 'JD';
+    const userRole = user?.role_name || user?.role || 'User';
 
     const handleLogout = () => {
         dispatch(logout());
@@ -38,12 +42,12 @@ export const Header = () => {
                 </button>
                 <div className="flex items-center gap-3 pl-6 border-l border-border-dark cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors" onClick={handleLogout}>
                     <div className="text-right hidden sm:block">
-                        <p className="text-sm font-medium text-white leading-none">Jane Doe</p>
-                        <p className="text-xs text-text-muted mt-1 leading-none">Manager</p>
+                        <p className="text-sm font-medium text-white leading-none">{user?.username || 'Jane Doe'}</p>
+                        <p className="text-xs text-text-muted mt-1 leading-none">{userRole}</p>
                     </div>
                     {/* Placeholder Avatar */}
-                    <div className="size-9 rounded-full bg-card-dark border border-border-dark flex items-center justify-center text-text-muted">
-                        JD
+                    <div className="size-9 rounded-full bg-card-dark border border-border-dark flex items-center justify-center text-text-muted text-sm font-bold">
+                        {userInitials}
                     </div>
                 </div>
             </div>

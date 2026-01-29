@@ -139,11 +139,14 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                 // To Remove
                 const toRemove = Array.from(oldPerms).filter(x => !newPerms.has(x));
 
-                // Execute all promises
-                await Promise.all([
-                    ...toAdd.map(pid => StaffService.assignPermission(roleId, pid)),
-                    ...toRemove.map(pid => StaffService.revokePermission(roleId, pid))
-                ]);
+                // Execute sequentially to avoid race conditions/errors in backend
+                for (const pid of toAdd) {
+                    await StaffService.assignPermission(roleId, pid);
+                }
+
+                for (const pid of toRemove) {
+                    await StaffService.revokePermission(roleId, pid);
+                }
             }
 
             onSuccess();
@@ -234,7 +237,7 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                                                         <span className="font-medium text-gray-200">{cat.name}</span>
                                                     </div>
                                                     <div className={`size-5 rounded border flex items-center justify-center transition-colors ${allSelected ? 'bg-accent-orange border-accent-orange' :
-                                                            someSelected ? 'bg-accent-orange/50 border-accent-orange' : 'border-gray-500'
+                                                        someSelected ? 'bg-accent-orange/50 border-accent-orange' : 'border-gray-500'
                                                         }`}>
                                                         {allSelected && <span className="material-symbols-outlined text-xs text-black font-bold">check</span>}
                                                         {someSelected && !allSelected && <div className="w-2 h-0.5 bg-white rounded-full"></div>}
