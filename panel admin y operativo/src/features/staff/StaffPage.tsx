@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { StaffService, User, Role } from './staff.service';
 import { CreateUserModal } from './CreateUserModal';
 import { RoleEditorModal } from './RoleEditorModal';
+import { useAppSelector } from '../../stores/store';
 
 export const StaffPage = () => {
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'users' | 'roles'>('users');
+
+    // Onboarding Integration
+    const { isActive: isOnboardingActive, currentStep: onboardingStep } = useAppSelector(state => state.onboarding);
 
     // Modals
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -18,6 +22,17 @@ export const StaffPage = () => {
     useEffect(() => {
         loadData();
     }, []);
+
+    // React to onboarding step changes
+    useEffect(() => {
+        if (isOnboardingActive) {
+            if (onboardingStep === 'create_users') {
+                setViewMode('users');
+            } else if (onboardingStep === 'create_roles') {
+                setViewMode('roles');
+            }
+        }
+    }, [isOnboardingActive, onboardingStep]);
 
     const loadData = async () => {
         setLoading(true);
@@ -127,8 +142,8 @@ export const StaffPage = () => {
                 <button
                     onClick={() => setViewMode('users')}
                     className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${viewMode === 'users'
-                            ? 'border-accent-orange text-white'
-                            : 'border-transparent text-gray-400 hover:text-white'
+                        ? 'border-accent-orange text-white'
+                        : 'border-transparent text-gray-400 hover:text-white'
                         }`}
                 >
                     Usuarios
@@ -136,8 +151,8 @@ export const StaffPage = () => {
                 <button
                     onClick={() => setViewMode('roles')}
                     className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${viewMode === 'roles'
-                            ? 'border-accent-orange text-white'
-                            : 'border-transparent text-gray-400 hover:text-white'
+                        ? 'border-accent-orange text-white'
+                        : 'border-transparent text-gray-400 hover:text-white'
                         }`}
                 >
                     Roles y Permisos
@@ -181,8 +196,8 @@ export const StaffPage = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded text-xs font-medium border ${user.is_active
-                                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                                : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                            : 'bg-red-500/10 text-red-400 border-red-500/20'
                                             }`}>
                                             {user.is_active ? 'Activo' : 'Inactivo'}
                                         </span>

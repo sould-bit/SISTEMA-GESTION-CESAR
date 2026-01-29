@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppDispatch, useAppSelector } from '../../../stores/store';
 import { updateAuth, setStep, completeGenesis } from '../../../stores/genesis.slice';
+import { startOnboarding } from '../../../stores/onboarding.slice';
 import { TextInput } from '../../../components/ui/TextInput';
 import { submitGenesis } from '../genesis.service';
 import { useNavigate } from 'react-router-dom';
@@ -58,8 +59,11 @@ export const Step3Auth = () => {
             await submitGenesis(tempState, dispatch);
             dispatch(completeGenesis());
 
-            // Redirect to Setup Wizard
-            navigate('/admin/setup');
+            // Start Onboarding Flow
+            dispatch(startOnboarding());
+
+            // Redirect to Staff Page for first step (Create Users)
+            navigate('/admin/staff');
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Error al establecer el protocolo');

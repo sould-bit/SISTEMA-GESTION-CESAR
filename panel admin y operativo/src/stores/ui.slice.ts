@@ -1,7 +1,7 @@
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface UiState {
+export interface UiState {
     accessDenied: boolean;
     isAccessDeniedBlocking: boolean;
 }

@@ -4,11 +4,16 @@ import { Header } from './Header';
 import { useAppSelector } from '../../stores/store';
 import { AccessDenied } from '../../features/shared/AccessDenied';
 
+import { OnboardingGuide } from '../../features/onboarding/OnboardingGuide';
+
 export const MainLayout = () => {
     const { accessDenied: isAccessDenied, isAccessDeniedBlocking } = useAppSelector(state => state.ui);
 
     return (
         <div className="h-screen w-full bg-bg-deep text-text-body font-sans flex overflow-hidden">
+            {/* Onboarding Guide Overlay */}
+            <OnboardingGuide />
+
             {/* Global Access Denied Overlay */}
             {isAccessDenied && <AccessDenied isBlocking={isAccessDeniedBlocking} />}
 
