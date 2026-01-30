@@ -190,7 +190,7 @@ export const BranchesPage = () => {
                                         Principal
                                     </button>
                                 )}
-                                {branch.is_active && (
+                                {branch.is_active && !branch.is_main && (
                                     <button
                                         onClick={() => handleDelete(branch)}
                                         className="flex items-center justify-center gap-1 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"

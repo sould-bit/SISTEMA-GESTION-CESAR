@@ -109,10 +109,13 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-400">Código</label>
                             <input
-                                {...register('code')}
+                                {...register('code', {
+                                    onChange: (e) => {
+                                        e.target.value = e.target.value.toUpperCase();
+                                    }
+                                })}
                                 className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white uppercase focus:outline-none focus:border-accent-orange"
                                 placeholder="CENTRO"
-                                style={{ textTransform: 'uppercase' }}
                             />
                             {errors.code && <p className="text-xs text-red-400">{errors.code.message}</p>}
                         </div>
