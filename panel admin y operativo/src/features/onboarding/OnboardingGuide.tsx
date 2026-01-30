@@ -14,25 +14,38 @@ export const OnboardingGuide = () => {
             title: "Paso 1: Tu equipo",
             description: "Registra a tus empleados (meseros, cocineros, cajeros). Asígnales un usuario y una contraseña temporal.",
             actionText: "Ir a Roles",
-            action: () => dispatch(advanceStep('create_roles')),
+            action: () => {
+                dispatch(advanceStep('create_roles'));
+                navigate('/admin/staff'); // Explicit navigation if needed, though usually already there
+            },
             icon: "group_add"
         },
         'create_roles': {
             title: "Paso 2: Roles y Permisos",
             description: "Define exactamente qué puede hacer cada rol. Puedes ajustar los permisos predeterminados o crear nuevos roles.",
-            actionText: "Finalizar Tour",
-            action: () => {
-                dispatch(finishOnboarding());
-                navigate('/admin/dashboard');
-            },
+            actionText: "Ir a Permisos",
+            action: () => dispatch(advanceStep('assign_permissions')),
             icon: "admin_panel_settings"
         },
         'assign_permissions': {
             title: "Paso 3: Permisos",
             description: "Asegúrate de que cada rol tenga solo los accesos necesarios.",
-            actionText: "Finalizar",
-            action: () => dispatch(finishOnboarding()),
+            actionText: "Ir a Sucursales",
+            action: () => {
+                dispatch(advanceStep('create_branches'));
+                navigate('/admin/branches');
+            },
             icon: "lock_person"
+        },
+        'create_branches': {
+            title: "Paso 4: Sucursales",
+            description: "Esta sección es para gestionar tus sucursales en caso de que te expandas o lo requieras.",
+            actionText: "Finalizar Tour",
+            action: () => {
+                dispatch(finishOnboarding());
+                navigate('/admin/dashboard');
+            },
+            icon: "store"
         },
         'finished': {
             title: "¡Listo!",

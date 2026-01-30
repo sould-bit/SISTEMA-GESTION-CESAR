@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type OnboardingStep = 'create_users' | 'create_roles' | 'assign_permissions' | 'finished';
+export type OnboardingStep = 'create_users' | 'create_roles' | 'assign_permissions' | 'create_branches' | 'finished';
 
 export interface OnboardingState {
     isActive: boolean;
