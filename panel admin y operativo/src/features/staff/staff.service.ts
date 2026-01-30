@@ -20,6 +20,7 @@ export interface CreateUserDto {
     password: string;
     full_name: string;
     role_id: string;
+    branch_id?: number | null;
 }
 
 export interface UpdateUserDto {
@@ -29,6 +30,7 @@ export interface UpdateUserDto {
     role_id?: string;
     is_active?: boolean;
     password?: string;
+    branch_id?: number | null;
 }
 
 export interface Role {
