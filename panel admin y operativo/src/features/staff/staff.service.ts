@@ -8,6 +8,8 @@ export interface User {
     role: string; // code
     role_id: string; // uuid
     role_name: string;
+    branch_id: number | null;
+    branch_name: string | null;
     is_active: boolean;
     company_id: number;
 }
@@ -33,7 +35,6 @@ export interface Role {
     id: string;
     name: string;
     code: string;
-    description: string;
     description: string;
     hierarchy_level?: number;
     is_system?: boolean;

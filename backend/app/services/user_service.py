@@ -18,7 +18,10 @@ class UserService:
         self.session = session
 
     async def list_users(self, company_id: int) -> List[User]:
-        stmt = select(User).where(User.company_id == company_id).options(selectinload(User.user_role))
+        stmt = select(User).where(User.company_id == company_id).options(
+            selectinload(User.user_role),
+            selectinload(User.branch)
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

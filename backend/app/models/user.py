@@ -97,5 +97,9 @@ class User(SQLModel, table=True):
             return self.user_role.name
         return self.role
 
-    
-       
+    @property
+    def branch_name(self) -> Optional[str]:
+        """Retorna el nombre de la sucursal asignada o None si tiene acceso global."""
+        if self.branch:
+            return self.branch.name
+        return None

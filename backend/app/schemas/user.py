@@ -34,6 +34,7 @@ class UserRead(UserBase):
     company_id: int
     role_id: Optional[UUID] = None
     role_name: Optional[str] = None
+    branch_name: Optional[str] = None
     # Include role details if needed, but for list simplistic is fine. 
     # Can extend later.
     

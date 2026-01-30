@@ -170,6 +170,7 @@ export const StaffPage = () => {
                                 <th className="px-6 py-3">Nombre</th>
                                 <th className="px-6 py-3">Email</th>
                                 <th className="px-6 py-3">Rol</th>
+                                <th className="px-6 py-3">Sucursal</th>
                                 <th className="px-6 py-3">Estado</th>
                                 <th className="px-6 py-3">Acciones</th>
                             </tr>
@@ -193,6 +194,16 @@ export const StaffPage = () => {
                                         <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 text-xs font-medium border border-blue-500/20">
                                             {user.role_name || user.role}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-300">
+                                        {user.role === 'admin' || user.role === 'owner' ? (
+                                            <span className="text-gray-500 italic">Global</span>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-base text-accent-orange">store</span>
+                                                {user.branch_name || 'Todas'}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded text-xs font-medium border ${user.is_active
