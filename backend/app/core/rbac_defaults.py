@@ -16,6 +16,7 @@ DEFAULT_PERMISSION_CATEGORIES = [
     {"code": "cash", "name": "Caja", "icon": "point_of_sale", "color": "#9C27B0"},
     {"code": "reports", "name": "Reportes", "icon": "analytics", "color": "#607D8B"},
     {"code": "users", "name": "Usuarios", "icon": "people", "color": "#F44336"},
+    {"code": "branches", "name": "Sucursales", "icon": "store", "color": "#00BCD4"},
     {"code": "settings", "name": "Configuración", "icon": "settings", "color": "#795548"},
     {"code": "admin", "name": "Administración", "icon": "admin_panel_settings", "color": "#673AB7"},
 ]
@@ -59,6 +60,11 @@ DEFAULT_PERMISSIONS = [
     {"category": "admin", "code": "permissions.update", "name": "Asignar permisos", "resource": "permissions", "action": "update"},
     {"category": "admin", "code": "categories.read", "name": "Ver categorías", "resource": "categories", "action": "read"},
     {"category": "admin", "code": "categories.create", "name": "Crear categorías", "resource": "categories", "action": "create"},
+    # Sucursales
+    {"category": "branches", "code": "branches.read", "name": "Ver sucursales", "resource": "branches", "action": "read"},
+    {"category": "branches", "code": "branches.create", "name": "Crear sucursales", "resource": "branches", "action": "create"},
+    {"category": "branches", "code": "branches.update", "name": "Editar sucursales", "resource": "branches", "action": "update"},
+    {"category": "branches", "code": "branches.delete", "name": "Eliminar sucursales", "resource": "branches", "action": "delete"},
 ]
 
 # Roles Estándar del Sistema
@@ -106,7 +112,7 @@ DEFAULT_ROLES = [
 DEFAULT_ROLE_PERMISSIONS_MAP = {
     "admin": ["*"],
     "manager": [
-        "products.*", "orders.*", "inventory.*", "cash.*", "reports.*", "users.read"
+        "products.*", "orders.*", "inventory.*", "cash.*", "reports.*", "users.read", "branches.read"
     ],
     "cashier": [
         "orders.create", "orders.read", "orders.update", "cash.*", "products.read", "reports.sales"

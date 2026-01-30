@@ -29,7 +29,8 @@ from app.routers import (
     kitchen_production,
     inventory_count,
     intelligence,
-    users
+    users,
+    branches
 )
 from fastapi.staticfiles import StaticFiles
 from .core.websockets import sio # Import Socket.IO server
@@ -86,6 +87,7 @@ app.include_router(kitchen_production.router)
 app.include_router(inventory_count.router)
 app.include_router(intelligence.router)
 app.include_router(users.router)
+app.include_router(branches.router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
