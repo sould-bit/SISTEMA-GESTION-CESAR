@@ -15,6 +15,7 @@ import { IngredientManager, RecipesPage, MenuMatrix } from '../features/kitchen'
 import { IngredientHistoryPage } from '../features/kitchen/pages/IngredientHistoryPage';
 import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
 import { StaffPage } from '../features/staff/StaffPage';
+import { BranchesPage } from '../features/branches/BranchesPage';
 
 export const router = createBrowserRouter([
     {
@@ -76,6 +77,13 @@ export const router = createBrowserRouter([
                                 element: <PermissionGuard requiredPermission="users.read" />,
                                 children: [
                                     { index: true, element: <StaffPage /> }
+                                ]
+                            },
+                            {
+                                path: 'branches',
+                                element: <PermissionGuard requiredPermission="branches.read" />,
+                                children: [
+                                    { index: true, element: <BranchesPage /> }
                                 ]
                             }
                         ]

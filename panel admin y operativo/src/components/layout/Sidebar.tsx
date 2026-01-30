@@ -29,6 +29,7 @@ const menuItems: MenuItem[] = [
         ]
     },
     { name: 'Staff', path: '/admin/staff', icon: 'group' },
+    { name: 'Sucursales', path: '/admin/branches', icon: 'store' },
     { name: 'Analytics', path: '/admin/analytics', icon: 'monitoring' },
     { name: 'Settings', path: '/admin/settings', icon: 'settings' },
 ];
