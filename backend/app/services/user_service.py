@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 from app.models.user import User
 from app.models.role import Role
+from app.models.branch import Branch
 from app.schemas.user import UserCreate, UserUpdate
 from app.utils.security import get_password_hash
 
@@ -69,6 +70,8 @@ class UserService:
         
         # Populate relationship for response serialization
         new_user.user_role = role
+        if new_user.branch_id:
+            new_user.branch = await self.session.get(Branch, new_user.branch_id)
         
         return new_user
 
@@ -94,8 +97,14 @@ class UserService:
 
         self.session.add(user)
         await self.session.commit()
-        await self.session.refresh(user)
-        return user
+        
+        # Re-fetch with relationships to ensure everything is loaded for response
+        stmt = select(User).where(User.id == user.id).options(
+            selectinload(User.user_role),
+            selectinload(User.branch)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def delete_user(self, user_id: int, company_id: int) -> bool:
         user = await self.get_user(user_id, company_id)
