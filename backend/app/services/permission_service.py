@@ -49,7 +49,7 @@ class PermissionService:
         Ejemplo:
             has_perm = await service.check_permission(1, "products.create", 1)
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.utcnow()
 
         try:
             # Intentar obtener desde cache primero
@@ -60,7 +60,7 @@ class PermissionService:
                 # Cache hit
                 has_permission = permission_code in cached_permissions
 
-                duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                duration = (datetime.utcnow() - start_time).total_seconds() * 1000
 
                 log_permission_check(
                     user_id=user_id,
@@ -90,7 +90,7 @@ class PermissionService:
             permission_codes = [p.code for p in user_permissions]
             has_permission = permission_code in permission_codes
 
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            duration = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             # Log de la verificación desde DB
             log_permission_check(
@@ -146,7 +146,7 @@ class PermissionService:
 
         except Exception as e:
             # Log de error en verificación de permisos
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            duration = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             log_security_event(
                 event="permission_check_error",
@@ -194,13 +194,13 @@ class PermissionService:
         if not user or not user.role_id:
             return []
         
-        # Obtener permisos del rol
+        # Obtener permisos del rol (incluyendo globales donde company_id es NULL)
         result = await self.session.execute(
             select(Permission)
             .join(RolePermission, RolePermission.permission_id == Permission.id)
             .where(and_(
                 RolePermission.role_id == user.role_id,
-                Permission.company_id == company_id,
+                or_(Permission.company_id == company_id, Permission.company_id == None),
                 Permission.is_active == True
             ))
             .options(joinedload(Permission.category))
@@ -243,6 +243,17 @@ class PermissionService:
         Returns:
             Objeto RolePermission creado
         """
+        # 0. Obtener company_id del rol (y validar existencia)
+        # Esto previene errores de Lazy Loading (MissingGreenlet) más adelante
+        role_stmt = select(Role).where(Role.id == role_id)
+        role_res = await self.session.execute(role_stmt)
+        role = role_res.scalar_one_or_none()
+        
+        if not role:
+            raise ValueError(f"Rol {role_id} no encontrado")
+            
+        company_id = role.company_id
+
         # Verificar si ya existe
         result = await self.session.execute(
             select(RolePermission)
@@ -269,14 +280,15 @@ class PermissionService:
         await self.session.refresh(role_permission)
 
         # Invalidar cache de usuarios con este rol
-        await self.cache.invalidate_role_permissions(str(role_id), role_permission.role.company_id)
+        if self.cache:
+            await self.cache.invalidate_role_permissions(str(role_id), company_id)
 
         self.logger.info(
             f"Permiso otorgado a rol {role_id}, cache invalidado",
             extra={
                 "role_id": str(role_id),
                 "permission_id": str(permission_id),
-                "company_id": role_permission.role.company_id,
+                "company_id": company_id,
                 "action": "grant_permission"
             }
         )
@@ -300,6 +312,7 @@ class PermissionService:
                 RolePermission.role_id == role_id,
                 RolePermission.permission_id == permission_id
             ))
+            .options(joinedload(RolePermission.role))
         )
         role_permission = result.scalar_one_or_none()
         
@@ -314,7 +327,8 @@ class PermissionService:
         await self.session.commit()
 
         # Invalidar cache de usuarios con este rol
-        await self.cache.invalidate_role_permissions(role_id_str, company_id)
+        if self.cache:
+            await self.cache.invalidate_role_permissions(role_id_str, company_id)
 
         self.logger.info(
             f"Permiso revocado de rol {role_id}, cache invalidado",
@@ -341,7 +355,7 @@ class PermissionService:
             .join(RolePermission, RolePermission.permission_id == Permission.id)
             .where(and_(
                 RolePermission.role_id == role_id,
-                Permission.company_id == company_id,
+                or_(Permission.company_id == company_id, Permission.company_id == None),
                 Permission.is_active == True
             ))
             .options(selectinload(Permission.category))
@@ -356,9 +370,9 @@ class PermissionService:
         only_active: bool = True
     ) -> List[Permission]:
         """
-        Lista todos los permisos de una empresa.
+        Lista todos los permisos de una empresa (incluyendo globales).
         """
-        conditions = [Permission.company_id == company_id]
+        conditions = [or_(Permission.company_id == company_id, Permission.company_id == None)]
         
         if not include_system:
             conditions.append(Permission.is_system == False)
@@ -386,7 +400,7 @@ class PermissionService:
         """
         conditions = [
             Permission.category_id == category_id,
-            Permission.company_id == company_id
+            or_(Permission.company_id == company_id, Permission.company_id == None)
         ]
         
         if only_active:
@@ -489,7 +503,7 @@ class PermissionService:
             if field in allowed_fields and value is not None:
                 setattr(permission, field, value)
         
-        permission.updated_at = datetime.now(timezone.utc)
+        permission.updated_at = datetime.utcnow()
         
         await self.session.commit()
         await self.session.refresh(permission)
@@ -522,7 +536,7 @@ class PermissionService:
         
         # Soft delete
         permission.is_active = False
-        permission.updated_at = datetime.now(timezone.utc)
+        permission.updated_at = datetime.utcnow()
         
         await self.session.commit()
         

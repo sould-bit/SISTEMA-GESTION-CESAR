@@ -90,5 +90,16 @@ class User(SQLModel, table=True):
             return True  # Acceso a todas las sucursales
         return self.branch_id == branch_id
 
-    
-       
+    @property
+    def role_name(self) -> str:
+        """Retorna el nombre del rol (ej: 'Cajero') o el código legacy."""
+        if self.user_role:
+            return self.user_role.name
+        return self.role
+
+    @property
+    def branch_name(self) -> Optional[str]:
+        """Retorna el nombre de la sucursal asignada o None si tiene acceso global."""
+        if self.branch:
+            return self.branch.name
+        return None

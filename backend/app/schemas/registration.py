@@ -25,9 +25,14 @@ class RegistrationRequest(BaseModel):
     
     # Datos del dueño (será el admin)
     owner_name: str = Field(..., min_length=2, max_length=200)
+    username: str = Field(..., min_length=3, max_length=50, pattern="^[a-zA-Z0-9._-]+$")
     owner_email: EmailStr
     password: str = Field(..., min_length=6, max_length=100)
     owner_phone: Optional[str] = Field(default=None, max_length=50)
+
+    # Datos Legales (Nuevo)
+    legal_name: Optional[str] = Field(default=None, max_length=200)
+    tax_id: Optional[str] = Field(default=None, max_length=50, description="NIT/RUT")
     
     # Plan seleccionado
     plan: str = Field(default="free", pattern="^(free|basic|premium)$")

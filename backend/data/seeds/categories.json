@@ -1,18 +1,33 @@
 {
     "categories": [
         {
-            "name": "Categoría de Prueba",
-            "description": "Categoría para testing de productos",
+            "name": "venta directa ",
+            "description": "categoria de mercaderia clasifica os items que no tienen ningun proceso en el estado en el que entra sale a modo de venta ",
             "is_active": true
         },
         {
-            "name": "Bebidas",
-            "description": "Bebidas frías y calientes",
+            "name": "insumos",
+            "description": "materia prima y productos  que sirven para crear platos o hace parte de receta de un producto",
             "is_active": true
         },
         {
-            "name": "Comida Rápida",
-            "description": "Hamburguesas, pizzas, etc.",
+            "name": "producto",
+            "description": "el producto final que se vende tiene asociado receta",
+            "is_active": true
+        },
+        {
+            "name": "produccion",
+            "description": "son los productos que se fabrican en el lugar",
+            "is_active": true
+        },
+        {
+            "name": "combos",
+            "description": "son los productos que se venden juntos",
+            "is_active": true
+        },
+        {
+            "name": "platos a la carta",
+            "description": "son platos que se pueden personalizar con recetas asociadas",
             "is_active": true
         }
     ]

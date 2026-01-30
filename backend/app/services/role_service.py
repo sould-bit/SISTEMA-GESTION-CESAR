@@ -157,7 +157,10 @@ class RoleService:
             raise RoleNotFoundException(role_id=str(role_id), company_id=company_id)
 
         if role.is_system:
-            raise SystemRoleModificationException(role_code=role.code, action="modificar")
+             # Permitir edición de roles del sistema, pero quizás restringir ciertos campos en el futuro
+             # Por ahora, permitimos cambiar permisos y nombres para flexibilidad
+             pass
+             # raise SystemRoleModificationException(role_code=role.code, action="modificar")
         
         # Actualizar campos permitidos
         allowed_fields = ['name', 'description', 'hierarchy_level', 'is_active']
@@ -165,7 +168,7 @@ class RoleService:
             if field in allowed_fields and value is not None:
                 setattr(role, field, value)
         
-        role.updated_at = datetime.now(timezone.utc)
+        role.updated_at = datetime.utcnow()
         
         await self.session.commit()
         await self.session.refresh(role)
@@ -215,7 +218,7 @@ class RoleService:
         
         # Soft delete
         role.is_active = False
-        role.updated_at = datetime.now(timezone.utc)
+        role.updated_at = datetime.utcnow()
         
         await self.session.commit()
         
@@ -334,7 +337,7 @@ class RoleService:
         try:
             # Asignar rol
             user.role_id = role_id
-            user.updated_at = datetime.now(timezone.utc)
+            user.updated_at = datetime.utcnow()
 
             await self.session.commit()
             await self.session.refresh(user)

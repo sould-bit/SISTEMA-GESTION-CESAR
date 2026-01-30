@@ -51,8 +51,8 @@ def upgrade() -> None:
                existing_type=sa.TEXT(),
                type_=sqlmodel.sql.sqltypes.AutoString(),
                existing_nullable=True)
-    op.drop_constraint('customers_company_id_phone_key', 'customers', type_='unique')
-    op.create_unique_constraint('uq_customer_phone_company', 'customers', ['company_id', 'phone'])
+    # op.drop_constraint('customers_company_id_phone_key', 'customers', type_='unique')
+    # op.create_unique_constraint('uq_customer_phone_company', 'customers', ['company_id', 'phone'])
     op.add_column('orders', sa.Column('delivery_person_id', sa.Integer(), nullable=True))
     op.add_column('orders', sa.Column('assigned_at', sa.DateTime(), nullable=True))
     op.add_column('orders', sa.Column('picked_up_at', sa.DateTime(), nullable=True))

@@ -13,7 +13,7 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, or_
 
 from app.models import PermissionCategory, Permission
 
@@ -147,8 +147,8 @@ class PermissionCategoryService:
         include_system: bool = True,
         only_active: bool = True
     ) -> List[PermissionCategory]:
-        """Lista todas las categorías de una empresa."""
-        conditions = [PermissionCategory.company_id == company_id]
+        """Lista todas las categorías de una empresa (incluyendo globales)."""
+        conditions = [or_(PermissionCategory.company_id == company_id, PermissionCategory.company_id == None)]
         
         if not include_system:
             conditions.append(PermissionCategory.is_system == False)

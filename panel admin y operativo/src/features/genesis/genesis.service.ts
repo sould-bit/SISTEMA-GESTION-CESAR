@@ -18,15 +18,18 @@ export const submitGenesis = async (
         const registrationPayload = {
             company_name: state.foundation.companyName,
             company_slug: state.foundation.companyName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-            owner_name: state.foundation.companyName, // Or ask for owner name in step 1/3
-            owner_email: state.command.adminEmail,
-            passwor: state.command.adminPassword, // TYPO FIX: password
-            password: state.command.adminPassword,
+            owner_name: state.auth.fullName, // Use the explicit full name from Auth step
+            username: state.auth.username, // Send the explicit username
+            owner_email: state.auth.adminEmail,
+            owner_phone: state.foundation.phone,
+            password: state.auth.adminPassword,
+            // Datos Legales
+            tax_id: state.foundation.nitRut,
+            legal_name: state.foundation.companyName, // As per user request: legal name same as organization name
             plan: 'free',
             // New fields for branch
             branch_name: state.territory.branchName,
-            branch_address: state.territory.address,
-            branch_phone: state.territory.phone
+            branch_address: state.territory.address
         };
 
         // 2. Register Company

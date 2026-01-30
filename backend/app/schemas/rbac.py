@@ -31,7 +31,7 @@ class PermissionCategoryUpdate(BaseModel):
 
 class PermissionCategoryRead(PermissionCategoryBase):
     id: UUID
-    company_id: int
+    company_id: Optional[int] = None  # None para categorías globales
     is_system: bool
     created_at: datetime
     updated_at: Optional[datetime]
@@ -69,7 +69,7 @@ class PermissionUpdate(BaseModel):
 
 class PermissionRead(PermissionBase):
     id: UUID
-    company_id: int
+    company_id: Optional[int] = None  # None para permisos globales
     is_system: bool
     created_at: datetime
     updated_at: Optional[datetime]
@@ -103,7 +103,7 @@ class RoleUpdate(BaseModel):
 
 class RoleRead(RoleBase):
     id: UUID
-    company_id: int
+    company_id: Optional[int] = None  # None para roles globales (si los hubiera)
     is_system: bool
     created_at: datetime
     updated_at: Optional[datetime]

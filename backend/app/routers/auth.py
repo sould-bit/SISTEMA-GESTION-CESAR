@@ -25,7 +25,8 @@ from app.schemas.auth import(
     Token,
     TokenData,
     UserResponse,
-    TokenVerification
+    TokenVerification,
+    LoginResponse
 )
 from app.schemas.registration import (
     RegistrationRequest,
@@ -123,15 +124,16 @@ async def check_slug_availability(
 # ============================================
 # ENDPOINT: LOGIN
 # ============================================
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=LoginResponse)
 async def login(
     login_data: LoginRequest,
     auth_service: AuthService = Depends(get_auth_service)
 ):
     """
-    🔑 INICIAR SESIÓN (Generar Token JWT)
+    🔑 INICIAR SESIÓN (Smart Auth)
 
-    Utiliza el AuthService para manejar toda la lógica de autenticación.
+    Utiliza AuthService para autenticar por email.
+    Puede retornar un token (si login OK) o una lista de opciones (si usuario está en múltiples empresas).
     """
     return await auth_service.authenticate_user(login_data)
 # ============================================

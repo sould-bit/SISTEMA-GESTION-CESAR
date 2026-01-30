@@ -100,6 +100,9 @@ class RegistrationService:
                 owner_name=data.owner_name,
                 owner_email=data.owner_email,
                 owner_phone=data.owner_phone,
+                # Datos Legales
+                legal_name=data.legal_name,
+                tax_id=data.tax_id,
                 plan=data.plan,
                 is_active=True
             )
@@ -114,13 +117,26 @@ class RegistrationService:
             # 4. Crear Branch principal (usando datos del registro si existen)
             branch = await self._create_default_branch(company, data)
             
-            # 5. Obtener o crear Role admin para esta empresa
-            admin_role = await self._get_or_create_admin_role(company)
+            # 5. Inicializar Roles y Permisos (Usando Nuevo Servicio de Sincronización)
+            from app.services.rbac_sync_service import RBACSyncService
+            rbac_service = RBACSyncService(self.db)
             
-            # 5.5 Crear permisos por defecto y asignarlos al admin
-            await self._create_default_permissions(company, admin_role)
+            # Asegurar que existan definiciones globales (Safety check)
+            await rbac_service.sync_global_metadata()
             
-            # 6. Crear User admin (owner)
+            # Crear roles de la empresa (admin, manager, etc)
+            await rbac_service.initialize_company_roles(company.id)
+            
+            # 6. Obtener el Rol Admin recién creado para asignarlo al usuario
+            result = await self.db.execute(
+                select(Role).where(
+                    Role.company_id == company.id,
+                    Role.code == "admin"
+                )
+            )
+            admin_role = result.scalar_one() # Debe existir tras initialize
+            
+            # 7. Crear User admin (owner)
             user = await self._create_admin_user(
                 company=company,
                 branch=branch,
@@ -131,7 +147,7 @@ class RegistrationService:
             # Commit todo
             await self.db.commit()
             
-            # 7. Generar tokens
+            # 8. Generar tokens
             access_token, refresh_token = await self._generate_tokens(user, company)
 
             logger.info(f"✅ Registro completo: {user.username}@{company.slug}")
@@ -208,33 +224,7 @@ class RegistrationService:
         logger.info(f"✅ Branch creada: {branch.name}")
         return branch
 
-    async def _get_or_create_admin_role(self, company: Company) -> Role:
-        """Obtener o crear rol admin para la empresa."""
-        # Buscar rol admin existente para esta empresa
-        result = await self.db.execute(
-            select(Role).where(
-                Role.company_id == company.id,
-                Role.code == "admin"
-            )
-        )
-        role = result.scalar_one_or_none()
-        
-        if not role:
-            # Crear rol admin
-            role = Role(
-                company_id=company.id,
-                name="Administrador",
-                code="admin",
-                description="Administrador con acceso completo",
-                hierarchy_level=100,  # Máximo nivel
-                is_system=True,
-                is_active=True
-            )
-            self.db.add(role)
-            await self.db.flush()
-            logger.info(f"✅ Role admin creado para {company.slug}")
-        
-        return role
+
 
     async def _create_admin_user(
         self, 
@@ -244,8 +234,8 @@ class RegistrationService:
         data: RegistrationRequest
     ) -> User:
         """Crear usuario admin (owner del negocio)."""
-        # Usar email como username (más fácil de recordar)
-        username = data.owner_email.split("@")[0]
+        # Usar username proporcionado
+        username = data.username
         
         user = User(
             username=username,
@@ -262,6 +252,8 @@ class RegistrationService:
         await self.db.flush()
         logger.info(f"✅ User admin creado: {user.username}")
         return user
+
+
 
     async def _generate_tokens(self, user: User, company: Company) -> tuple[str, str]:
         """Generar tokens JWT para el usuario."""
@@ -285,107 +277,4 @@ class RegistrationService:
         
         return access_token, refresh_token
 
-    async def _create_default_permissions(self, company: Company, admin_role: Role):
-        """
-        Crear categorías de permisos y permisos por defecto.
-        Asignar todos los permisos al rol admin.
-        """
-        # Definir categorías y permisos del sistema
-        default_categories = [
-            {"code": "products", "name": "Productos", "icon": "inventory_2", "color": "#4CAF50"},
-            {"code": "orders", "name": "Pedidos", "icon": "receipt_long", "color": "#2196F3"},
-            {"code": "inventory", "name": "Inventario", "icon": "warehouse", "color": "#FF9800"},
-            {"code": "cash", "name": "Caja", "icon": "point_of_sale", "color": "#9C27B0"},
-            {"code": "reports", "name": "Reportes", "icon": "analytics", "color": "#607D8B"},
-            {"code": "users", "name": "Usuarios", "icon": "people", "color": "#F44336"},
-            {"code": "settings", "name": "Configuración", "icon": "settings", "color": "#795548"},
-            {"code": "admin", "name": "Administración", "icon": "admin_panel_settings", "color": "#673AB7"},
-        ]
-        
-        default_permissions = [
-            # Productos
-            {"category": "products", "code": "products.create", "name": "Crear productos", "resource": "products", "action": "create"},
-            {"category": "products", "code": "products.read", "name": "Ver productos", "resource": "products", "action": "read"},
-            {"category": "products", "code": "products.update", "name": "Editar productos", "resource": "products", "action": "update"},
-            {"category": "products", "code": "products.delete", "name": "Eliminar productos", "resource": "products", "action": "delete"},
-            # Pedidos
-            {"category": "orders", "code": "orders.create", "name": "Crear pedidos", "resource": "orders", "action": "create"},
-            {"category": "orders", "code": "orders.read", "name": "Ver pedidos", "resource": "orders", "action": "read"},
-            {"category": "orders", "code": "orders.update", "name": "Actualizar pedidos", "resource": "orders", "action": "update"},
-            {"category": "orders", "code": "orders.cancel", "name": "Cancelar pedidos", "resource": "orders", "action": "cancel"},
-            # Inventario
-            {"category": "inventory", "code": "inventory.read", "name": "Ver inventario", "resource": "inventory", "action": "read"},
-            {"category": "inventory", "code": "inventory.adjust", "name": "Ajustar inventario", "resource": "inventory", "action": "adjust"},
-            # Caja
-            {"category": "cash", "code": "cash.open", "name": "Abrir caja", "resource": "cash", "action": "open"},
-            {"category": "cash", "code": "cash.close", "name": "Cerrar caja", "resource": "cash", "action": "close"},
-            {"category": "cash", "code": "cash.read", "name": "Ver movimientos", "resource": "cash", "action": "read"},
-            # Reportes
-            {"category": "reports", "code": "reports.sales", "name": "Ver reportes de ventas", "resource": "reports", "action": "sales"},
-            {"category": "reports", "code": "reports.financial", "name": "Ver reportes financieros", "resource": "reports", "action": "financial"},
-            # Usuarios
-            {"category": "users", "code": "users.create", "name": "Crear usuarios", "resource": "users", "action": "create"},
-            {"category": "users", "code": "users.read", "name": "Ver usuarios", "resource": "users", "action": "read"},
-            {"category": "users", "code": "users.update", "name": "Editar usuarios", "resource": "users", "action": "update"},
-            {"category": "users", "code": "users.delete", "name": "Eliminar usuarios", "resource": "users", "action": "delete"},
-            # Configuración
-            {"category": "settings", "code": "settings.read", "name": "Ver configuración", "resource": "settings", "action": "read"},
-            {"category": "settings", "code": "settings.update", "name": "Modificar configuración", "resource": "settings", "action": "update"},
-            # Admin RBAC
-            {"category": "admin", "code": "admin.roles.create", "name": "Crear roles", "resource": "admin.roles", "action": "create"},
-            {"category": "admin", "code": "admin.roles.read", "name": "Ver roles", "resource": "admin.roles", "action": "read"},
-            {"category": "admin", "code": "admin.roles.update", "name": "Editar roles", "resource": "admin.roles", "action": "update"},
-            {"category": "admin", "code": "admin.roles.delete", "name": "Eliminar roles", "resource": "admin.roles", "action": "delete"},
-            {"category": "admin", "code": "admin.permissions.read", "name": "Ver permisos", "resource": "admin.permissions", "action": "read"},
-            {"category": "admin", "code": "admin.permissions.update", "name": "Asignar permisos", "resource": "admin.permissions", "action": "update"},
-        ]
-        
-        # Crear categorías
-        category_map = {}
-        for cat_data in default_categories:
-            category = PermissionCategory(
-                company_id=company.id,
-                code=cat_data["code"],
-                name=cat_data["name"],
-                icon=cat_data["icon"],
-                color=cat_data["color"],
-                is_system=True,
-                is_active=True
-            )
-            self.db.add(category)
-            await self.db.flush()
-            category_map[cat_data["code"]] = category
-        
-        logger.info(f"✅ {len(category_map)} categorías de permisos creadas")
-        
-        # Crear permisos y asignar al admin
-        permissions_created = 0
-        for perm_data in default_permissions:
-            category = category_map.get(perm_data["category"])
-            if not category:
-                continue
-                
-            permission = Permission(
-                company_id=company.id,
-                category_id=category.id,
-                code=perm_data["code"],
-                name=perm_data["name"],
-                resource=perm_data["resource"],
-                action=perm_data["action"],
-                is_system=True,
-                is_active=True
-            )
-            self.db.add(permission)
-            await self.db.flush()
-            
-            # Asignar al rol admin
-            role_permission = RolePermission(
-                role_id=admin_role.id,
-                permission_id=permission.id,
-                granted_at=datetime.utcnow()
-            )
-            self.db.add(role_permission)
-            permissions_created += 1
-        
-        await self.db.flush()
-        logger.info(f"✅ {permissions_created} permisos creados y asignados a admin")
+

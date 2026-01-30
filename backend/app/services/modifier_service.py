@@ -10,9 +10,19 @@ class ModifierService:
     
     async def get_modifiers(self, session: AsyncSession, company_id: int) -> List[ProductModifier]:
         """Obtiene todos los modificadores de una empresa."""
-        statement = select(ProductModifier).where(ProductModifier.company_id == company_id).where(ProductModifier.is_active == True)
+        statement = (
+            select(ProductModifier)
+            .where(ProductModifier.company_id == company_id)
+            .where(ProductModifier.is_active == True)
+            .options(selectinload(ProductModifier.recipe_items).selectinload(ModifierRecipeItem.ingredient))
+        )
         result = await session.execute(statement)
-        return result.scalars().all()
+        modifiers = result.scalars().all()
+        # Explicitly touch relationships to ensure they are loaded while session is active
+        for output_modifier in modifiers:
+            for item in output_modifier.recipe_items:
+                _ = item.ingredient
+        return modifiers
 
     async def get_modifier_by_id(self, session: AsyncSession, modifier_id: int) -> Optional[ProductModifier]:
         """Obtiene un modificador por ID, incluyendo sus items de receta."""

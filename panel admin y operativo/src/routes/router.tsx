@@ -5,10 +5,17 @@ import { GenesisPage } from '../features/genesis/GenesisPage';
 import { MainLayout } from '../components/layout/MainLayout';
 import { ErrorPage } from '../components/ErrorPage';
 import { ProtectedRoute } from './ProtectedRoute';
+import { PermissionGuard } from './PermissionGuard';
 import { DashboardPage } from '../features/admin/DashboardPage';
 import { InventoryPage } from '../features/admin/InventoryPage';
 import { OrdersPage } from '../features/admin/OrdersPage';
+
+// Kitchen Module (V4.1 - Recetas Vivas)
+import { IngredientManager, RecipesPage, MenuMatrix } from '../features/kitchen';
+import { IngredientHistoryPage } from '../features/kitchen/pages/IngredientHistoryPage';
 import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
+import { StaffPage } from '../features/staff/StaffPage';
+import { BranchesPage } from '../features/branches/BranchesPage';
 
 export const router = createBrowserRouter([
     {
@@ -46,17 +53,75 @@ export const router = createBrowserRouter([
                             },
                             {
                                 path: 'inventory',
-                                element: <InventoryPage />
+                                element: <PermissionGuard requiredPermission="inventory.read" />,
+                                children: [
+                                    { index: true, element: <InventoryPage /> }
+                                ]
                             },
                             {
                                 path: 'orders',
-                                element: <OrdersPage />
+                                element: <PermissionGuard requiredPermission="orders.read" />,
+                                children: [
+                                    { index: true, element: <OrdersPage /> }
+                                ]
+                            },
+                            {
+                                path: 'setup',
+                                element: <PermissionGuard requiredPermission="settings.read" />,
+                                children: [
+                                    { index: true, element: <UnifiedSetupPage /> }
+                                ]
+                            },
+                            {
+                                path: 'staff',
+                                element: <PermissionGuard requiredPermission="users.read" />,
+                                children: [
+                                    { index: true, element: <StaffPage /> }
+                                ]
+                            },
+                            {
+                                path: 'branches',
+                                element: <PermissionGuard requiredPermission="branches.read" />,
+                                children: [
+                                    { index: true, element: <BranchesPage /> }
+                                ]
                             }
                         ]
-                    },
+                    }
+                ]
+            },
+
+            // Kitchen Routes (V4.1 - Cocina & Menú)
+            {
+                path: 'kitchen',
+                element: <ProtectedRoute />,
+                children: [
                     {
-                        path: 'setup',
-                        element: <UnifiedSetupPage />
+                        element: <MainLayout />,
+                        children: [
+                            {
+                                index: true,
+                                element: <Navigate to="/kitchen/ingredients" replace />
+                            },
+                            {
+                                path: 'ingredients',
+                                element: <IngredientManager />
+                            },
+                            {
+                                path: 'ingredients/:id/history',
+                                element: <IngredientHistoryPage />
+                            },
+                            {
+                                path: 'recipes',
+                                element: <RecipesPage />
+                            },
+                            {
+                                path: 'menu-engineering',
+                                element: <MenuMatrix />
+                            },
+
+
+                        ]
                     }
                 ]
             }

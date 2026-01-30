@@ -6,12 +6,12 @@ from sqlmodel import select, Session, SQLModel
 from .database import get_session, engine
 from .models import User, Company, Branch, Subscription # importar modelos para que  SQLMODEL  los detecte
 from app.routers import (
-    auth, 
-    rbac, 
-    product, 
-    recipe, 
-    category, 
-    inventory, 
+    auth,
+    rbac,
+    product,
+    recipe,
+    category,
+    inventory,
     order,
     payment,
     cash,
@@ -23,7 +23,14 @@ from app.routers import (
     tickets,
     tickets,
     uploads,
-    modifiers
+    modifiers,
+    ingredients,
+    menu_engineering,
+    kitchen_production,
+    inventory_count,
+    intelligence,
+    users,
+    branches
 )
 from fastapi.staticfiles import StaticFiles
 from .core.websockets import sio # Import Socket.IO server
@@ -40,7 +47,14 @@ app = FastAPI(
 )
 
 # Configurar CORS
-origins = ["*"]
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -67,6 +81,13 @@ app.include_router(audit.router)
 app.include_router(tickets.router)
 app.include_router(uploads.router)
 app.include_router(modifiers.router)
+app.include_router(ingredients.router)
+app.include_router(menu_engineering.router)
+app.include_router(kitchen_production.router)
+app.include_router(inventory_count.router)
+app.include_router(intelligence.router)
+app.include_router(users.router)
+app.include_router(branches.router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -86,6 +107,36 @@ async def on_startup():
             "features": ["RBAC", "JWT", "PostgreSQL", "FastAPI", "Storefront"]
         }
     )
+    
+    # Auto-sync RBAC global metadata on startup
+    try:
+        from sqlalchemy import text
+        from app.database import async_session
+        from app.services.rbac_sync_service import RBACSyncService
+        
+        async with async_session() as session:
+            # Verificar si las tablas existen antes de intentar sync
+            try:
+                await session.execute(text("SELECT 1 FROM permission_categories LIMIT 1"))
+            except Exception:
+                logger.info("⏳ RBAC Sync omitido: Tablas no existen aún. Ejecute 'alembic upgrade head' primero.")
+                return
+            
+            # Tablas existen, ejecutar sync
+            rbac_service = RBACSyncService(session)
+            stats = await rbac_service.sync_global_metadata()
+            
+            total_changes = stats['categories_created'] + stats['permissions_created'] + stats['permissions_updated']
+            if total_changes > 0:
+                logger.info(
+                    f"✅ RBAC Sync: {stats['categories_created']} categorías, "
+                    f"{stats['permissions_created']} permisos creados, "
+                    f"{stats['permissions_updated']} actualizados"
+                )
+            else:
+                logger.info("✅ RBAC Sync: Datos globales ya sincronizados")
+    except Exception as e:
+        logger.warning(f"⚠️ RBAC Sync error inesperado: {e}")
 
 @app.get("/")
 def read_root():

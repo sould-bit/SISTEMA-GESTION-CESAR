@@ -133,10 +133,6 @@ class Manager:
         print("🌱 Seeding data...")
         self._run_in_backend("python scripts/seed/master_seed.py")
 
-    def db_seed_simple(self):
-        """Run simple seed"""
-        print("🌱 Seeding simple data...")
-        self._run_in_backend("python scripts/seed/seed_simple.py")
 
     def admin_create(self):
         """Create admin user"""
@@ -199,7 +195,6 @@ def main():
     
     db_subs.add_parser("reset", help="Reset DB (Destructive)")
     db_subs.add_parser("seed", help="Run master seed")
-    db_subs.add_parser("seed-simple", help="Run simple seed")
 
     # Admin Group
     admin_parser = subparsers.add_parser("admin", help="Admin commands")
@@ -246,8 +241,6 @@ def main():
             mgr.db_reset()
         elif args.db_command == "seed":
             mgr.db_seed()
-        elif args.db_command == "seed-simple":
-            mgr.db_seed_simple()
         else:
             db_parser.print_help()
 

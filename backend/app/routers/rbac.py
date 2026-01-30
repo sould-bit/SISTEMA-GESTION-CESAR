@@ -51,7 +51,7 @@ def get_category_service(session: AsyncSession = Depends(get_session)) -> Permis
 # ============================================================================
 
 @router.get("/roles", response_model=List[RoleRead])
-@require_permission("admin.roles.read")
+@require_permission("roles.read")
 async def list_roles(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -62,7 +62,7 @@ async def list_roles(
 
 
 @router.post("/roles", response_model=RoleRead, status_code=status.HTTP_201_CREATED)
-@require_permission("admin.roles.create")
+@require_permission("roles.create")
 async def create_role(
     role_data: RoleCreate,
     session: AsyncSession = Depends(get_session),
@@ -84,7 +84,7 @@ async def create_role(
 
 
 @router.get("/roles/{role_id}", response_model=RoleWithPermissions)
-@require_permission("admin.roles.read")
+@require_permission("roles.read")
 async def get_role(
     role_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -105,7 +105,7 @@ async def get_role(
 
 
 @router.put("/roles/{role_id}", response_model=RoleRead)
-@require_permission("admin.roles.update")
+@require_permission("roles.update")
 async def update_role(
     role_id: UUID,
     role_data: RoleUpdate,
@@ -125,7 +125,7 @@ async def update_role(
 
 
 @router.delete("/roles/{role_id}")
-@require_permission("admin.roles.delete")
+@require_permission("roles.delete")
 async def delete_role(
     role_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -147,7 +147,7 @@ async def delete_role(
 # ============================================================================
 
 @router.get("/permissions", response_model=List[PermissionRead])
-@require_permission("admin.permissions.read")
+@require_permission("roles.read")
 async def list_permissions(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -158,7 +158,7 @@ async def list_permissions(
 
 
 @router.post("/roles/{role_id}/permissions/{permission_id}")
-@require_permission("admin.roles.update")
+@require_permission("roles.update")
 async def grant_permission(
     role_id: UUID,
     permission_id: UUID,
@@ -179,7 +179,7 @@ async def grant_permission(
 
 
 @router.delete("/roles/{role_id}/permissions/{permission_id}")
-@require_permission("admin.roles.update")
+@require_permission("roles.update")
 async def revoke_permission(
     role_id: UUID,
     permission_id: UUID,
@@ -199,7 +199,7 @@ async def revoke_permission(
 # ============================================================================
 
 @router.get("/categories", response_model=List[PermissionCategoryRead])
-@require_permission("admin.categories.read")
+@require_permission("roles.read")
 async def list_categories(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -210,7 +210,7 @@ async def list_categories(
 
 
 @router.post("/categories", response_model=PermissionCategoryRead, status_code=status.HTTP_201_CREATED)
-@require_permission("admin.categories.create")
+@require_permission("categories.create")
 async def create_category(
     category_data: PermissionCategoryCreate,
     session: AsyncSession = Depends(get_session),

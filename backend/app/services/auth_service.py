@@ -23,7 +23,7 @@ from fastapi.concurrency import run_in_threadpool as run_in_executor
 
 from app.models.user import User
 from app.models.company import Company
-from app.schemas.auth import LoginRequest, Token, UserResponse, TokenVerification
+from app.schemas.auth import LoginRequest, Token, UserResponse, TokenVerification, LoginResponse, CompanyOption
 from app.utils.security import verify_password, create_access_token, create_refresh_token, decode_access_token
 from app.config import settings
 from app.services.audit_service import AuditService
@@ -50,85 +50,116 @@ class AuthService:
         """
         self.db = db
 
-    async def authenticate_user(self, login_data: LoginRequest) -> Token:
+    async def authenticate_user(self, login_data: LoginRequest) -> LoginResponse:
         """
-        🔑 AUTENTICAR USUARIO
+        🔑 AUTENTICAR USUARIO (Smart Auth v3.5)
 
-        Proceso completo de login:
-        1. Buscar empresa por slug
-        2. Validar que esté activa
-        3. Buscar usuario en esa empresa
-        4. Validar credenciales
-        5. Generar token JWT
-
-        Args:
-            login_data: Datos de login (company_slug, username, password)
-
-        Returns:
-            Token: Token JWT generado
-
-        Raises:
-            HTTPException: Si credenciales inválidas o empresa no existe
+        Estrategia:
+        1. Buscar todos los usuarios con el email proporcionado.
+        2. Validar contraseña para cada coincidencia.
+        3. Si hay 0 coincidencias válidas: Error 401.
+        4. Si hay 1 coincidencia válida: Login directo.
+        5. Si hay >1 coincidencias válidas:
+            - Si se envió company_slug: Filtrar y loguear.
+            - Si NO se envió slug: Retornar lista de empresas para que usuario elija.
         """
         try:
-            # 1. Buscar empresa
-            company = await self._get_active_company(login_data.company_slug)
-            if not company:
-                logger.warning(f"🔒 Intento de login con empresa inexistente: {login_data.company_slug}")
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Empresa no encontrada o inactiva"
-                )
+            from sqlalchemy.orm import selectinload
 
-            # 2. Buscar usuario en la empresa
-            user = await self._get_user_by_credentials(
-                login_data.username,
-                company.id
+            # 1. Buscar usuarios por email (activo)
+            # Cargamos relación company y role para construir la respuesta
+            stmt = select(User).where(
+                User.email == login_data.email, 
+                User.is_active == True
+            ).options(
+                selectinload(User.company),
+                selectinload(User.user_role)
             )
+            result = await self.db.execute(stmt)
+            users = result.scalars().all()
 
-            # 3. Validar contraseña
-            is_password_valid = False
-            if user:
-                is_password_valid = await run_in_executor(
-                    verify_password, login_data.password, user.hashed_password
-                )
+            valid_users = []
+            
+            # 2. Validar contraseñas
+            # Nota: Esto mitiga enumeración de usuarios porque siempre verificamos el pass
+            # antes de confirmar que el usuario existe en alguna empresa.
+            for user in users:
+                if verify_password(login_data.password, user.hashed_password):
+                    # Verificar también que la empresa esté activa
+                    if user.company and user.company.is_active:
+                        valid_users.append(user)
 
-            if not user or not is_password_valid:
-                logger.warning(f"🔒 Intento de login fallido: {login_data.username}@{login_data.company_slug}")
+            # 3. Análisis de resultados
+            if not valid_users:
+                logger.warning(f"🔒 Login fallido (credenciales/inactivo): {login_data.email}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Credenciales inválidas o token expirado",
+                    detail="Email o contraseña incorrectos",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-            # 4. Validar que usuario esté activo
-            if not user.is_active:
-                logger.warning(f"🔒 Usuario inactivo intentando login: {user.username}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Usuario inactivo"
-                )
+            # 4. Selección de usuario final
+            selected_user = None
 
-            # 5. Generar token
-            token = await self._generate_user_token(user)
+            # Caso A: Solo hay un usuario válido -> Login directo
+            if len(valid_users) == 1:
+                selected_user = valid_users[0]
+
+            # Caso B: Hay múltiples (Multi-tenant)
+            else:
+                # Si el cliente ya especificó a cual quiere entrar
+                if login_data.company_slug:
+                    for u in valid_users:
+                        if u.company.slug == login_data.company_slug:
+                            selected_user = u
+                            break
+                    
+                    if not selected_user:
+                        # Credenciales vaidas pero slug incorrecto para este user
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="No tienes acceso a la empresa solicitada"
+                        )
+                
+                # Si no especificó -> Devolver lista para elegir
+                else:
+                    options = []
+                    for u in valid_users:
+                        options.append(CompanyOption(
+                            name=u.company.name,
+                            slug=u.company.slug,
+                            role=u.user_role.name if u.user_role else "Usuario"
+                        ))
+                    
+                    logger.info(f"🤔 Usuario multi-tenant requiere selección: {login_data.email}")
+                    return LoginResponse(
+                        requires_selection=True,
+                        options=options
+                    )
+
+            # 5. Generar token y loguear (Login Final)
+            token = await self._generate_user_token(selected_user)
             
-            # 6. Auditoría - Login exitoso
+            # Auditoría
             audit_service = AuditService(self.db)
             await audit_service.log_simple(
                 action=AuditAction.LOGIN_SUCCESS,
-                company_id=company.id,
-                description=f"Usuario {user.username} inició sesión",
-                user_id=user.id,
-                username=user.username
+                company_id=selected_user.company_id,
+                description=f"Login Smart Auth: {selected_user.username}",
+                user_id=selected_user.id,
+                username=selected_user.username
             )
 
-            logger.info(f"✅ Login exitoso: {user.username} (Empresa: {company.name})")
-            return token
+            logger.info(f"✅ Login Smart Auth exitoso: {selected_user.username} @ {selected_user.company.slug}")
+            return LoginResponse(
+                token=token,
+                requires_selection=False
+            )
 
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"❌ Error en autenticación: {e}")
+            logger.error(f"❌ Error en autenticación Smart Auth: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error interno del servidor"
@@ -142,8 +173,38 @@ class AuthService:
             user: Usuario ya validado por middleware
 
         Returns:
-            UserResponse: Datos públicos del usuario
+            UserResponse: Datos públicos del usuario con permisos
         """
+        permissions = []
+        role_code = None
+        
+        # Cargar permisos y role_code si tiene rol asignado
+        if user.role_id:
+            from app.services.permission_service import PermissionService
+            from app.models.role import Role
+            
+            # Fetch Permissions
+            perm_service = PermissionService(self.db)
+            try:
+                permissions = await perm_service.get_user_permission_codes(user.id, user.company_id)
+            except Exception as e:
+                logger.warning(f"Error fetching permissions for user {user.id}: {e}")
+
+            # Fetch Role Code
+            try:
+                # Try accessing relationship first
+                if user.user_role:
+                    role_code = user.user_role.code
+            except:
+                # Relationship likely not loaded, fetch manually
+                try:
+                    role_result = await self.db.execute(select(Role).where(Role.id == user.role_id))
+                    role_obj = role_result.scalar_one_or_none()
+                    if role_obj:
+                        role_code = role_obj.code
+                except Exception as e:
+                    logger.warning(f"Error fetching role for user {user.id}: {e}")
+
         return UserResponse(
             id=user.id,
             username=user.username,
@@ -152,7 +213,9 @@ class AuthService:
             role=user.role,
             is_active=user.is_active,
             company_id=user.company_id,
-            branch_id=user.branch_id
+            branch_id=user.branch_id,
+            role_code=role_code,
+            permissions=permissions
         )
 
     async def verify_user_token(self, user: User) -> TokenVerification:

@@ -4,6 +4,11 @@ export interface User {
     id: number;
     username: string;
     role: string;
+    role_name?: string;
+    role_code?: string;
+    permissions?: string[];
+    email?: string;
+    full_name?: string;
     branch_id?: number;
     company_id: number;
 }

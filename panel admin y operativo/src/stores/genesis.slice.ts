@@ -3,29 +3,30 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface FoundationData {
     companyName: string;
     nitRut: string;
-    slogan: string;
+    ownerName: string; // Nombre del Fundador/Dueño
+    phone: string;
     logo?: string; // Base64 or URL
 }
 
 interface TerritoryData {
     branchName: string;
     address: string;
-    phone: string;
     lat?: number;
     lng?: number;
 }
 
-interface CommandData {
+interface AuthData {
     adminEmail: string;
     adminPassword: string;
-    roles: string[]; // 'architect', 'commander', 'operator'
+    fullName: string;
+    username: string;
 }
 
 export interface GenesisState {
     currentStep: number;
     foundation: FoundationData;
     territory: TerritoryData;
-    command: CommandData;
+    auth: AuthData;
     // Supply data is now handled in the Setup Wizard
     isComplete: boolean;
 }
@@ -35,17 +36,18 @@ const initialState: GenesisState = {
     foundation: {
         companyName: '',
         nitRut: '',
-        slogan: ''
+        ownerName: '',
+        phone: ''
     },
     territory: {
         branchName: 'Sede Principal',
-        address: '',
-        phone: ''
+        address: ''
     },
-    command: {
+    auth: {
         adminEmail: '',
         adminPassword: '',
-        roles: ['architect']
+        fullName: '',
+        username: ''
     },
     isComplete: false
 };
@@ -63,8 +65,8 @@ const genesisSlice = createSlice({
         updateTerritory: (state, action: PayloadAction<Partial<TerritoryData>>) => {
             state.territory = { ...state.territory, ...action.payload };
         },
-        updateCommand: (state, action: PayloadAction<Partial<CommandData>>) => {
-            state.command = { ...state.command, ...action.payload };
+        updateAuth: (state, action: PayloadAction<Partial<AuthData>>) => {
+            state.auth = { ...state.auth, ...action.payload };
         },
         completeGenesis: (state) => {
             state.isComplete = true;
@@ -73,5 +75,5 @@ const genesisSlice = createSlice({
     }
 });
 
-export const { setStep, updateFoundation, updateTerritory, updateCommand, completeGenesis, resetGenesis } = genesisSlice.actions;
+export const { setStep, updateFoundation, updateTerritory, updateAuth, completeGenesis, resetGenesis } = genesisSlice.actions;
 export default genesisSlice.reducer;

@@ -11,6 +11,7 @@ Estas pruebas validan:
 
 import pytest
 from decimal import Decimal
+from fastapi import HTTPException
 
 from app.services.product_service import ProductService
 from app.schemas.products import ProductCreate, ProductUpdate
