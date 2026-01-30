@@ -4,14 +4,14 @@ from app.models.role import Role
 from app.models.company import Company
 import logging
 
-from app.core.rbac_defaults import DEFAULT_OPERATIONAL_ROLES, DEFAULT_ROLE_PERMISSIONS_MAP
+from app.core.rbac_defaults import DEFAULT_ROLES, DEFAULT_ROLE_PERMISSIONS_MAP
 
 logger = logging.getLogger(__name__)
 
 async def seed_default_roles(db: AsyncSession, company_id: int):
     """Seed default roles for a specific company."""
     
-    default_roles = DEFAULT_OPERATIONAL_ROLES
+    default_roles = DEFAULT_ROLES
 
     # Define default permissions for each role
     role_permissions_map = DEFAULT_ROLE_PERMISSIONS_MAP
@@ -41,8 +41,8 @@ async def seed_default_roles(db: AsyncSession, company_id: int):
                 company_id=company_id,
                 name=role_data["name"],
                 code=role_data["code"],
-                description=role_data["description"],
-                hierarchy_level=role_data["hierarchy"],
+                description=role_data.get("description", ""),
+                hierarchy_level=role_data.get("level", 10),
                 is_system=True,
                 is_active=True
             )

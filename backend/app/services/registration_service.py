@@ -117,16 +117,26 @@ class RegistrationService:
             # 4. Crear Branch principal (usando datos del registro si existen)
             branch = await self._create_default_branch(company, data)
             
-            # 5. Obtener o crear Role admin para esta empresa
-            admin_role = await self._get_or_create_admin_role(company)
+            # 5. Inicializar Roles y Permisos (Usando Nuevo Servicio de Sincronización)
+            from app.services.rbac_sync_service import RBACSyncService
+            rbac_service = RBACSyncService(self.db)
             
-            # 5.5 Crear permisos por defecto y asignarlos al admin
-            await self._create_default_permissions(company, admin_role)
+            # Asegurar que existan definiciones globales (Safety check)
+            await rbac_service.sync_global_metadata()
             
-            # 5.6 CREAR ROLES POR DEFECTO (Managers, Cajeros, etc)
-            await self._create_operational_roles(company)
+            # Crear roles de la empresa (admin, manager, etc)
+            await rbac_service.initialize_company_roles(company.id)
             
-            # 6. Crear User admin (owner)
+            # 6. Obtener el Rol Admin recién creado para asignarlo al usuario
+            result = await self.db.execute(
+                select(Role).where(
+                    Role.company_id == company.id,
+                    Role.code == "admin"
+                )
+            )
+            admin_role = result.scalar_one() # Debe existir tras initialize
+            
+            # 7. Crear User admin (owner)
             user = await self._create_admin_user(
                 company=company,
                 branch=branch,
@@ -137,7 +147,7 @@ class RegistrationService:
             # Commit todo
             await self.db.commit()
             
-            # 7. Generar tokens
+            # 8. Generar tokens
             access_token, refresh_token = await self._generate_tokens(user, company)
 
             logger.info(f"✅ Registro completo: {user.username}@{company.slug}")
@@ -214,33 +224,7 @@ class RegistrationService:
         logger.info(f"✅ Branch creada: {branch.name}")
         return branch
 
-    async def _get_or_create_admin_role(self, company: Company) -> Role:
-        """Obtener o crear rol admin para la empresa."""
-        # Buscar rol admin existente para esta empresa
-        result = await self.db.execute(
-            select(Role).where(
-                Role.company_id == company.id,
-                Role.code == "admin"
-            )
-        )
-        role = result.scalar_one_or_none()
-        
-        if not role:
-            # Crear rol admin
-            role = Role(
-                company_id=company.id,
-                name="Administrador",
-                code="admin",
-                description="Administrador con acceso completo",
-                hierarchy_level=100,  # Máximo nivel
-                is_system=True,
-                is_active=True
-            )
-            self.db.add(role)
-            await self.db.flush()
-            logger.info(f"✅ Role admin creado para {company.slug}")
-        
-        return role
+
 
     async def _create_admin_user(
         self, 
@@ -269,10 +253,7 @@ class RegistrationService:
         logger.info(f"✅ User admin creado: {user.username}")
         return user
 
-    async def _create_operational_roles(self, company: Company):
-        """Crear roles operativos base (Cajero, Cocinero, etc)."""
-        from app.utils.role_seeder import seed_default_roles
-        await seed_default_roles(self.db, company.id)
+
 
     async def _generate_tokens(self, user: User, company: Company) -> tuple[str, str]:
         """Generar tokens JWT para el usuario."""
@@ -296,64 +277,4 @@ class RegistrationService:
         
         return access_token, refresh_token
 
-    async def _create_default_permissions(self, company: Company, admin_role: Role):
-        """
-        Crear categorías de permisos y permisos por defecto.
-        Asignar todos los permisos al rol admin.
-        """
-        from app.core.rbac_defaults import DEFAULT_PERMISSION_CATEGORIES, DEFAULT_PERMISSIONS
 
-        # Definir categorías y permisos del sistema
-        default_categories = DEFAULT_PERMISSION_CATEGORIES
-        
-        default_permissions = DEFAULT_PERMISSIONS
-        
-        # Crear categorías
-        category_map = {}
-        for cat_data in default_categories:
-            category = PermissionCategory(
-                company_id=company.id,
-                code=cat_data["code"],
-                name=cat_data["name"],
-                icon=cat_data["icon"],
-                color=cat_data["color"],
-                is_system=True,
-                is_active=True
-            )
-            self.db.add(category)
-            await self.db.flush()
-            category_map[cat_data["code"]] = category
-        
-        logger.info(f"✅ {len(category_map)} categorías de permisos creadas")
-        
-        # Crear permisos y asignar al admin
-        permissions_created = 0
-        for perm_data in default_permissions:
-            category = category_map.get(perm_data["category"])
-            if not category:
-                continue
-                
-            permission = Permission(
-                company_id=company.id,
-                category_id=category.id,
-                code=perm_data["code"],
-                name=perm_data["name"],
-                resource=perm_data["resource"],
-                action=perm_data["action"],
-                is_system=True,
-                is_active=True
-            )
-            self.db.add(permission)
-            await self.db.flush()
-            
-            # Asignar al rol admin
-            role_permission = RolePermission(
-                role_id=admin_role.id,
-                permission_id=permission.id,
-                granted_at=datetime.utcnow()
-            )
-            self.db.add(role_permission)
-            permissions_created += 1
-        
-        await self.db.flush()
-        logger.info(f"✅ {permissions_created} permisos creados y asignados a admin")

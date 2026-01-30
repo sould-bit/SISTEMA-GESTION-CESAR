@@ -105,6 +105,36 @@ async def on_startup():
             "features": ["RBAC", "JWT", "PostgreSQL", "FastAPI", "Storefront"]
         }
     )
+    
+    # Auto-sync RBAC global metadata on startup
+    try:
+        from sqlalchemy import text
+        from app.database import async_session
+        from app.services.rbac_sync_service import RBACSyncService
+        
+        async with async_session() as session:
+            # Verificar si las tablas existen antes de intentar sync
+            try:
+                await session.execute(text("SELECT 1 FROM permission_categories LIMIT 1"))
+            except Exception:
+                logger.info("⏳ RBAC Sync omitido: Tablas no existen aún. Ejecute 'alembic upgrade head' primero.")
+                return
+            
+            # Tablas existen, ejecutar sync
+            rbac_service = RBACSyncService(session)
+            stats = await rbac_service.sync_global_metadata()
+            
+            total_changes = stats['categories_created'] + stats['permissions_created'] + stats['permissions_updated']
+            if total_changes > 0:
+                logger.info(
+                    f"✅ RBAC Sync: {stats['categories_created']} categorías, "
+                    f"{stats['permissions_created']} permisos creados, "
+                    f"{stats['permissions_updated']} actualizados"
+                )
+            else:
+                logger.info("✅ RBAC Sync: Datos globales ya sincronizados")
+    except Exception as e:
+        logger.warning(f"⚠️ RBAC Sync error inesperado: {e}")
 
 @app.get("/")
 def read_root():

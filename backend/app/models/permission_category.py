@@ -32,8 +32,14 @@ class PermissionCategory(SQLModel, table=True):
     # Campos principales
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     
-    # Multi-Tenancy
-    company_id: int = Field(foreign_key="companies.id", index=True, nullable=False)
+    # Multi-Tenancy (Opcional -> Global)
+    company_id: Optional[int] = Field(
+        default=None,
+        foreign_key="companies.id", 
+        index=True, 
+        nullable=True,
+        description="ID de empresa. Si es NULL, es una categoría GLOBAL del sistema."
+    )
     
     # Información de la categoría
     name: str = Field(max_length=100, description="Nombre legible (ej: 'Meseros')")

@@ -61,47 +61,55 @@ DEFAULT_PERMISSIONS = [
     {"category": "admin", "code": "categories.create", "name": "Crear categorías", "resource": "categories", "action": "create"},
 ]
 
-# Roles Operativos Predeterminados
-DEFAULT_OPERATIONAL_ROLES = [
+# Roles Estándar del Sistema
+DEFAULT_ROLES = [
+    {
+        "name": "Administrador",
+        "code": "admin",
+        "description": "Acceso total al sistema",
+        "level": 100
+    },
     {
         "name": "Gerente",
         "code": "manager",
         "description": "Gestión operativa del negocio",
-        "hierarchy": 90
+        "level": 90
     },
     {
         "name": "Cajero",
         "code": "cashier",
         "description": "Manejo de caja y cobros",
-        "hierarchy": 50
+        "level": 50
     },
     {
         "name": "Cocinero",
         "code": "cook",
         "description": "Pantalla de cocina e inventario",
-        "hierarchy": 40
+        "level": 40
     },
     {
         "name": "Mesero",
         "code": "server",
         "description": "Toma de pedidos y atención",
-        "hierarchy": 30
+        "level": 30
     },
     {
         "name": "Repartidor",
         "code": "delivery",
         "description": "Entrega de pedidos",
-        "hierarchy": 20
+        "level": 20
     }
 ]
 
-# Mapa de Permisos por Defecto para Roles
+# Mapa de Permisos por Defecto
+# Soporta wildcards: "*" (todo), "resource.*" (todo el recurso)
 DEFAULT_ROLE_PERMISSIONS_MAP = {
+    "admin": ["*"],
     "manager": [
         "products.*", "orders.*", "inventory.*", "cash.*", "reports.*", "users.read"
     ],
     "cashier": [
-        "orders.*", "cash.*", "products.read", "reports.sales"
+        "orders.create", "orders.read", "orders.update", "cash.*", "products.read", "reports.sales"
     ],
     "server": [
         "orders.create", "orders.read", "orders.update", "products.read"

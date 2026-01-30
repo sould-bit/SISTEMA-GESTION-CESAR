@@ -194,13 +194,13 @@ class PermissionService:
         if not user or not user.role_id:
             return []
         
-        # Obtener permisos del rol
+        # Obtener permisos del rol (incluyendo globales donde company_id es NULL)
         result = await self.session.execute(
             select(Permission)
             .join(RolePermission, RolePermission.permission_id == Permission.id)
             .where(and_(
                 RolePermission.role_id == user.role_id,
-                Permission.company_id == company_id,
+                or_(Permission.company_id == company_id, Permission.company_id == None),
                 Permission.is_active == True
             ))
             .options(joinedload(Permission.category))
@@ -355,7 +355,7 @@ class PermissionService:
             .join(RolePermission, RolePermission.permission_id == Permission.id)
             .where(and_(
                 RolePermission.role_id == role_id,
-                Permission.company_id == company_id,
+                or_(Permission.company_id == company_id, Permission.company_id == None),
                 Permission.is_active == True
             ))
             .options(selectinload(Permission.category))
@@ -370,9 +370,9 @@ class PermissionService:
         only_active: bool = True
     ) -> List[Permission]:
         """
-        Lista todos los permisos de una empresa.
+        Lista todos los permisos de una empresa (incluyendo globales).
         """
-        conditions = [Permission.company_id == company_id]
+        conditions = [or_(Permission.company_id == company_id, Permission.company_id == None)]
         
         if not include_system:
             conditions.append(Permission.is_system == False)
@@ -400,7 +400,7 @@ class PermissionService:
         """
         conditions = [
             Permission.category_id == category_id,
-            Permission.company_id == company_id
+            or_(Permission.company_id == company_id, Permission.company_id == None)
         ]
         
         if only_active:
