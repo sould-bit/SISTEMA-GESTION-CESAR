@@ -3,13 +3,22 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { StaffService, Role } from './staff.service';
+import { api } from '../../lib/api';
+
+interface Branch {
+    id: number;
+    name: string;
+    code: string;
+    is_main: boolean;
+}
 
 const createUserSchema = z.object({
     full_name: z.string().min(3, 'Nombre requerido'),
     username: z.string().min(3, 'Usuario requerido').regex(/^[a-zA-Z0-9._-]+$/, 'Solo letras, números, puntos y guiones'),
     email: z.string().email('Email inválido'),
     password: z.string().min(6, 'Mínimo 6 caracteres'),
-    role_id: z.string().uuid('Rol requerido')
+    role_id: z.string().uuid('Rol requerido'),
+    branch_id: z.string().optional()  // Optional, null means access to all branches
 });
 
 type CreateUserForm = z.infer<typeof createUserSchema>;
@@ -22,6 +31,7 @@ interface Props {
 
 export const CreateUserModal = ({ isOpen, onClose, onSuccess }: Props) => {
     const [roles, setRoles] = useState<Role[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +42,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: Props) => {
     useEffect(() => {
         if (isOpen) {
             loadRoles();
+            loadBranches();
             reset();
             setError(null);
         }
@@ -51,11 +62,26 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: Props) => {
         }
     };
 
+    const loadBranches = async () => {
+        try {
+            const response = await api.get('/branches');
+            setBranches(response.data.items || []);
+        } catch (err: any) {
+            console.error('Error loading branches:', err);
+            // Non-critical, user can still create without branch
+        }
+    };
+
     const onSubmit = async (data: CreateUserForm) => {
         setLoading(true);
         setError(null);
         try {
-            await StaffService.createUser(data);
+            // Convert branch_id to number or null
+            const payload = {
+                ...data,
+                branch_id: data.branch_id ? parseInt(data.branch_id) : null
+            };
+            await StaffService.createUser(payload);
             onSuccess();
             onClose();
         } catch (err: any) {
@@ -139,6 +165,22 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: Props) => {
                             placeholder="******"
                         />
                         {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-400">Sucursal</label>
+                        <select
+                            {...register('branch_id')}
+                            className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-orange"
+                        >
+                            <option value="">Todas las sucursales (acceso global)</option>
+                            {branches.map(branch => (
+                                <option key={branch.id} value={branch.id.toString()}>
+                                    {branch.name} ({branch.code}){branch.is_main ? ' ⭐' : ''}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-gray-500">Si no seleccionas sucursal, el usuario tendrá acceso a todas.</p>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
