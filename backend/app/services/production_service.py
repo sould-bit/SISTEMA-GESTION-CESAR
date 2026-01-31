@@ -242,22 +242,39 @@ class ProductionService:
                     )
                 
         # 3. Restar stock del OUTPUT y eliminar el lote de salida
+        # IMPORTANT: Do NOT use update_ingredient_stock here because it triggers FIFO
+        # which would consume OTHER batches of the same ingredient. We need to 
+        # directly decrement the inventory stock since we're deleting the specific batch.
         from app.models.ingredient_batch import IngredientBatch
+        from app.models.ingredient_inventory import IngredientInventory, IngredientTransaction
         
         output_batch_stmt = select(IngredientBatch).where(IngredientBatch.id == batch_id)
         output_batch_result = await self.db.execute(output_batch_stmt)
         output_batch = output_batch_result.scalar_one_or_none()
         
         if output_batch and output_batch.quantity_remaining > 0:
-            # Restar del inventario del output
-            await self.inventory_service.update_ingredient_stock(
-                branch_id=branch_id,
-                ingredient_id=event.output_ingredient_id,
-                quantity_delta=-Decimal(str(output_batch.quantity_remaining)),
-                transaction_type="PROD_ROLLBACK_OUT",
-                user_id=event.user_id,
-                reason=f"Rollback Producción {event.id} (Output)"
-            )
+            # Directly decrement inventory WITHOUT FIFO to avoid consuming other batches
+            inv_stmt = select(IngredientInventory).where(
+                IngredientInventory.branch_id == branch_id,
+                IngredientInventory.ingredient_id == event.output_ingredient_id
+            ).with_for_update()
+            inv_result = await self.db.execute(inv_stmt)
+            inventory = inv_result.scalar_one_or_none()
+            
+            if inventory:
+                inventory.stock -= Decimal(str(output_batch.quantity_remaining))
+                self.db.add(inventory)
+                
+                # Create transaction log
+                txn = IngredientTransaction(
+                    inventory_id=inventory.id,
+                    transaction_type="PROD_ROLLBACK_OUT",
+                    quantity=-Decimal(str(output_batch.quantity_remaining)),
+                    balance_after=inventory.stock,
+                    user_id=event.user_id,
+                    reason=f"Rollback Producción {event.id} (Output)"
+                )
+                self.db.add(txn)
         
         # 4. Eliminar el evento PRIMERO (para liberar la FK al batch)
         await self.db.delete(event)
