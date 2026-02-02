@@ -120,6 +120,8 @@ class RecipeListResponse(BaseModel):
     company_id: int
     product_id: int
     product_name: Optional[str] = None
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
     name: str
 
     total_cost: Decimal

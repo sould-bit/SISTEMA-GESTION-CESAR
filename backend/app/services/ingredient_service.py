@@ -255,6 +255,40 @@ class IngredientService:
             
         return final_results
 
+    async def _try_restore_original_sku(self, ingredient: Ingredient) -> None:
+        """
+        Intenta restaurar el SKU original de un ingrediente eliminado.
+        Elimina sufijos como '-DEL-...' si el SKU original está disponible.
+        """
+        if not ingredient.sku or "-DEL-" not in ingredient.sku:
+            return
+
+        # Extraer posible SKU original (todo antes del PRIMER -DEL-)
+        # Formato esperado: "ORIGINAL-SKU-DEL-TIMESTAMP"
+        # Si hay anidados: "ORIGINAL-SKU-DEL-1-DEL-2" -> Queremos "ORIGINAL-SKU"
+        parts = ingredient.sku.split("-DEL-")
+        if len(parts) < 2:
+            return
+            
+        # Tomar siempre la raíz (parte 0) como el objetivo ideal
+        original_sku = parts[0]
+        
+        # Verificar si está disponible 
+        
+        # Verificar si está disponible
+        existing = await self.get_by_sku(ingredient.company_id, original_sku)
+        
+        if not existing:
+            # Está libre, lo tomamos
+            print(f"[RECOVERY] Restoring SKU for {ingredient.name}: {ingredient.sku} -> {original_sku}")
+            ingredient.sku = original_sku
+        else:
+            # Está ocupado. 
+            # Si el que ocupa el SKU está inactivo, podríamos liberarlo ('robarle' el SKU),
+            # pero por seguridad (evitar ciclos), mejor dejamos este con su sufijo o generamos uno nuevo.
+            # LOGIC: Si está ocupado, NO hacemos nada. El usuario deberá arreglarlo manualmente si quiere.
+            print(f"[RECOVERY] Cannot restore SKU {original_sku} for {ingredient.name}. It is taken.")
+
     async def update(
         self,
         ingredient_id: uuid.UUID,
@@ -308,6 +342,10 @@ class IngredientService:
         if category_id is not None:
             ingredient.category_id = category_id
         if is_active is not None:
+            # Detectar restauración: De inactivo (False) a activo (True)
+            if is_active is True and not ingredient.is_active:
+                await self._try_restore_original_sku(ingredient)
+                
             ingredient.is_active = is_active
 
         ingredient.updated_at = datetime.utcnow()
@@ -324,8 +362,11 @@ class IngredientService:
 
         # Liberar SKU añadiendo sufijo si está activo
         if ingredient.is_active:
+            # Evitar anidamiento: Si ya tiene -DEL-, usamos la raiz
+            base_sku = ingredient.sku.split("-DEL-")[0]
+            
             timestamp_suffix = int(datetime.utcnow().timestamp())
-            ingredient.sku = f"{ingredient.sku}-DEL-{timestamp_suffix}"
+            ingredient.sku = f"{base_sku}-DEL-{timestamp_suffix}"
             ingredient.is_active = False
             ingredient.updated_at = datetime.utcnow()
             
@@ -445,6 +486,12 @@ class IngredientService:
             batch.supplier = supplier
         if is_active is not None:
             batch.is_active = is_active
+
+        # Integrity Check: Force deactivation if quantity is zero
+        # This overrides manual is_active=True to prevent ghost batches
+        current_remaining = quantity_remaining if quantity_remaining is not None else batch.quantity_remaining
+        if current_remaining <= 0:
+            batch.is_active = False
 
         self.session.add(batch)
         await self.session.commit()

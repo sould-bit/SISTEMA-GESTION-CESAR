@@ -369,6 +369,11 @@ class InventoryService:
                 total_cost += cost_chunk
                 
                 batch.quantity_remaining -= consumed_qty
+                
+                # FIX: Si el lote quedó en 0 exacto, desactivarlo
+                if batch.quantity_remaining <= 0:
+                    batch.is_active = False
+                    
                 remaining_to_consume = Decimal(0)
             else:
                 # Consumimos todo este lote y seguimos

@@ -38,7 +38,10 @@ class RecipeService:
             stmt = stmt.where(Recipe.is_active == True)
         
         stmt = stmt.offset(skip).limit(limit).order_by(Recipe.created_at.desc())
-        stmt = stmt.options(joinedload(Recipe.product), selectinload(Recipe.items)) 
+        stmt = stmt.options(
+            joinedload(Recipe.product).joinedload(Product.category), 
+            selectinload(Recipe.items)
+        ) 
         
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -153,13 +156,14 @@ class RecipeService:
         return recipe
 
     async def update_recipe_items(self, recipe_id: uuid.UUID, company_id: int, items_data: List[RecipeItemCreate]) -> Recipe:
+        # First, delete existing items using raw SQL (before loading recipe to avoid session conflicts)
+        stmt = delete(RecipeItem).where(RecipeItem.recipe_id == recipe_id)
+        await self.session.execute(stmt)
+        
+        # Now get the recipe (items relationship will be empty since we deleted them)
         recipe = await self.get_recipe(recipe_id, company_id)
         if not recipe:
              raise HTTPException(status_code=404, detail="Recipe not found")
-
-        # Delete existing items
-        stmt = delete(RecipeItem).where(RecipeItem.recipe_id == recipe_id)
-        await self.session.execute(stmt)
         
         total_cost = Decimal(0)
         
@@ -184,11 +188,11 @@ class RecipeService:
 
             item = RecipeItem(
                 id=uuid.uuid4(),
-                recipe_id=recipe.id,
+                recipe_id=recipe_id,  # Use recipe_id directly, not recipe.id
                 ingredient_id=ingredient_id,
                 company_id=company_id,
                 gross_quantity=gross_qty,
-                net_quantity=None, # Will be calculated or null
+                net_quantity=None,
                 measure_unit=measure_unit,
                 calculated_cost=item_cost
             )
@@ -196,11 +200,9 @@ class RecipeService:
             total_cost += item_cost
              
         recipe.total_cost = total_cost
-        self.session.add(recipe)
         await self.session.commit()
-        await self.session.refresh(recipe)
         
-        # Reload for response
+        # Reload for response with fresh data
         return await self.get_recipe(recipe_id, company_id)
 
     async def delete_recipe(self, recipe_id: uuid.UUID, company_id: int):
@@ -281,6 +283,7 @@ class RecipeService:
             description=None, # Not in model
             total_cost=recipe.total_cost,
             is_active=recipe.is_active,
+            recipe_type=recipe.recipe_type or "REAL",
             created_at=recipe.created_at,
             updated_at=recipe.updated_at,
             items=items_response,
@@ -302,9 +305,12 @@ class RecipeService:
             company_id=recipe.company_id,
             product_id=recipe.product_id,
             product_name=recipe.product.name if recipe.product else None,
+            category_id=recipe.product.category_id if recipe.product else None,
+            category_name=recipe.product.category.name if recipe.product and recipe.product.category else None,
             name=recipe.name,
             total_cost=recipe.total_cost,
             is_active=recipe.is_active,
+            recipe_type=recipe.recipe_type or "REAL",
             items_count=items_count,
             created_at=recipe.created_at
         )
