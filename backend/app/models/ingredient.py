@@ -22,7 +22,7 @@ class IngredientType(str, Enum):
 
 class IngredientBase(SQLModel):
     name: str = Field(index=True)
-    sku: str = Field(index=True)
+    sku: str = Field(index=True, max_length=150)
     base_unit: str = Field(description="Unidad base de almacenamiento: kg, lt, und")
     current_cost: Decimal = Field(default=0, sa_column=Column(Numeric(18, 4)))
     last_cost: Decimal = Field(default=0, sa_column=Column(Numeric(18, 4)))

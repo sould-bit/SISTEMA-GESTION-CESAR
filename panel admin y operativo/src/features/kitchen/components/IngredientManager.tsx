@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { kitchenService, Ingredient, IngredientCreate, IngredientBatch, ProductionDetail, ProductionInputDetail } from '../kitchen.service';
 import { FactoryModal } from './FactoryModal';
+import { ActionConfirmationModal } from './ActionConfirmationModal';
 
 
 const HelpIcon = ({ text }: { text: string }) => (
@@ -172,14 +173,33 @@ export const IngredientManager = () => {
     const [showFactoryModal, setShowFactoryModal] = useState(false);
     const [showAllBatches, setShowAllBatches] = useState(false);
 
+    // Deletion Modal State
+    // Deletion Modal State
+    // Action Confirmation Modal State
+    // Action Confirmation Modal State
+    const [actionModal, setActionModal] = useState({
+        isOpen: false,
+        title: '',
+        variant: 'danger' as 'danger' | 'warning' | 'info' | 'success',
+        confirmText: '',
+        onConfirm: () => { },
+        children: null as React.ReactNode
+    });
+
+    const closeActionModal = () => setActionModal(prev => ({ ...prev, isOpen: false }));
+
+    const [showDeleted, setShowDeleted] = useState(false);
+
     useEffect(() => {
         loadIngredients();
-    }, []);
+    }, [showDeleted]);
 
     const loadIngredients = async () => {
         setLoading(true);
         try {
-            const data = await kitchenService.getIngredients();
+            // If showDeleted is true, we fetch ALL including inactive (activeOnly=false)
+            // If showDeleted is false, we fetch ONLY active (activeOnly=true)
+            const data = await kitchenService.getIngredients(undefined, undefined, !showDeleted);
             setIngredients(data);
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Error loading ingredients');
@@ -191,11 +211,17 @@ export const IngredientManager = () => {
     const filteredIngredients = useMemo(() => {
         let filtered = ingredients;
 
-        // Filter by Tab
-        filtered = filtered.filter(i => {
-            const type = i.ingredient_type || 'RAW'; // Default to RAW if undefined
-            return type === activeTab;
-        });
+        if (showDeleted) {
+            // Show ONLY inactive items when in "Recycle Bin" mode
+            filtered = filtered.filter(i => !i.is_active);
+        } else {
+            // Show ONLY active items (though backend usually filters this, double check)
+            // And filter by Tab Type
+            filtered = filtered.filter(i => {
+                const type = i.ingredient_type || 'RAW'; // Default to RAW if undefined
+                return i.is_active && type === activeTab;
+            });
+        }
 
         // Filter by Search
         if (searchQuery.trim()) {
@@ -206,7 +232,7 @@ export const IngredientManager = () => {
             );
         }
         return filtered;
-    }, [ingredients, searchQuery, activeTab]);
+    }, [ingredients, searchQuery, activeTab, showDeleted]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -250,8 +276,7 @@ export const IngredientManager = () => {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('¿Eliminar este insumo?')) return;
+    const confirmDelete = async (id: string) => {
         try {
             await kitchenService.deleteIngredient(id);
             await loadIngredients();
@@ -259,6 +284,82 @@ export const IngredientManager = () => {
             alert(err.response?.data?.detail || 'Error deleting ingredient');
         }
     };
+
+    const confirmRestore = async (id: string) => {
+        try {
+            await kitchenService.updateIngredient(id, { is_active: true });
+            await loadIngredients();
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Error restoring ingredient');
+        }
+    };
+
+    const handleDeleteClick = (ingredient: Ingredient) => {
+        const isProcessed = ingredient.ingredient_type === 'PROCESSED';
+
+        if (isProcessed) {
+            setActionModal({
+                isOpen: true,
+                title: 'Advertencia de Eliminación',
+                variant: 'warning',
+                confirmText: 'Entiendo, Eliminar',
+                onConfirm: () => confirmDelete(ingredient.id),
+                children: (
+                    <>
+                        <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-4 text-sm text-gray-300 space-y-3 mb-4">
+                            <p className="font-semibold text-amber-400 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">info</span>
+                                Estás a punto de eliminar un producto de Producción Interna.
+                            </p>
+                            <ul className="list-disc pl-5 space-y-1 text-gray-400">
+                                <li>Esto <strong>SOLO ocultará</strong> el producto de la lista (Soft Delete).</li>
+                                <li><strong>NO devolverá</strong> los insumos al inventario.</li>
+                                <li><strong>NO revertirá</strong> los costos ni el historial de producción.</li>
+                            </ul>
+                        </div>
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-sm">
+                            <p className="text-blue-300 font-medium mb-1">¿Buscas recuperar los insumos?</p>
+                            <p className="text-gray-400">
+                                Si esto fue un error de producción y quieres recuperar el stock de materia prima,
+                                <strong> Cancelar</strong> y usa la opción de <strong>Ver Lotes (📦)</strong> para eliminar el lote específico.
+                            </p>
+                        </div>
+                    </>
+                )
+            });
+        } else {
+            setActionModal({
+                isOpen: true,
+                title: '¿Eliminar Insumo?',
+                variant: 'danger',
+                confirmText: 'Eliminar Permanentemente',
+                onConfirm: () => confirmDelete(ingredient.id),
+                children: (
+                    <div className="text-gray-300">
+                        <p>Esta acción eliminará el insumo <strong>{ingredient.name}</strong> del sistema.</p>
+                        <p className="mt-2 text-sm text-gray-500">
+                            El historial se mantendrá, pero el insumo ya no aparecerá en los listados activos.
+                        </p>
+                    </div>
+                )
+            });
+        }
+    };
+
+    const handleRestoreClick = (ingredient: Ingredient) => {
+        setActionModal({
+            isOpen: true,
+            title: 'Restaurar Insumo',
+            variant: 'info',
+            confirmText: 'Restaurar',
+            onConfirm: () => confirmRestore(ingredient.id),
+            children: (
+                <p>¿Estás seguro de que deseas restaurar el insumo <strong>{ingredient.name}</strong> a la lista activa?</p>
+            )
+        });
+    };
+
+
 
     const handleUpdateStock = async () => {
         if (!selectedForStock) return;
@@ -454,21 +555,14 @@ export const IngredientManager = () => {
         }
     };
 
-    // Eliminar lote
-    const handleDeleteBatch = async (batchId: string) => {
-        const isProcessed = selectedForBatches?.ingredient_type === 'PROCESSED';
-        const message = isProcessed
-            ? '¿Deshacer esta producción? \n\nEsto devolverá los insumos al inventario y eliminará este lote de producto terminado.\n\n¿Estás seguro?'
-            : '¿Eliminar este lote? \n\nEsta acción eliminará el registro de inventario permanentemente.\n\n¿Estás seguro?';
-
-        if (!confirm(message)) return;
-
+    // Execute batch deletion after confirmation
+    const executeBatchDeletion = async (batchId: string) => {
         try {
             await kitchenService.deleteBatch(batchId);
 
-            // 1. Recargar lotes del modal
+            // 1. Recargar lotes del modal manteniendo el filtro actual
             if (selectedForBatches) {
-                await openBatchModal(selectedForBatches);
+                await loadBatchesForIngredient(selectedForBatches, showAllBatches);
             }
 
             // 2. Recargar lista principal de ingredientes (actualizar stock y costos globales)
@@ -477,6 +571,47 @@ export const IngredientManager = () => {
         } catch (err) {
             console.error('Error deleting batch', err);
             alert('Error al eliminar el lote. Verifica que el backend esté corriendo.');
+        }
+    };
+
+    // Eliminar lote (Trigger Modal)
+    const handleDeleteBatch = async (batchId: string) => {
+        const isProcessed = selectedForBatches?.ingredient_type === 'PROCESSED';
+
+        if (isProcessed) {
+            setActionModal({
+                isOpen: true,
+                title: '¿Deshacer Producción?',
+                variant: 'warning',
+                confirmText: 'Deshacer Producción',
+                onConfirm: () => executeBatchDeletion(batchId),
+                children: (
+                    <div className="space-y-3">
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-sm text-gray-300">
+                            <p className="font-semibold text-amber-500 mb-1">Acción Reversible de Stock</p>
+                            <p>Esto <strong>devolverá los insumos</strong> al inventario de Materia Prima y eliminará este registro de producto terminado.</p>
+                        </div>
+                        <p className="text-gray-400 text-sm">Esta acción es ideal si cometiste un error al registrar la producción.</p>
+                    </div>
+                )
+            });
+        } else {
+            setActionModal({
+                isOpen: true,
+                title: '¿Eliminar Lote?',
+                variant: 'danger',
+                confirmText: 'Eliminar Lote',
+                onConfirm: () => executeBatchDeletion(batchId),
+                children: (
+                    <div className="text-gray-300">
+                        <p>Esta acción eliminará el registro de inventario <strong>permanentemente</strong>.</p>
+                        <ul className="list-disc pl-5 mt-2 text-sm text-gray-400 space-y-1">
+                            <li>El costo asociado a este lote desaparecerá.</li>
+                            <li>El stock total se reducirá.</li>
+                        </ul>
+                    </div>
+                )
+            });
         }
     };
 
@@ -591,16 +726,42 @@ export const IngredientManager = () => {
                 </div>
                 {/* Header Actions - Hide in MENU mode */}
                 {viewMode !== 'MENU' && (
-                    <button
-                        onClick={activeTab === 'RAW' ? openCreate : openFactory}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium shadow-lg ${activeTab === 'RAW'
-                            ? 'bg-accent-orange hover:bg-orange-600 shadow-orange-500/20 text-white'
-                            : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white'
-                            }`}
-                    >
-                        <span className="material-symbols-outlined text-[20px]">{activeTab === 'RAW' ? 'add' : 'factory'}</span>
-                        {activeTab === 'RAW' ? 'Crear Insumo' : 'Fábrica'}
-                    </button>
+                    <div className="flex gap-2">
+                        {/* Toggle Show Deleted */}
+                        <button
+                            onClick={() => {
+                                const newShowDeleted = !showDeleted;
+                                setShowDeleted(newShowDeleted);
+                                // Auto-switch to LIST view when viewing deactivated items
+                                if (newShowDeleted) {
+                                    setViewMode('LIST');
+                                }
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium border ${showDeleted
+                                ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                                : 'bg-transparent border-border-dark text-text-muted hover:text-white hover:bg-white/5'
+                                }`}
+                            title={showDeleted ? "Salir de Papelera" : "Ver Eliminados"}
+                        >
+                            <span className="material-symbols-outlined text-[20px]">
+                                {showDeleted ? 'keyboard_return' : 'delete_sweep'}
+                            </span>
+                            {showDeleted ? 'Volver' : ''}
+                        </button>
+
+                        {!showDeleted && (
+                            <button
+                                onClick={activeTab === 'RAW' ? openCreate : openFactory}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium shadow-lg ${activeTab === 'RAW'
+                                    ? 'bg-accent-orange hover:bg-orange-600 shadow-orange-500/20 text-white'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white'
+                                    }`}
+                            >
+                                <span className="material-symbols-outlined text-[20px]">{activeTab === 'RAW' ? 'add' : 'factory'}</span>
+                                {activeTab === 'RAW' ? 'Crear Insumo' : 'Fábrica'}
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -634,8 +795,8 @@ export const IngredientManager = () => {
             {/* Content Logic */}
             <div className="flex flex-col gap-4">
 
-                {/* MENU VIEW */}
-                {viewMode === 'MENU' && (
+                {/* MENU VIEW - Only show when NOT viewing deactivated items */}
+                {viewMode === 'MENU' && !showDeleted && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         {/* Card 1: Ingresar / Registrar */}
                         <button
@@ -683,8 +844,8 @@ export const IngredientManager = () => {
                     </div>
                 )}
 
-                {/* INGRESAR VIEW */}
-                {viewMode === 'INGRESAR' && (
+                {/* INGRESAR VIEW - Only show when NOT viewing deactivated items */}
+                {viewMode === 'INGRESAR' && !showDeleted && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className="flex items-center justify-between mb-4">
                             <button
@@ -860,13 +1021,24 @@ export const IngredientManager = () => {
                                                             <button onClick={() => openBatchModal(ingredient)} className="p-1.5 text-purple-400 hover:bg-purple-500/10 rounded" title="Ver Lotes / Historial Compras">
                                                                 <span className="material-symbols-outlined text-[18px]">inventory_2</span>
                                                             </button>
-                                                            <button onClick={() => openStockUpdate(ingredient)} className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded" title="Registrar Nueva Compra">
-                                                                <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-                                                            </button>
 
-                                                            <button onClick={() => handleDelete(ingredient.id)} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded" title="Eliminar">
-                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                            </button>
+                                                            {showDeleted ? (
+                                                                <button onClick={() => handleRestoreClick(ingredient)} className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded" title="Restaurar">
+                                                                    <span className="material-symbols-outlined text-[18px]">restore_from_trash</span>
+                                                                </button>
+                                                            ) : (
+                                                                <>
+                                                                    {activeTab === 'RAW' && (
+                                                                        <button onClick={() => openStockUpdate(ingredient)} className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded" title="Registrar Nueva Compra">
+                                                                            <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                                                                        </button>
+                                                                    )}
+
+                                                                    <button onClick={() => handleDeleteClick(ingredient)} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded" title="Eliminar">
+                                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                                    </button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -879,6 +1051,9 @@ export const IngredientManager = () => {
                     </>
                 )}
             </div>
+
+            {/* Deletion Confirmation Modal */}
+
 
             {/* Create/Edit Modal */}
             {
@@ -1102,117 +1277,184 @@ export const IngredientManager = () => {
                     </div>
                 )
             }
-            {/* Stock Update Modal */}
+            {/* Stock Update Modal (PURCHASE MODE) */}
             {
-                showStockModal && selectedForStock && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-card-dark border border-border-dark rounded-2xl w-full max-w-md">
-                            <div className="p-6 border-b border-border-dark">
-                                <h3 className="text-lg font-semibold text-white">Ajustar Stock Físico</h3>
-                                <p className="text-text-muted text-sm">{selectedForStock.name}</p>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button onClick={() => setStockData({ ...stockData, type: 'IN' })} className={`px-3 py-2 rounded-lg text-sm ${stockData.type === 'IN' ? 'bg-emerald-500 text-white' : 'bg-bg-deep text-gray-400'}`}>Entrada</button>
-                                    <button onClick={() => setStockData({ ...stockData, type: 'OUT' })} className={`px-3 py-2 rounded-lg text-sm ${stockData.type === 'OUT' ? 'bg-red-500 text-white' : 'bg-bg-deep text-gray-400'}`}>Salida</button>
-                                    <button onClick={() => setStockData({ ...stockData, type: 'ADJUST' })} className={`px-3 py-2 rounded-lg text-sm ${stockData.type === 'ADJUST' ? 'bg-blue-500 text-white' : 'bg-bg-deep text-gray-400'}`}>Ajuste</button>
+                showStockModal && selectedForStock && (() => {
+                    const currentStock = Number((selectedForStock as any).stock) || 0;
+                    const adjustmentQty = Number(stockData.quantity) || 0;
+                    // Force projection as IN since this is now a Purchase Module
+                    const projectedStock = currentStock + adjustmentQty;
+
+                    return (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-card-dark border border-border-dark rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
+
+                                {/* Header */}
+                                <div className="p-6 border-b border-border-dark bg-emerald-500/5 flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
+                                                <span className="material-symbols-outlined text-[24px]">shopping_cart</span>
+                                            </span>
+                                            <h3 className="text-xl font-bold text-white">
+                                                Registrar Nueva Compra
+                                            </h3>
+                                        </div>
+                                        <p className="text-text-muted text-sm ml-11">Ingresa los detalles de la compra de <strong>{selectedForStock.name}</strong></p>
+                                    </div>
+                                    <div className="text-right hidden sm:block">
+                                        <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Stock Actual</p>
+                                        <p className="text-white font-mono font-bold text-lg">
+                                            {formatNumber(currentStock, 4)} <span className="text-sm font-normal text-gray-400">{selectedForStock.base_unit}</span>
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm text-gray-300 mb-1">📦 Cantidad</label>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={formatInputValue(stockData.quantity)}
-                                        onChange={e => handleFormattedInput(e, (val) => setStockData({ ...stockData, quantity: val }))}
-                                        className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white font-mono text-lg"
-                                        placeholder="Ej: 10.000"
-                                    />
-                                </div>
-                                {stockData.type === 'IN' && activeTab === 'RAW' && (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-sm text-gray-300 mb-1">
-                                                💰 Precio TOTAL que pagaste
+
+                                <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+
+                                    {/* Main Inputs Grid */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                                        {/* Column 1: Quantity */}
+                                        <div className="space-y-4">
+                                            <label className="block text-sm font-medium text-gray-300">
+                                                📦 Cantidad Comprada
                                             </label>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                value={formatInputValue(stockData.total_cost)}
-                                                onChange={e => handleFormattedInput(e, (val) => setStockData({ ...stockData, total_cost: val }))}
-                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white text-xl font-mono"
-                                                placeholder="Ej: 80.000"
-                                            />
-                                            <p className="text-xs text-text-muted mt-1">
-                                                Ingresa el total que costó la compra de estos {formatNumber(stockData.quantity)} {selectedForStock.base_unit}
-                                            </p>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="material-symbols-outlined text-emerald-500 group-focus-within:text-emerald-400 transition-colors">add_circle</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    step="any"
+                                                    value={stockData.quantity || ''}
+                                                    onChange={e => setStockData({ ...stockData, quantity: parseFloat(e.target.value) || 0, type: 'IN' })}
+                                                    className="w-full bg-bg-deep border border-emerald-500/30 rounded-xl pl-10 pr-12 py-4 text-white font-mono text-2xl focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all shadow-inner"
+                                                    placeholder="0"
+                                                    autoFocus
+                                                />
+                                                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                                    <span className="text-emerald-500/50 font-mono text-sm uppercase font-bold">{selectedForStock.base_unit}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* New Stock Preview */}
+                                            <div className="flex flex-col gap-1 text-xs bg-white/5 p-3 rounded-xl border border-white/5">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-text-muted">Nuevo Balance:</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-gray-400">{formatNumber(currentStock)}</span>
+                                                        <span className="material-symbols-outlined text-[12px] text-emerald-500">arrow_forward</span>
+                                                        <span className="font-mono font-bold text-emerald-400 text-lg">
+                                                            {formatNumber(projectedStock)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                {/* DEBUG INFO - REMOVE LATER */}
+                                                <div className="text-[10px] text-gray-600 font-mono text-right">
+                                                    Raw: {currentStock} + {adjustmentQty} = {projectedStock}
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        {/* Proveedor */}
-                                        <div>
-                                            <label className="block text-sm text-gray-300 mb-1">
-                                                📍 Proveedor
+                                        {/* Column 2: Cost */}
+                                        <div className="space-y-4">
+                                            <label className="block text-sm font-medium text-amber-300 flex items-center gap-2">
+                                                💰 Costo Total (Pagado)
+                                                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 uppercase tracking-wide">Importante</span>
                                             </label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="material-symbols-outlined text-amber-500 group-focus-within:text-amber-400 transition-colors">payments</span>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={formatInputValue(stockData.total_cost)}
+                                                    onChange={e => handleFormattedInput(e, (val) => setStockData({ ...stockData, total_cost: val, type: 'IN' }))}
+                                                    className="w-full bg-bg-deep border border-amber-500/30 rounded-xl pl-10 pr-4 py-4 text-white text-2xl font-mono focus:ring-2 focus:ring-amber-500/50 transition-all shadow-inner"
+                                                    placeholder="$ 0"
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-text-muted text-right">
+                                                Ingresa el valor total de la factura por estos items.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Supplier Input - Full Width */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">📍 Proveedor / Origen</label>
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span className="material-symbols-outlined text-gray-500 group-focus-within:text-emerald-500 transition-colors">store</span>
+                                            </div>
                                             <input
                                                 type="text"
                                                 value={stockData.supplier}
-                                                onChange={e => setStockData({ ...stockData, supplier: e.target.value })}
-                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white"
-                                                placeholder="Ej: La Plaza, Makro, Proveedor X"
+                                                onChange={e => setStockData({ ...stockData, supplier: e.target.value, type: 'IN' })}
+                                                className="w-full bg-bg-deep border border-border-dark rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/30 transition-all placeholder-gray-600"
+                                                placeholder="Ej: La Plaza, Makro, Fruver..."
                                             />
-                                            <p className="text-xs text-text-muted mt-1">
-                                                Opcional: ¿De dónde compraste este lote?
-                                            </p>
                                         </div>
+                                    </div>
 
-                                        {/* Costo Unitario Calculado */}
-                                        {stockData.quantity > 0 && stockData.total_cost > 0 && (() => {
-                                            const unitCost = stockData.total_cost / stockData.quantity;
-                                            const unitLabel = selectedForStock.base_unit === 'kg' ? 'kilogramo'
-                                                : selectedForStock.base_unit === 'g' ? 'gramo'
-                                                    : selectedForStock.base_unit === 'lt' ? 'litro'
-                                                        : selectedForStock.base_unit === 'ml' ? 'mililitro'
-                                                            : selectedForStock.base_unit === 'und' ? 'unidad'
-                                                                : selectedForStock.base_unit;
-
-                                            return (
-                                                <div className="bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl p-4">
-                                                    <div className="text-center">
-                                                        <p className="text-xs text-emerald-300 uppercase tracking-wider mb-1">
-                                                            Costo por cada {unitLabel}
-                                                        </p>
-                                                        <p className="text-3xl font-bold text-emerald-400 font-mono">
-                                                            {new Intl.NumberFormat('es-CO', {
-                                                                style: 'currency',
-                                                                currency: 'COP',
-                                                                minimumFractionDigits: unitCost < 100 ? 2 : 0,
-                                                                maximumFractionDigits: unitCost < 100 ? 2 : 0
-                                                            }).format(unitCost)}
-                                                        </p>
-                                                        <p className="text-xs text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-1 rounded inline-block">
-                                                            ✍️ {numberToWords(unitCost)}
-                                                        </p>
-                                                        <p className="text-sm text-emerald-300 mt-2">
-                                                            por cada <span className="font-bold">1 {selectedForStock.base_unit}</span>
-                                                        </p>
-                                                    </div>
-                                                    <div className="mt-3 pt-3 border-t border-emerald-500/20 text-center">
-                                                        <p className="text-xs text-text-muted">
-                                                            📊 {formatCurrency(stockData.total_cost, 2)} ÷ {formatNumber(stockData.quantity, 4)} {selectedForStock.base_unit} = <span className="text-emerald-400 font-semibold">{formatCurrency(unitCost, 6)}/{selectedForStock.base_unit}</span>
-                                                        </p>
+                                    {/* Unit Cost Calculation Card */}
+                                    {(stockData.quantity > 0 && stockData.total_cost > 0) && (() => {
+                                        const unitCost = stockData.total_cost / stockData.quantity;
+                                        return (
+                                            <div className="bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 rounded-xl p-4 animate-in slide-in-from-bottom-2">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="p-1.5 bg-emerald-500/20 rounded-lg text-emerald-400">
+                                                            <span className="material-symbols-outlined text-[18px]">calculate</span>
+                                                        </span>
+                                                        <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest">Costo Unitario Calculado</span>
                                                     </div>
                                                 </div>
-                                            );
-                                        })()}
-                                    </div>
-                                )}
-                                <div className="flex justify-end gap-3 pt-4">
-                                    <button onClick={closeStockModal} className="px-4 py-2 text-gray-400">Cancelar</button>
-                                    <button onClick={handleUpdateStock} className="px-4 py-2 bg-accent-orange text-white rounded-lg">Guardar</button>
+
+                                                <div className="flex items-baseline justify-between">
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-3xl font-bold text-emerald-400 font-mono tracking-tight">
+                                                            {formatCurrency(unitCost)}
+                                                        </span>
+                                                        <span className="text-sm text-emerald-600 font-medium">/ {selectedForStock.base_unit}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-[10px] text-emerald-400/60 font-mono block">
+                                                            {formatCurrency(stockData.total_cost)} ÷ {formatNumber(stockData.quantity)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-[10px] text-amber-500/80 mt-2 font-medium bg-amber-500/5 inline-block px-2 py-1 rounded">
+                                                    Este costo se promediará con el inventario actual.
+                                                </p>
+                                            </div>
+                                        );
+                                    })()}
+
+                                </div>
+
+                                <div className="p-6 border-t border-border-dark bg-bg-deep/50 rounded-b-2xl flex justify-end gap-3">
+                                    <button
+                                        onClick={closeStockModal}
+                                        className="px-5 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium text-sm"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={() => { setStockData({ ...stockData, type: 'IN' }); handleUpdateStock(); }}
+                                        className="px-8 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all font-bold flex items-center gap-2 group transform active:scale-95"
+                                    >
+                                        <span className="material-symbols-outlined group-hover:animate-bounce">save</span>
+                                        Registrar Compra
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )
+                    );
+                })()
             }
 
             {/* Batch Viewer Modal */}
@@ -1363,7 +1605,7 @@ export const IngredientManager = () => {
                         </div>
 
                         <div className="p-4 border-t border-border-dark flex justify-between">
-                            {selectedForBatches.ingredient_type !== 'PROCESSED' && (
+                            {selectedForBatches.ingredient_type !== 'PROCESSED' && selectedForBatches.is_active && (
                                 <button
                                     onClick={() => {
                                         closeBatchModal();
@@ -1525,6 +1767,18 @@ export const IngredientManager = () => {
 
 
             )}
+
+            {/* Generic Action Modal */}
+            <ActionConfirmationModal
+                isOpen={actionModal.isOpen}
+                onClose={closeActionModal}
+                onConfirm={actionModal.onConfirm}
+                title={actionModal.title}
+                variant={actionModal.variant}
+                confirmText={actionModal.confirmText}
+            >
+                {actionModal.children}
+            </ActionConfirmationModal>
 
             <FactoryModal
                 isOpen={showFactoryModal}

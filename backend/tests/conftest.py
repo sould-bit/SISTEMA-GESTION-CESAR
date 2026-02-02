@@ -58,15 +58,20 @@ TestingSessionLocal = async_sessionmaker(
 )
 
 
+# ============================================================================
+# PYTEST-ASYNCIO CONFIGURATION (Modern approach for 0.21+)
+# ============================================================================
+
+def pytest_configure(config):
+    """Configure pytest-asyncio to use auto mode."""
+    config.addinivalue_line("markers", "anyio: mark test as an anyio test.")
+
+
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create an instance of the default event loop for each test case."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+def event_loop_policy():
+    """Return the event loop policy to use."""
+    return asyncio.DefaultEventLoopPolicy()
+
 
 @pytest.fixture(scope="function", autouse=True)
 async def init_db():

@@ -53,9 +53,14 @@ export const Tooltip = ({ content, children, position = 'top' }: TooltipProps) =
 
 /**
  * HelpIcon - Small ? icon that shows tooltip on hover
+ * Accepts either 'text' or 'content' for the tooltip message
  */
-export const HelpIcon = ({ text, position = 'top' }: { text: string; position?: 'top' | 'bottom' | 'left' | 'right' }) => (
-    <Tooltip content={text} position={position}>
+export const HelpIcon = ({ text, content, position = 'top' }: {
+    text?: string;
+    content?: string;
+    position?: 'top' | 'bottom' | 'left' | 'right'
+}) => (
+    <Tooltip content={text || content || ''} position={position}>
         <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] bg-white/10 text-text-muted rounded-full cursor-help hover:bg-white/20 hover:text-white transition-colors ml-1">
             ?
         </span>

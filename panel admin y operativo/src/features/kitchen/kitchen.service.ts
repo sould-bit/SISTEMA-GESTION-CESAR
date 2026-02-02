@@ -120,6 +120,8 @@ export interface Recipe {
     id: number;  // INTEGER in database
     product_id: number;
     product_name?: string; // Populate from backend
+    category_id?: number;  // Category of the product
+    category_name?: string; // Category name for grouping
     name: string;
     version: number;
     is_active: boolean;
@@ -128,6 +130,7 @@ export interface Recipe {
     preparation_time: number;
     recipe_type: 'REAL' | 'AUTO' | 'PROCESSED';  // Type of recipe
     items: RecipeItem[];
+    items_count?: number; // Count from backend for list views
 }
 
 export interface MenuEngineeringProduct {
@@ -185,10 +188,12 @@ export const kitchenService = {
     // 1. INGREDIENTS (Materia Prima / Insumos)
     // ─────────────────────────────────────────
 
-    getIngredients: async (search?: string, ingredientType?: string): Promise<Ingredient[]> => {
+    getIngredients: async (search?: string, ingredientType?: string, activeOnly: boolean = true): Promise<Ingredient[]> => {
         const params: any = {};
         if (search) params.search = search;
         if (ingredientType) params.ingredient_type = ingredientType;
+        params.active_only = activeOnly;
+
         const { data } = await api.get<Ingredient[]>('/ingredients/', { params });
         return data;
     },
@@ -209,6 +214,15 @@ export const kitchenService = {
     // Categories
     getCategories: async (): Promise<Category[]> => {
         const { data } = await api.get<Category[]>('/categories/');
+        return data;
+    },
+
+    createCategory: async (name: string, description?: string): Promise<Category> => {
+        const { data } = await api.post<Category>('/categories/', {
+            name,
+            description: description || '',
+            is_active: true
+        });
         return data;
     },
 
@@ -298,7 +312,12 @@ export const kitchenService = {
     },
 
     updateRecipe: async (id: string, payload: Partial<RecipePayload>): Promise<Recipe> => {
-        const { data } = await api.patch<Recipe>(`/recipes/${id}`, payload);
+        const { data } = await api.put<Recipe>(`/recipes/${id}`, payload);
+        return data;
+    },
+
+    updateRecipeItems: async (id: string, items: RecipePayload['items']): Promise<Recipe> => {
+        const { data } = await api.put<Recipe>(`/recipes/${id}/items`, { items });
         return data;
     },
 
