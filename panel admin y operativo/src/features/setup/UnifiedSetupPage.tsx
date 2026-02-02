@@ -6,6 +6,7 @@ import { BeverageForm } from './components/BeverageForm';
 import { StandardForm } from './components/StandardForm';
 import { ModifierForm } from './components/ModifierForm';
 import { type Ingredient as KitchenIngredient } from '@/features/kitchen/kitchen.service';
+import { RecipeItemRow } from './setup.service';
 
 export const UnifiedSetupPage = () => {
     // --- Global Data Hook ---
@@ -32,12 +33,6 @@ export const UnifiedSetupPage = () => {
 
     // Aliases for different form modes (since all use the same unified hook logic)
     const handleSaveStandard = saveProduct;
-    // Modifiers might need separate logic or use the same hook
-    // (Assuming ModifierForm expects a specific signature, checking usage temporarily aliased)
-    const handleSaveModifier = async () => {
-        // Placeholder if distinct logic is needed, or reuse saveProduct if compatible
-        console.warn("Modifier save logic not fully integrated yet");
-    };
 
     // --- Category Selection Logic ---
     useEffect(() => {
@@ -163,19 +158,12 @@ export const UnifiedSetupPage = () => {
 
                 {/* MODIFIERS MODULE */}
                 {viewMode === 'EXTRAS' && (
-                    <div>
-                        <button onClick={() => setViewMode('HOME')} className="mb-4 text-sm text-gray-500 hover:text-white underline">
-                            &larr; Volver
-                        </button>
-                        <ModifierForm
-                            modifiers={modifiers}
-                            handleSaveModifier={handleSaveModifier}
-                            isSaving={isSaving}
-                            recipeItems={recipeItems}
-                            setRecipeItems={setRecipeItems}
-                            ingredients={ingredients}
-                        />
-                    </div>
+                    <ModifierForm
+                        modifiers={modifiers}
+                        ingredients={ingredients}
+                        onRefresh={refreshData}
+                        onBack={() => setViewMode('HOME')}
+                    />
                 )}
 
                 {/* STANDARD FORM (INSUMOS / CARTA) */}
