@@ -11,6 +11,7 @@ pydantic==2.10.6
 pydantic-settings==2.6.1
 annotated-types==0.7.0
 python-multipart==0.0.9
+aiofiles==23.2.1
 
 # Database - ACTUALIZADO
 sqlalchemy[asyncio]==2.0.36

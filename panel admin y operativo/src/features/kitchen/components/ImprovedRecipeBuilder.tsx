@@ -2,6 +2,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { useState, useEffect, useMemo } from 'react';
 import { kitchenService, Ingredient, RecipePayload, ProductSummary, Category } from '../kitchen.service';
 import { HelpIcon } from '@/components/ui/Tooltip';
+import { ImageUploader } from './ImageUploader';
 
 interface RecipeFormData {
     name: string;
@@ -9,6 +10,7 @@ interface RecipeFormData {
     category_id?: string; // New field for product creation
     preparation_time: number;
     selling_price: number;
+    image_url?: string; // Product image URL
     items: {
         ingredient_id: string;
         ingredient_name: string;
@@ -42,9 +44,11 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryDesc, setNewCategoryDesc] = useState('');
     const [creatingCategory, setCreatingCategory] = useState(false);
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [imageUrl, setImageUrl] = useState<string>(existingRecipe?.product?.image_url || '');
 
     const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<RecipeFormData>({
         defaultValues: {
@@ -72,7 +76,9 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
     const watchedItems = useWatch({ control, name: 'items', defaultValue: [] });
     const watchedSellingPrice = useWatch({ control, name: 'selling_price', defaultValue: 0 });
     const watchedName = useWatch({ control, name: 'name' });
+
     const watchedProductId = useWatch({ control, name: 'product_id' });
+    const watchedCategoryId = useWatch({ control, name: 'category_id' });
 
     // Load Categories on mount
     useEffect(() => {
@@ -89,23 +95,69 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
     };
 
     // Create new category
-    const handleCreateCategory = async () => {
+    // Create or Update category
+    const handleSaveCategory = async () => {
         if (!newCategoryName.trim()) return;
 
         setCreatingCategory(true);
         try {
-            const newCat = await kitchenService.createCategory(newCategoryName.trim(), newCategoryDesc.trim());
+            if (editingCategoryId) {
+                // Update existing
+                const currentCat = categories.find(c => c.id.toString() === editingCategoryId);
+                const isActive = currentCat ? currentCat.is_active : true;
+                await kitchenService.updateCategory(Number(editingCategoryId), newCategoryName.trim(), newCategoryDesc.trim(), isActive);
+            } else {
+                // Create new
+                const newCat = await kitchenService.createCategory(newCategoryName.trim(), newCategoryDesc.trim());
+                if (!editingCategoryId) {
+                    setValue('category_id', newCat.id.toString());
+                }
+            }
+
             await loadCategoriesList();
-            setValue('category_id', newCat.id.toString());
             setShowCategoryModal(false);
             setNewCategoryName('');
             setNewCategoryDesc('');
+            setEditingCategoryId(null);
         } catch (error: any) {
-            console.error('Error creating category:', error);
-            alert(error.response?.data?.detail || 'Error al crear la categoría');
+            console.error('Error saving category:', error);
+            const errorData = error.response?.data;
+            let errorMessage = 'Error al guardar la categoría';
+
+            if (errorData?.detail) {
+                if (Array.isArray(errorData.detail)) {
+                    // Pydantic validation errors
+                    errorMessage = `Error de validación:\n` + errorData.detail.map((def: any) =>
+                        `- ${def.loc.join('.')}: ${def.msg}`
+                    ).join('\n');
+                } else {
+                    errorMessage = errorData.detail;
+                }
+            }
+
+            alert(errorMessage);
+            console.log('FULL ERROR RESPONSE:', errorData);
         } finally {
             setCreatingCategory(false);
         }
+    };
+
+    const handleEditCategory = () => {
+        if (!watchedCategoryId) return;
+        const cat = categories.find(c => c.id.toString() === watchedCategoryId);
+        if (cat) {
+            setNewCategoryName(cat.name);
+            setNewCategoryDesc(cat.description || '');
+            setEditingCategoryId(cat.id.toString());
+            setShowCategoryModal(true);
+        }
+    };
+
+    const handleOpenCreateCategory = () => {
+        setNewCategoryName('');
+        setNewCategoryDesc('');
+        setEditingCategoryId(null);
+        setShowCategoryModal(true);
     };
 
     // Search Products when Name changes (and no Product ID is set)
@@ -236,7 +288,17 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                     } as any);
                 }
 
-                // 2. Update items (replaces all items)
+                // 2. Update product image if changed
+                if (imageUrl && existingRecipe.product_id) {
+                    try {
+                        await kitchenService.updateProductImage(existingRecipe.product_id, imageUrl);
+                        console.log('✅ Updated product image');
+                    } catch (e) {
+                        console.warn('Could not update product image:', e);
+                    }
+                }
+
+                // 3. Update items (replaces all items)
                 const updatedRecipe = await kitchenService.updateRecipeItems(
                     String(existingRecipe.id),
                     itemsPayload
@@ -261,10 +323,19 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                     name: data.name,
                     price: data.selling_price,
                     category_id: Number(data.category_id),
-                    stock: 0
+                    stock: 0,
+                    image_url: imageUrl || undefined
                 });
                 finalProductId = newProduct.id;
                 console.log('✅ Created New Product:', newProduct);
+            } else if (imageUrl) {
+                // Update image for existing product
+                try {
+                    await kitchenService.updateProductImage(finalProductId, imageUrl);
+                    console.log('✅ Updated product image');
+                } catch (e) {
+                    console.warn('Could not update product image:', e);
+                }
             }
 
             // 2. Create Recipe
@@ -303,390 +374,497 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
 
     return (
         <>
-            <div className="bg-card-dark border border-border-dark rounded-2xl p-6">
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 pb-10">
 
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <span className="material-symbols-outlined text-accent-orange">menu_book</span>
-                                Constructor de Recetas Vivas
-                            </h2>
-                            <p className="text-text-muted text-sm">Define ingredientes y crea el producto automáticamente si no existe.</p>
-                        </div>
+                {/* 1. ENCABEZADO PAGE */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                            <span className="p-2.5 bg-accent-orange/10 rounded-xl text-accent-orange material-symbols-outlined icon-md">menu_book</span>
+                            Constructor de Recetas
+                        </h2>
+                        <p className="text-text-muted mt-1 ml-1 text-sm">Configura los detalles técnicos y comerciales de tu producto.</p>
                     </div>
+                </div>
 
-                    {/* Main Product/Recipe Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Name & Product Link */}
-                        <div className="relative z-20">
-                            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center justify-between">
-                                Nombre del Platillo / Producto
-                                {watchedProductId && (
-                                    <button type="button" onClick={clearProductSelection} className="text-[10px] text-blue-400 hover:text-blue-300 underline">
-                                        Desvincular (Crear Nuevo)
-                                    </button>
-                                )}
-                            </label>
-                            <div className="relative">
-                                <input
-                                    {...register('name', { required: 'Nombre requerido' })}
-                                    autoComplete="off"
-                                    className={`w-full bg-bg-deep border ${watchedProductId ? 'border-emerald-500/50' : 'border-border-dark'} rounded-lg px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-accent-orange`}
-                                    placeholder="Ej: Hamburguesa Clásica"
+                {/* 2. LAYOUT GRID PRINCIPAL: IMAGEN + DATOS */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+
+                    {/* COLUMNA IZQUIERDA: IMAGEN (Span 4) */}
+                    <div className="xl:col-span-4">
+                        <div className="bg-card-dark border border-border-dark rounded-2xl p-6 h-full flex flex-col shadow-lg shadow-black/20">
+                            <div className="mb-4 flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Presentación</h3>
+                                {imageUrl && <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Imagen Lista</span>}
+                            </div>
+
+                            <div className="flex-1 flex flex-col">
+                                <ImageUploader
+                                    currentImageUrl={imageUrl}
+                                    onImageUploaded={(url) => setImageUrl(url)}
+                                    onError={(error) => alert(error)}
+                                    label="Foto del Platillo"
                                 />
-                                {watchedProductId && (
-                                    <span className="absolute right-3 top-2.5 text-emerald-400 material-symbols-outlined text-sm" title="Vinculado a producto existente">link</span>
-                                )}
-                            </div>
-
-                            {/* Autocomplete Dropdown */}
-                            {showProductSearch && productSearchResults.length > 0 && !watchedProductId && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50">
-                                    <div className="px-3 py-2 text-[10px] text-gray-500 uppercase font-bold tracking-wider">
-                                        Productos Existentes (Click para usar)
-                                    </div>
-                                    {productSearchResults.map(p => (
-                                        <button
-                                            key={p.id}
-                                            type="button"
-                                            onClick={() => handleSelectProduct(p)}
-                                            className="w-full text-left px-4 py-2 hover:bg-gray-700 text-sm border-b border-gray-700/50 flex justify-between"
-                                        >
-                                            <span className="text-white font-medium">{p.name}</span>
-                                            <span className="text-emerald-400 ml-2">{formatCurrency(p.price)}</span>
-                                        </button>
-                                    ))}
-                                    <div className="px-3 py-2 text-[10px] text-accent-orange italic text-center">
-                                        O sigue escribiendo para crear uno nuevo...
-                                    </div>
+                                <div className="mt-4 p-4 bg-purple-500/5 border border-purple-500/10 rounded-xl">
+                                    <p className="text-xs text-purple-300 flex items-start gap-2 leading-relaxed">
+                                        <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">tips_and_updates</span>
+                                        <span>Una fotografía profesional aumenta la percepción de valor y la conversión de venta un <strong>30%</strong>.</span>
+                                    </p>
                                 </div>
-                            )}
-                            <input type="hidden" {...register('product_id')} />
-                        </div>
-
-                        {/* Category (Req for New) */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center gap-2">
-                                Categoría {watchedProductId ? '(Existente)' : '(Requerido para Nuevo)'}
-                                <HelpIcon content="La categoría organiza cómo se mostrarán tus platillos en el menú. Ejemplos: Hamburguesas, Jugos, Sándwiches, Platos Fuertes, Postres, Promociones." />
-                            </label>
-                            <div className="flex gap-2">
-                                <select
-                                    {...register('category_id')}
-                                    disabled={!!watchedProductId}
-                                    className={`flex-1 bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-accent-orange disabled:opacity-50`}
-                                >
-                                    <option value="">-- Seleccionar Categoría --</option>
-                                    {categories.map(cat => (
-                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                    ))}
-                                </select>
-                                {!watchedProductId && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowCategoryModal(true)}
-                                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-1 text-sm transition-colors"
-                                        title="Crear nueva categoría"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">add</span>
-                                        Nueva
-                                    </button>
-                                )}
                             </div>
-                            {!watchedProductId && (
-                                <p className="text-xs text-text-muted mt-1.5 flex items-start gap-1.5">
-                                    <span className="material-symbols-outlined text-[14px] text-blue-400 shrink-0 mt-0.5">lightbulb</span>
-                                    <span>
-                                        Agrupa los productos en tu menú. Crea categorías como: <span className="text-blue-400">Hamburguesas</span>, <span className="text-emerald-400">Bebidas</span>, <span className="text-purple-400">Platos Especiales</span>, <span className="text-amber-400">Promociones</span>.
-                                    </span>
-                                </p>
-                            )}
                         </div>
                     </div>
 
-                    {/* Price & Time */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Precio de Venta</label>
-                            <input
-                                type="number"
-                                {...register('selling_price', { required: true, min: 0 })}
-                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-accent-orange"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Tiempo prep. (min)</label>
-                            <input
-                                type="number"
-                                {...register('preparation_time')}
-                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-accent-orange"
-                            />
-                        </div>
-                    </div>
+                    {/* COLUMNA DERECHA: DATOS DEL PRODUCTO (Span 8) */}
+                    <div className="xl:col-span-8">
+                        <div className="bg-card-dark border border-border-dark rounded-2xl p-8 space-y-8 h-full shadow-lg shadow-black/20 relative overflow-hidden">
+                            {/* Background decoration */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-accent-orange/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
-                    {/* Ingredients Section */}
-                    <div className="border border-border-dark rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-white flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[20px]">nutrition</span>
-                                Ingredientes
-                            </h3>
-                            {/* Add Ingredient Button & Search Logic (Unchanged but simplified) */}
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSearch(!showSearch)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-accent-orange/10 text-accent-orange rounded-lg hover:bg-accent-orange/20 transition-colors text-sm font-medium"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">add</span>
-                                    Agregar Insumo
-                                </button>
-                                {/* Ingredient Search Dropdown */}
-                                {showSearch && (
-                                    <div className="absolute right-0 top-full mt-2 w-96 bg-bg-deep border border-border-dark rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[500px]">
-                                        <div className="p-3 border-b border-border-dark shrink-0">
+                            {/* SECCIÓN A: IDENTIFICACIÓN */}
+                            <div className="relative z-10">
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 pb-2 border-b border-white/5">Información General</h3>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* Nombre & Link Producto */}
+                                    <div className="relative space-y-2">
+                                        <label className="block text-sm font-medium text-gray-300 flex justify-between">
+                                            Nombre del Producto
+                                            {watchedProductId && (
+                                                <button type="button" onClick={clearProductSelection} className="text-xs text-blue-400 hover:text-blue-300 underline font-normal transition-colors">
+                                                    Desvincular
+                                                </button>
+                                            )}
+                                        </label>
+                                        <div className="relative group">
                                             <input
-                                                type="text"
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                placeholder="Buscar insumo, producción o mercadería..."
-                                                className="w-full bg-card-dark border border-border-dark rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent-orange"
-                                                autoFocus
+                                                {...register('name', { required: 'Nombre requerido' })}
+                                                autoComplete="off"
+                                                className={`w-full bg-bg-deep border ${watchedProductId ? 'border-emerald-500/50 pl-10' : 'border-border-dark'} rounded-xl px-4 py-3 text-white placeholder-text-muted focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all`}
+                                                placeholder="Ej: Hamburguesa Doble Queso"
                                             />
+                                            {watchedProductId ? (
+                                                <span className="absolute left-3 top-3.5 text-emerald-400 material-symbols-outlined text-[18px]" title="Vinculado">link</span>
+                                            ) : (
+                                                <span className="absolute right-3 top-3.5 text-text-muted material-symbols-outlined text-[18px] opacity-0 group-hover:opacity-50 transition-opacity">edit</span>
+                                            )}
                                         </div>
 
-                                        <div className="overflow-y-auto flex-1">
-                                            {loading ? (
-                                                <div className="p-4 text-center text-text-muted">Cargando...</div>
-                                            ) : searchResults.length === 0 ? (
-                                                <div className="p-4 text-center text-text-muted">No encontrado</div>
-                                            ) : (
-                                                <div className="flex flex-col">
-                                                    {/* Helper to render groups */}
-                                                    {(['PROCESSED', 'RAW', 'MERCHANDISE'] as const).map(type => {
-                                                        const groupItems = searchResults.filter(i => {
-                                                            if (type === 'RAW') return i.ingredient_type === 'RAW' || i.ingredient_type === 'RAW_MATERIAL' as any;
-                                                            return i.ingredient_type === type;
-                                                        });
+                                        {/* Dropdown Buscador */}
 
-                                                        if (groupItems.length === 0) return null;
+                                        <input type="hidden" {...register('product_id')} />
+                                    </div>
 
-                                                        const title = type === 'PROCESSED' ? 'Producciones Internas' :
-                                                            type === 'RAW' ? 'Insumos / Materia Prima' : 'Mercadería (Venta Directa)';
-
-                                                        const headerColor = type === 'PROCESSED' ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' :
-                                                            type === 'RAW' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-                                                                'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-
-                                                        return (
-                                                            <div key={type}>
-                                                                <div className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider border-y border-white/5 ${headerColor}`}>
-                                                                    {title}
-                                                                </div>
-                                                                {groupItems.map(ing => (
-                                                                    <button
-                                                                        key={ing.id}
-                                                                        type="button"
-                                                                        onClick={() => addIngredient(ing)}
-                                                                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0"
-                                                                    >
-                                                                        <div>
-                                                                            <div className="text-white font-medium text-sm">{ing.name}</div>
-                                                                            <div className="text-text-muted text-xs">{ing.sku} • {ing.base_unit}</div>
-                                                                        </div>
-                                                                        <div className="text-right">
-                                                                            <div className="text-emerald-400 font-mono text-sm">
-                                                                                {formatCurrency(ing.current_cost)}
-                                                                            </div>
-                                                                            <div className="text-text-muted text-xs">
-                                                                                Rend: {(ing.yield_factor * 100).toFixed(0)}%
-                                                                            </div>
-                                                                        </div>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        );
-                                                    })}
+                                    {/* Categoría */}
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-gray-300 flex items-center gap-2">
+                                            Categoría
+                                            {!watchedProductId && <span className="text-accent-orange text-xs">(Requerido)</span>}
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <select
+                                                    {...register('category_id')}
+                                                    disabled={!!watchedProductId}
+                                                    className="w-full appearance-none bg-bg-deep border border-border-dark rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-orange disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                                >
+                                                    <option value="">-- Seleccionar --</option>
+                                                    {categories.map(cat => (
+                                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="material-symbols-outlined absolute right-3 top-3.5 text-text-muted pointer-events-none text-[20px]">expand_more</span>
+                                            </div>
+                                            {!watchedProductId && (
+                                                <div className="flex gap-1">
+                                                    {watchedCategoryId && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleEditCategory}
+                                                            className="px-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-xl transition-colors"
+                                                            title="Editar Categoría"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleOpenCreateCategory}
+                                                        className="px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl transition-colors"
+                                                        title="Nueva Categoría"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[20px]">add</span>
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                )}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Ingredients Table (Fields map) */}
-                        <div className="space-y-2">
-                            {fields.length === 0 ? (
-                                <div className="text-center py-8 text-text-muted">No hay ingredientes aún.</div>
-                            ) : fields.map((field, index) => {
-                                const item = watchedItems[index];
-                                const netQty = (item?.gross_quantity || 0) * (item?.yield_factor || 1);
-                                const itemCost = (item?.gross_quantity || 0) * (item?.unit_cost || 0);
+                            {/* SECCIÓN B: OPERATIVO */}
+                            <div className="relative z-10 pt-2">
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 pb-2 border-b border-white/5">Datos Comerciales</h3>
 
-                                return (
-                                    <div key={field.id} className="grid grid-cols-12 gap-2 items-center bg-bg-deep rounded-lg px-3 py-2 text-sm">
-                                        <div className="col-span-3 text-white truncate">{item?.ingredient_name}</div>
-                                        <div className="col-span-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-300">Precio de Venta</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-3 text-text-muted font-mono">$</span>
                                             <input
-                                                type="number" step="0.001"
-                                                {...register(`items.${index}.gross_quantity`, { valueAsNumber: true })}
-                                                className="w-full bg-card-dark border border-border-dark rounded px-2 py-1 text-white text-center"
-                                                placeholder="Cant"
+                                                type="number"
+                                                {...register('selling_price', { required: true, min: 0 })}
+                                                className="w-full bg-bg-deep border border-border-dark rounded-xl pl-8 pr-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all"
+                                                placeholder="0"
                                             />
                                         </div>
-                                        <div className="col-span-1 text-center text-text-muted">{item?.measure_unit}</div>
-                                        <div className="col-span-2 text-center text-text-muted">{((1 - (item?.yield_factor || 1)) * 100).toFixed(0)}% Merma</div>
-                                        <div className="col-span-2 text-center text-white">{formatQuantity(netQty)} Neto</div>
-                                        <div className="col-span-1 text-right text-emerald-400">{formatCurrency(itemCost)}</div>
-                                        <div className="col-span-1 text-right">
-                                            <button onClick={() => remove(index)} type="button" className="text-red-400 hover:text-red-300">
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-300">Tiempo de Preparación</label>
+                                        <div className="relative">
+                                            <span className="material-symbols-outlined absolute left-4 top-3 text-text-muted text-[20px]">schedule</span>
+                                            <input
+                                                type="number"
+                                                {...register('preparation_time')}
+                                                className="w-full bg-bg-deep border border-border-dark rounded-xl pl-11 pr-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all"
+                                                placeholder="0"
+                                            />
+                                            <span className="absolute right-4 top-3.5 text-xs text-text-muted font-medium uppercase">Min</span>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. INGREDIENTES */}
+                <div className="bg-card-dark border border-border-dark rounded-2xl p-8 shadow-lg shadow-black/20">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                        <div>
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <span className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400 material-symbols-outlined icon-sm">nutrition</span>
+                                Composición de la Receta
+                            </h3>
+                            <p className="text-text-muted text-sm mt-1">Agrega los insumos necesarios para preparar una unidad de este producto.</p>
+                        </div>
+
+                        {/* Selector/Buscador (Simplificado visualmente) */}
+                        <div className="relative w-full md:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => setShowSearch(!showSearch)}
+                                className={`w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all font-bold text-sm shadow-lg shadow-accent-orange/10 ${showSearch ? 'bg-accent-orange text-white ring-2 ring-accent-orange ring-offset-2 ring-offset-[#0f172a]' : 'bg-accent-orange/10 text-accent-orange hover:bg-accent-orange hover:text-white'}`}
+                            >
+                                <span className="material-symbols-outlined text-[20px]">{showSearch ? 'close' : 'add'}</span>
+                                {showSearch ? 'Cerrar Buscador' : 'Agregar Insumo'}
+                            </button>
+
+                            {/* Dropdown Resultados */}
+                            {showSearch && (
+                                <div className="absolute right-0 top-full mt-3 w-full md:w-[450px] bg-[#1E293B] border border-gray-700/50 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[500px] animate-in slide-in-from-top-2 duration-200 ring-1 ring-black/5">
+                                    <div className="p-4 border-b border-gray-700/50 bg-[#0F172A]">
+                                        <div className="relative">
+                                            <span className="material-symbols-outlined absolute left-3 top-2.5 text-text-muted">search</span>
+                                            <input
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="Nombre, SKU o tipo..."
+                                                className="w-full bg-[#1E293B] border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all placeholder:text-gray-500"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-y-auto flex-1 custom-scrollbar scroll-smooth bg-[#1E293B]">
+                                        {loading ? (
+                                            <div className="p-8 text-center text-text-muted flex flex-col items-center gap-2">
+                                                <span className="material-symbols-outlined animate-spin text-2xl">progress_activity</span>
+                                                Buscando insumos...
+                                            </div>
+                                        ) : searchResults.length === 0 ? (
+                                            <div className="p-12 text-center text-text-muted flex flex-col items-center gap-2">
+                                                <span className="material-symbols-outlined text-4xl opacity-20">search_off</span>
+                                                <p>No se encontraron resultados para "{searchQuery}"</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col pb-2">
+                                                {(['PROCESSED', 'RAW', 'MERCHANDISE'] as const).map(type => {
+                                                    const groupItems = searchResults.filter(i => {
+                                                        if (type === 'RAW') return i.ingredient_type === 'RAW' || i.ingredient_type === 'RAW_MATERIAL' as any;
+                                                        return i.ingredient_type === type;
+                                                    });
+
+                                                    if (groupItems.length === 0) return null;
+
+                                                    const title = type === 'PROCESSED' ? 'Producciones Internas' :
+                                                        type === 'RAW' ? 'Insumos / Materia Prima' : 'Mercadería (Venta Directa)';
+
+                                                    // Usar colores sólidos oscuros con borde de color para diferenciar, en lugar de bg traslúcido
+                                                    const headerStyle = type === 'PROCESSED' ? 'text-purple-400 border-l-4 border-purple-500 bg-[#162032]' :
+                                                        type === 'RAW' ? 'text-blue-400 border-l-4 border-blue-500 bg-[#162032]' : 'text-emerald-400 border-l-4 border-emerald-500 bg-[#162032]';
+
+                                                    return (
+                                                        <div key={type}>
+                                                            <div className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider sticky top-0 shadow-sm border-b border-gray-700/50 ${headerStyle}`}>
+                                                                {title}
+                                                            </div>
+                                                            {groupItems.map(ing => (
+                                                                <button
+                                                                    key={ing.id}
+                                                                    type="button"
+                                                                    onClick={() => addIngredient(ing)}
+                                                                    className="w-full px-5 py-3 hover:bg-white/5 transition-colors text-left border-b border-gray-700/30 flex items-center justify-between group"
+                                                                >
+                                                                    <div>
+                                                                        <div className="text-white font-bold text-sm group-hover:text-accent-orange transition-colors">{ing.name}</div>
+                                                                        <div className="text-gray-500 text-xs font-mono mt-0.5 opacity-80 group-hover:opacity-100">{ing.sku} • Base: {ing.base_unit}</div>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <div className="text-emerald-400 font-mono text-sm font-bold">
+                                                                            {formatCurrency(ing.current_cost)}
+                                                                        </div>
+                                                                        <div className="text-gray-500 text-[10px] uppercase font-bold mt-0.5">
+                                                                            Rend: {(ing.yield_factor * 100).toFixed(0)}%
+                                                                        </div>
+                                                                    </div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Stats Footer */}
-                    <div className="grid grid-cols-3 gap-4">
-                        {/* Costo Total */}
-                        <div className="bg-bg-deep rounded-lg p-4 border border-border-dark">
-                            <div className="text-text-muted text-xs uppercase mb-1">Costo Total</div>
-                            <div className="text-xl font-bold text-white font-mono">{formatCurrency(calculations.totalCost)}</div>
-                            <div className="text-xs text-text-muted mt-1">de {formatCurrency(calculations.sellingPrice)} venta</div>
-                        </div>
+                    {/* Table Fields */}
+                    <div className="space-y-3 min-h-[150px]">
+                        {fields.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-border-dark rounded-2xl bg-bg-deep/50">
+                                <span className="material-symbols-outlined text-4xl text-text-muted mb-2 opacity-50">shopping_basket</span>
+                                <p className="text-text-muted font-medium">Tu cesta de ingredientes está vacía</p>
+                                <p className="text-xs text-text-muted opacity-60 mt-1">Usa el botón "Agregar Insumo" para comenzar</p>
+                            </div>
+                        ) : (
+                            // Header Tabla
+                            <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-white/5 mb-3">
+                                <div className="col-span-4">Insumo</div>
+                                <div className="col-span-2 text-center">Cantidad</div>
+                                <div className="col-span-1 text-center">Unidad</div>
+                                <div className="col-span-1 text-center">Merma</div>
+                                <div className="col-span-2 text-center">Neto</div>
+                                <div className="col-span-1 text-right">Costo</div>
+                                <div className="col-span-1"></div>
+                            </div>
+                        )}
 
-                        {/* Food Cost */}
-                        <div className="bg-bg-deep rounded-lg p-4 border border-border-dark">
-                            <div className="text-text-muted text-xs uppercase mb-1 flex items-center gap-1">
-                                Food Cost
-                                <HelpIcon content="Porcentaje del precio de venta que se gasta en ingredientes. Ideal: menor a 30%" />
-                            </div>
-                            <div className={`text-xl font-bold font-mono ${getProfitabilityColor()}`}>
-                                {calculations.foodCostPct.toFixed(1)}%
-                            </div>
-                            <div className="text-xs text-text-muted mt-1 font-mono">
-                                {formatCurrency(calculations.totalCost)} en insumos
-                            </div>
-                        </div>
+                        {fields.map((field, index) => {
+                            const item = watchedItems[index];
+                            const netQty = (item?.gross_quantity || 0) * (item?.yield_factor || 1);
+                            const itemCost = (item?.gross_quantity || 0) * (item?.unit_cost || 0);
 
-                        {/* Margen */}
-                        <div className="bg-bg-deep rounded-lg p-4 border border-border-dark">
-                            <div className="text-text-muted text-xs uppercase mb-1 flex items-center gap-1">
-                                Margen de Ganancia
-                                <HelpIcon content="Ganancia neta por cada venta después de restar el costo de ingredientes" />
-                            </div>
-                            <div className={`text-xl font-bold font-mono ${calculations.marginAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {formatCurrency(calculations.marginAmount)}
-                            </div>
-                            <div className="text-xs text-text-muted mt-1 font-mono">
-                                {calculations.margin.toFixed(1)}% del precio
-                            </div>
+                            return (
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-2 items-center bg-bg-deep rounded-xl px-4 py-3 text-sm border border-transparent hover:border-gray-700 transition-all group animate-in fade-in duration-300">
+                                    <div className="col-span-1 md:col-span-4">
+                                        <div className="font-bold text-white text-base md:text-sm">{item?.ingredient_name}</div>
+                                        <div className="text-xs text-text-muted md:hidden">Costo unit: {formatCurrency(item?.unit_cost || 0)}</div>
+                                    </div>
+                                    <div className="col-span-1 md:col-span-2">
+                                        <input
+                                            type="number" step="0.001"
+                                            {...register(`items.${index}.gross_quantity`, { valueAsNumber: true })}
+                                            className="w-full bg-card-dark border border-border-dark rounded-lg px-3 py-2 text-white text-center font-mono focus:border-accent-orange focus:ring-1 focus:ring-accent-orange outline-none"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div className="col-span-1 md:col-span-1 text-center text-text-muted font-mono text-xs">{item?.measure_unit}</div>
+                                    <div className="col-span-1 md:col-span-1 text-center text-red-300 bg-red-500/5 rounded py-1 px-1 text-xs font-bold">
+                                        {((1 - (item?.yield_factor || 1)) * 100).toFixed(0)}%
+                                    </div>
+                                    <div className="col-span-1 md:col-span-2 text-center text-white font-mono bg-white/5 rounded py-1 px-2 border border-white/5">
+                                        {formatQuantity(netQty)}
+                                    </div>
+                                    <div className="col-span-1 md:col-span-1 text-right text-emerald-400 font-bold font-mono">
+                                        {formatCurrency(itemCost)}
+                                    </div>
+                                    <div className="col-span-1 md:col-span-1 text-right">
+                                        <button onClick={() => remove(index)} type="button" className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                                            <span className="material-symbols-outlined text-[20px]">delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* 4. MÉTRICAS FINANCIERAS */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Costo Total */}
+                    <div className="bg-bg-deep border border-border-dark rounded-2xl p-6 relative overflow-hidden group hover:border-gray-600 transition-colors">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <span className="material-symbols-outlined text-4xl">payments</span>
                         </div>
+                        <div className="text-text-muted text-xs font-bold uppercase tracking-wider mb-2">Costo Total</div>
+                        <div className="text-3xl font-bold text-white font-mono tracking-tight">{formatCurrency(calculations.totalCost)}</div>
+                        <div className="text-xs text-text-muted mt-2"> Costo directo por unidad</div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-border-dark">
-                        {onCancel && <button type="button" onClick={onCancel} className="px-6 py-2 bg-gray-700 text-white rounded-lg">Cancelar</button>}
+                    {/* Food Cost */}
+                    <div className="bg-bg-deep border border-border-dark rounded-2xl p-6 relative overflow-hidden hover:border-gray-600 transition-colors">
+                        <div className={`text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2 ${getProfitabilityColor()}`}>
+                            Food Cost
+                            <span className={`px-2 py-0.5 rounded text-[10px] border opacity-80 current-color`}>
+                                {calculations.foodCostPct <= 30 ? 'OPTIMAL' : 'HIGH'}
+                            </span>
+                        </div>
+                        <div className={`text-3xl font-bold font-mono tracking-tight ${getProfitabilityColor()}`}>
+                            {calculations.foodCostPct.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-text-muted mt-2">Objetivo ideal: &lt; 30%</div>
+                    </div>
+
+                    {/* Margen */}
+                    <div className="bg-bg-deep border border-border-dark rounded-2xl p-6 relative overflow-hidden hover:border-gray-600 transition-colors">
+                        <div className="text-text-muted text-xs font-bold uppercase tracking-wider mb-2">Margen Bruto</div>
+                        <div className={`text-3xl font-bold font-mono tracking-tight ${calculations.marginAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(calculations.marginAmount)}
+                        </div>
+                        <div className="text-xs text-text-muted mt-2 font-mono">
+                            <span className={calculations.margin >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                {calculations.margin.toFixed(1)}%
+                            </span> de rentabilidad
+                        </div>
+                    </div>
+                </div>
+
+                {/* ACTIONS */}
+                <div className="flex justify-end gap-4 pt-6 mt-8 border-t border-white/5">
+                    {onCancel && (
                         <button
-                            type="submit"
-                            disabled={saving || fields.length === 0}
-                            className="px-6 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2"
+                            type="button"
+                            onClick={onCancel}
+                            className="px-8 py-3 bg-transparent border border-gray-600 text-gray-300 rounded-xl hover:bg-gray-800 hover:text-white font-medium transition-all"
                         >
-                            {saving ? 'Guardando...' : isEditMode ? 'Actualizar Receta' : 'Guardar Receta'}
+                            Cancelar
                         </button>
-                    </div>
-                </form>
-            </div>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={saving || fields.length === 0}
+                        className="px-10 py-3 bg-accent-orange text-white rounded-xl hover:bg-orange-600 disabled:opacity-50 disabled:grayscale font-bold shadow-lg shadow-orange-500/20 flex items-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95"
+                    >
+                        {saving ? (
+                            <>
+                                <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                                Guardando...
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined text-[20px]">save</span>
+                                {isEditMode ? 'Guardar Cambios' : 'Guardar Receta'}
+                            </>
+                        )}
+                    </button>
+                </div>
+
+            </form>
 
             {/* Modal: Create Category */}
             {showCategoryModal && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                    <div className="bg-bg-card rounded-xl border border-border-dark p-6 w-full max-w-md shadow-2xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <span className="material-symbols-outlined text-emerald-400">add_circle</span>
-                                Nueva Categoría
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+                    <div className="bg-bg-card rounded-2xl border border-border-dark p-8 w-full max-w-md shadow-2xl relative overflow-hidden">
+                        {/* Glow effect */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-blue-500"></div>
+
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                                <span className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400 material-symbols-outlined text-[20px]">category</span>
+                                {editingCategoryId ? 'Editar Categoría' : 'Nueva Categoría'}
                             </h3>
                             <button
-                                onClick={() => setShowCategoryModal(false)}
-                                className="text-gray-400 hover:text-white"
+                                onClick={() => {
+                                    setShowCategoryModal(false);
+                                    setNewCategoryName('');
+                                    setNewCategoryDesc('');
+                                    setEditingCategoryId(null);
+                                }}
+                                className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                             >
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">
-                                    Nombre de la Categoría *
+                                <label className="block text-sm font-bold text-gray-300 mb-1.5">
+                                    Nombre de la Categoría <span className="text-accent-orange">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={newCategoryName}
                                     onChange={(e) => setNewCategoryName(e.target.value)}
-                                    placeholder="Ej: Hamburguesas, Jugos, Platos Fuertes..."
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-accent-orange placeholder:text-gray-500"
+                                    placeholder="Ej: Hamburguesas, Jugos..."
+                                    className="w-full bg-bg-deep border border-border-dark rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
                                     autoFocus
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">
-                                    Descripción (opcional)
+                                <label className="block text-sm font-bold text-gray-300 mb-1.5">
+                                    Descripción <span className="text-gray-500 font-normal text-xs">(Opcional)</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={newCategoryDesc}
                                     onChange={(e) => setNewCategoryDesc(e.target.value)}
-                                    placeholder="Ej: Todas las hamburguesas del menú"
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-accent-orange placeholder:text-gray-500"
+                                    placeholder="Breve descripción..."
+                                    className="w-full bg-bg-deep border border-border-dark rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-all"
                                 />
                             </div>
 
-                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-sm text-blue-300">
-                                <div className="flex items-start gap-2">
-                                    <span className="material-symbols-outlined text-[16px] mt-0.5">info</span>
-                                    <span>
-                                        Las categorías agrupan tus productos en el menú.
-                                        Crea categorías descriptivas para que tus clientes encuentren fácilmente lo que buscan.
-                                    </span>
+                            <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-4 text-xs text-blue-200 leading-relaxed flex gap-3">
+                                <span className="material-symbols-outlined text-[18px] shrink-0 text-blue-400">info</span>
+                                <div>
+                                    Una buena categorización ayuda a tus meseros a encontrar los productos más rápido durante el servicio.
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-dark">
+                        <div className="flex justify-end gap-3 mt-8">
                             <button
                                 type="button"
                                 onClick={() => {
                                     setShowCategoryModal(false);
                                     setNewCategoryName('');
                                     setNewCategoryDesc('');
+                                    setEditingCategoryId(null);
                                 }}
-                                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                                className="px-5 py-2.5 text-gray-400 hover:text-white font-medium transition-colors"
                             >
                                 Cancelar
                             </button>
                             <button
                                 type="button"
-                                onClick={handleCreateCategory}
+                                onClick={handleSaveCategory}
                                 disabled={!newCategoryName.trim() || creatingCategory}
-                                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-emerald-500/20 transition-all"
                             >
                                 {creatingCategory ? (
                                     <>
                                         <span className="animate-spin material-symbols-outlined text-[18px]">progress_activity</span>
-                                        Creando...
+                                        Guardando...
                                     </>
                                 ) : (
                                     <>
-                                        <span className="material-symbols-outlined text-[18px]">check</span>
-                                        Crear Categoría
+                                        <span className="material-symbols-outlined text-[18px]">{editingCategoryId ? 'save' : 'check'}</span>
+                                        {editingCategoryId ? 'Guardar Cambios' : 'Crear Categoría'}
                                     </>
                                 )}
                             </button>
