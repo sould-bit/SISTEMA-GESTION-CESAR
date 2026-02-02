@@ -5,15 +5,17 @@ import { SetupNavigation } from './components/SetupNavigation';
 import { BeverageForm } from './components/BeverageForm';
 import { StandardForm } from './components/StandardForm';
 import { ModifierForm } from './components/ModifierForm';
-import { setupService, RecipeItemRow } from './setup.service';
 import { type Ingredient as KitchenIngredient } from '@/features/kitchen/kitchen.service';
 
 export const UnifiedSetupPage = () => {
     // --- Global Data Hook ---
     const {
         viewMode, setViewMode,
-        categories, ingredients, products, modifiers,
-        isLoading, refreshData
+        categories, ingredients, products,
+        modifiers,
+        isLoading,
+        isRefreshing,
+        refreshData
     } = useSetupData();
 
     // --- Selection State ---
@@ -32,7 +34,7 @@ export const UnifiedSetupPage = () => {
     const handleSaveStandard = saveProduct;
     // Modifiers might need separate logic or use the same hook
     // (Assuming ModifierForm expects a specific signature, checking usage temporarily aliased)
-    const handleSaveModifier = async (data: any) => {
+    const handleSaveModifier = async () => {
         // Placeholder if distinct logic is needed, or reuse saveProduct if compatible
         console.warn("Modifier save logic not fully integrated yet");
     };
@@ -44,9 +46,10 @@ export const UnifiedSetupPage = () => {
             const rawCat = categories.find(c => c.name.toLowerCase() === 'materia prima');
             if (rawCat) setSelectedCategory(rawCat);
         } else if (viewMode === 'BEBIDAS') {
-            // Strict enforcement: ONLY "Venta Directa"
+            // Strict enforcement: ONLY "Venta Directa" or "Bebidas"
             const bevCat = categories.find(c =>
-                c.name.toLowerCase().includes('venta directa')
+                c.name.toLowerCase().includes('venta directa') ||
+                c.name.toLowerCase().includes('bebidas')
             );
             if (bevCat) setSelectedCategory(bevCat);
             else setSelectedCategory(null);
@@ -70,7 +73,12 @@ export const UnifiedSetupPage = () => {
             <div className="relative z-10 max-w-7xl mx-auto p-4 md:p-8 space-y-8">
 
                 {/* HEADLINE */}
-                <div className="text-center space-y-2 mb-12">
+                <div className="relative text-center space-y-2 mb-12">
+                    {isRefreshing && (
+                        <div className="absolute top-0 right-0 bg-emerald-500/20 text-emerald-400 text-[10px] px-3 py-1 rounded-full border border-emerald-500/30 animate-pulse flex items-center gap-2">
+                            Actualizando datos...
+                        </div>
+                    )}
                     <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500 tracking-tight">
                         Ingeniería de Menú
                     </h1>
@@ -95,7 +103,7 @@ export const UnifiedSetupPage = () => {
                         onCancel={() => setViewMode('HOME')}
                         isSaving={isSaving}
                         products={products
-                            .filter(p => !p.category_id || p.category_name !== 'Materia Prima')
+                            .filter(p => selectedCategory ? p.category_id === selectedCategory.id : false)
                             .map(p => {
                                 // Enrich with stock from linked ingredient (Single Source of Truth)
                                 const linkedIng = (ingredients as unknown as KitchenIngredient[]).find(i =>
