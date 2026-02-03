@@ -258,16 +258,31 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
                                                                 <span className="text-[8px] font-bold text-text-muted uppercase">Variación</span>
                                                             </div>
                                                         </div>
-                                                        {['ADJUST', 'ADJ'].includes(log.transaction_type) && (
-                                                            <button
-                                                                onClick={() => handleRevert(log.id, log.ingredient_name)}
-                                                                disabled={!!isReverting}
-                                                                className={`w-9 h-9 flex items-center justify-center rounded-lg border border-white/10 hover:border-rose-500 hover:bg-rose-500/10 text-text-muted hover:text-rose-400 transition-all ${isReverting === log.id ? 'animate-spin bg-rose-500 text-white' : ''}`}
-                                                                title="Revertir este ajuste"
-                                                            >
-                                                                <span className="material-symbols-outlined text-base">{isReverting === log.id ? 'sync' : 'history_toggle_off'}</span>
-                                                            </button>
-                                                        )}
+                                                        {['ADJUST', 'ADJ'].includes(log.transaction_type) && (() => {
+                                                            const isAlreadyReverted = history.some((item: any) =>
+                                                                (item.transaction_type?.toUpperCase().includes('REVERT') ||
+                                                                    item.transaction_type?.toUpperCase().includes('ROLLBACK')) &&
+                                                                item.reference_id === String(log.id)
+                                                            );
+
+                                                            if (isAlreadyReverted) return (
+                                                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 opacity-60 grayscale hover:grayscale-0 transition-all cursor-default" title="Este ajuste ya fue revertido">
+                                                                    <span className="material-symbols-outlined text-sm">history</span>
+                                                                    <span className="text-[9px] font-black uppercase tracking-tighter">Revertido</span>
+                                                                </div>
+                                                            );
+
+                                                            return (
+                                                                <button
+                                                                    onClick={() => handleRevert(log.id, log.ingredient_name)}
+                                                                    disabled={!!isReverting}
+                                                                    className={`w-9 h-9 flex items-center justify-center rounded-lg border border-white/10 hover:border-rose-500 hover:bg-rose-500/10 text-text-muted hover:text-rose-400 transition-all ${isReverting === log.id ? 'animate-spin bg-rose-500 text-white' : ''}`}
+                                                                    title="Revertir este ajuste"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-base">{isReverting === log.id ? 'sync' : 'history_toggle_off'}</span>
+                                                                </button>
+                                                            );
+                                                        })()}
                                                     </div>
 
                                                 </div>

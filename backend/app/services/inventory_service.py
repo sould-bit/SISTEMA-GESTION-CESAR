@@ -332,8 +332,21 @@ class InventoryService:
             
         if txn.transaction_type not in ["ADJUST", "ADJ"]:
             raise HTTPException(
-                status_code=400, 
                 detail=f"No se puede revertir una transacción de tipo {txn.transaction_type}. Solo se permiten ajustes."
+            )
+
+        # 1.1 Validar si ya fue revertida anteriormente
+        stmt_check = select(IngredientTransaction).where(
+            and_(
+                IngredientTransaction.transaction_type == "REVERT_ADJ",
+                IngredientTransaction.reference_id == str(txn.id)
+            )
+        )
+        res_check = await self.db.execute(stmt_check)
+        if res_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Esta transacción ya ha sido revertida anteriormente."
             )
 
         # 2. Obtener inventario e ingrediente relacionado
