@@ -13,6 +13,13 @@ import sys
 import os
 from pathlib import Path
 from typing import AsyncGenerator, Generator
+import bcrypt
+
+# Monkeypatch bcrypt for passlib compatibility (bcrypt 4.1+ removed __about__)
+if not hasattr(bcrypt, "__about__"):
+    class About:
+        __version__ = bcrypt.__version__
+    bcrypt.__about__ = About()
 
 # Add backend directory to path for imports
 backend_dir = Path(__file__).parent.parent
