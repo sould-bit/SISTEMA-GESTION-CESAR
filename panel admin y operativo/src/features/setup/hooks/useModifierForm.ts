@@ -37,13 +37,23 @@ export const useModifierForm = (
 
         // Transform backend recipe items to the frontend format used by RecipeBuilder
         if (mod.recipe_items) {
-            const formattedItems = mod.recipe_items.map(ri => ({
-                ingredientId: ri.ingredient_product_id,
-                name: ri.ingredient?.name || 'Insumo desconocido',
-                cost: ri.ingredient?.price || 0,
-                quantity: ri.quantity,
-                unit: ri.unit
-            }));
+            const formattedItems = mod.recipe_items.map((ri: any) => {
+                // Check both legacy 'ingredient' (Product) and new 'ingredient_ref' (Ingredient)
+                const ingRef = ri.ingredient_ref;
+                const legacyIng = ri.ingredient;
+
+                const cost = Number(ingRef?.current_cost) || Number(legacyIng?.price) || 0;
+                const name = ingRef?.name || legacyIng?.name || 'Insumo desconocido';
+                const unit = ri.unit || ingRef?.base_unit || legacyIng?.unit || 'UNIDAD';
+
+                return {
+                    ingredientId: ri.ingredient_id || ri.ingredient_product_id || 0,
+                    name: name,
+                    cost: cost,
+                    quantity: Number(ri.quantity) || 0,
+                    unit: unit
+                };
+            });
             setRecipeItems(formattedItems);
         } else {
             setRecipeItems([]);
@@ -76,11 +86,15 @@ export const useModifierForm = (
 
             // Save recipe items if any
             // Transform frontend format to backend RecipeItem
-            const backendRecipeItems: RecipeItem[] = recipeItems.map(ri => ({
-                ingredient_product_id: ri.ingredientId,
-                quantity: ri.quantity,
-                unit: ri.unit
-            }));
+            const backendRecipeItems: RecipeItem[] = recipeItems.map(ri => {
+                const isUuid = typeof ri.ingredientId === 'string' && ri.ingredientId.length > 20;
+                return {
+                    ingredient_product_id: isUuid ? null : (Number(ri.ingredientId) || 0),
+                    ingredient_id: isUuid ? String(ri.ingredientId) : null,
+                    quantity: Number(ri.quantity) || 0,
+                    unit: ri.unit
+                } as any;
+            });
 
             await setupService.updateModifierRecipe(savedMod.id, backendRecipeItems);
 

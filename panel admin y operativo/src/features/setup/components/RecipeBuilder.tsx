@@ -32,12 +32,15 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
 
     const addRecipeItem = (ing: Product) => {
         if (recipeItems.some(i => i.ingredientId === ing.id)) return;
+
+        const price = Number(ing.price) || 0;
+
         setRecipeItems([...recipeItems, {
             ingredientId: ing.id,
             name: ing.name,
-            cost: ing.price,
+            cost: price,
             quantity: 1,
-            unit: 'UNIDAD' // Default, should improve
+            unit: ing.unit || 'UNIDAD'
         }]);
     };
 
@@ -103,13 +106,13 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {recipeItems.map((item, idx) => (
+                        {recipeItems.map((item) => (
                             <div key={item.ingredientId} className="flex items-center gap-3 bg-card-dark p-3 rounded-lg border border-border-dark animate-in slide-in-from-left-2 shadow-sm group hover:border-accent-orange/30">
                                 <GripVertical size={16} className="text-gray-600 cursor-grab" />
                                 <div className="flex-1">
                                     <div className="flex justify-between">
                                         <span className="font-bold text-gray-200 text-sm">{item.name}</span>
-                                        <span className="text-xs text-gray-500">Costo: ${(item.cost * item.quantity).toFixed(2)}</span>
+                                        <span className="text-xs text-gray-500">Costo: ${((Number(item.cost) || 0) * (Number(item.quantity) || 0)).toLocaleString()}</span>
                                     </div>
                                     <div className="flex gap-4 mt-2">
                                         <div className="flex items-center gap-2">
@@ -123,7 +126,9 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] text-gray-400 uppercase">Unidad</span>
-                                            <span className="text-xs text-gray-300 font-mono bg-gray-800 px-2 py-1 rounded">{item.unit}</span>
+                                            <span className="text-xs text-gray-300 font-mono bg-gray-800 px-2 py-1 rounded lowercase">
+                                                {item.unit}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -140,7 +145,7 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
                             <div className="text-right">
                                 <span className="text-xs text-gray-400 uppercase block mb-1">Costo Total Receta</span>
                                 <span className="text-xl font-bold text-emerald-400">
-                                    ${recipeItems.reduce((acc, item) => acc + (item.cost * item.quantity), 0).toFixed(2)}
+                                    ${recipeItems.reduce((acc, item) => acc + (Number(item.cost) || 0) * (Number(item.quantity) || 0), 0).toLocaleString()}
                                 </span>
                             </div>
                         </div>

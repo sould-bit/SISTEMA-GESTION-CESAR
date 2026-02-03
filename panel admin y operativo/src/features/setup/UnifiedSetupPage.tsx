@@ -5,6 +5,7 @@ import { SetupNavigation } from './components/SetupNavigation';
 import { BeverageForm } from './components/BeverageForm';
 import { StandardForm } from './components/StandardForm';
 import { ModifierForm } from './components/ModifierForm';
+import { IngredientForm } from './components/IngredientForm';
 import { type Ingredient as KitchenIngredient } from '@/features/kitchen/kitchen.service';
 import { RecipeItemRow } from './setup.service';
 
@@ -166,8 +167,17 @@ export const UnifiedSetupPage = () => {
                     />
                 )}
 
-                {/* STANDARD FORM (INSUMOS / CARTA) */}
-                {(viewMode === 'INSUMOS' || viewMode === 'CARTA') && (
+                {/* INGREDIENTS MODULE */}
+                {viewMode === 'INSUMOS' && (
+                    <IngredientForm
+                        ingredients={ingredients}
+                        onRefresh={refreshData}
+                        onBack={() => setViewMode('HOME')}
+                    />
+                )}
+
+                {/* STANDARD FORM (CARTA) */}
+                {(viewMode === 'CARTA') && (
                     <div className="space-y-4">
                         <button onClick={() => setViewMode('HOME')} className="text-sm text-gray-500 hover:text-white underline">
                             &larr; Volver al Menú
@@ -188,19 +198,16 @@ export const UnifiedSetupPage = () => {
                         {/* PRODUCT GRID FOR STANDARD MODES */}
                         <div className="mt-8 pt-8 border-t border-gray-800">
                             <h3 className="text-xl font-bold text-gray-500 mb-4">
-                                {viewMode === 'INSUMOS' ? 'Insumos Registrados' : 'Platos Registrados'}
+                                Platos Registrados
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {products
-                                    .filter(p => {
-                                        if (viewMode === 'INSUMOS') return p.category_id === selectedCategory?.id; // Rough filter
-                                        return p.category_id !== categories.find(c => c.name === 'Materia Prima')?.id;
-                                    })
+                                    .filter(p => p.category_id === selectedCategory?.id)
                                     .slice(0, 12)
                                     .map(p => (
                                         <div key={p.id} className="bg-gray-800 p-3 rounded text-sm">
                                             <div className="font-bold text-white truncate">{p.name}</div>
-                                            <div className="text-gray-500">${p.price}</div>
+                                            <div className="text-gray-500">${Number(p.price).toLocaleString()}</div>
                                         </div>
                                     ))}
                             </div>

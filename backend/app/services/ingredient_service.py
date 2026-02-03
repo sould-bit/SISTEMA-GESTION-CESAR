@@ -142,10 +142,12 @@ class IngredientService:
             stmt = select(
                     Ingredient, 
                     stock_subquery.c.stock,
-                    value_subquery.c.total_value
+                    value_subquery.c.total_value,
+                    IngredientInventory.min_stock
                 )\
                 .outerjoin(stock_subquery, Ingredient.id == stock_subquery.c.ingredient_id)\
                 .outerjoin(value_subquery, Ingredient.id == value_subquery.c.ingredient_id)\
+                .outerjoin(IngredientInventory, and_(Ingredient.id == IngredientInventory.ingredient_id, IngredientInventory.branch_id == branch_id))\
                 .where(Ingredient.company_id == company_id)
         else:
             # Query global (all branches) with aggregation
@@ -218,10 +220,15 @@ class IngredientService:
         # Process rows to calculate cost and return dicts
         final_results = []
         for row in rows:
-            # row structure is (Ingredient, stock, total_value) due to the select keys
+            # row structure depends on query
             ingredient = row[0]
             stock = row[1] or 0
             total_value = row[2] or 0
+            
+            min_stock = Decimal(0)
+            # If we queried with branch_id, row has 4 elements (Ingredient, stock, total_value, min_stock)
+            if branch_id and len(row) > 3:
+                min_stock = row[3] if row[3] is not None else Decimal(0)
             
             # --- BACKEND FINANCIAL LOGIC ---
             # Calculate Effective Cost (WAC vs Reference)
@@ -249,7 +256,8 @@ class IngredientService:
                 "updated_at": ingredient.updated_at,
                 "stock": stock,
                 "total_inventory_value": total_value,
-                "calculated_cost": calculated_cost 
+                "calculated_cost": calculated_cost,
+                "min_stock": min_stock
             }
             final_results.append(ing_dict)
             

@@ -30,7 +30,10 @@ export const ModifierForm = ({
         resetForm
     } = useModifierForm(onRefresh);
 
-    const totalCost = recipeItems.reduce((acc, item) => acc + (item.cost * item.quantity), 0);
+    const totalCost = recipeItems.reduce((acc, item) => {
+        const itemCost = (Number(item.cost) || 0) * (Number(item.quantity) || 0);
+        return acc + itemCost;
+    }, 0);
     const profit = (Number(form.extra_price) || 0) - totalCost;
     const margin = Number(form.extra_price) > 0 ? (profit / Number(form.extra_price)) * 100 : 0;
 
@@ -142,12 +145,12 @@ export const ModifierForm = ({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                                 <span className="text-[9px] text-gray-500 uppercase block mb-1">Costo Total</span>
-                                <span className="text-xl font-bold text-gray-200">${totalCost.toFixed(2)}</span>
+                                <span className="text-xl font-bold text-gray-200">${totalCost.toLocaleString()}</span>
                             </div>
                             <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                                 <span className="text-[9px] text-gray-500 uppercase block mb-1">Ganancia</span>
                                 <span className={`text-xl font-bold ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    ${profit.toFixed(2)}
+                                    ${profit.toLocaleString()}
                                 </span>
                             </div>
                             <div className="col-span-2 bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 flex justify-between items-center">
@@ -223,7 +226,7 @@ export const ModifierForm = ({
                                     <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-gray-500 group-hover:text-purple-400 transition-colors">
                                         <Pizza size={16} />
                                     </div>
-                                    <span className="font-black text-purple-400 text-sm tracking-tight">${mod.extra_price}</span>
+                                    <span className="font-black text-purple-400 text-sm tracking-tight">${Number(mod.extra_price).toLocaleString()}</span>
                                 </div>
 
                                 <div>

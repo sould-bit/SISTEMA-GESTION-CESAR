@@ -624,7 +624,7 @@ export const BeverageForm = ({
                                                 <h4 className="font-bold text-gray-200 text-sm truncate" title={p.name}>{p.name}</h4>
                                                 <div className="flex justify-between items-center text-xs">
                                                     <span className="text-gray-500">Precio</span>
-                                                    <span className="font-bold text-accent-orange">${p.price?.toLocaleString()}</span>
+                                                    <span className="font-bold text-accent-orange">${Number(p.price).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] text-gray-600">
                                                     <span>Stock</span>

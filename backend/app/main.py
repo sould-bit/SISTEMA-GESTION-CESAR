@@ -1,5 +1,6 @@
 import os
 import logging
+# Trigger reload for schema update
 from fastapi import FastAPI, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select, Session, SQLModel
@@ -21,7 +22,6 @@ from app.routers import (
     delivery,
     audit,
     tickets,
-    tickets,
     uploads,
     modifiers,
     ingredients,
@@ -36,6 +36,8 @@ from fastapi.staticfiles import StaticFiles
 from .core.websockets import sio # Import Socket.IO server
 import socketio
 from app.core.exceptions import RBACException, create_rbac_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 # Logger setup
 logger = logging.getLogger(__name__)
@@ -94,6 +96,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Handler global para excepciones RBAC
 app.add_exception_handler(RBACException, create_rbac_exception_handler())
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Log validation errors for easier debugging."""
+    logger.error(f"❌ Validation Error on {request.url.path}: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
 
 @app.on_event("startup")
 async def on_startup():

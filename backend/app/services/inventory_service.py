@@ -235,6 +235,146 @@ class InventoryService:
         consumed_batches = batch_consumptions if 'batch_consumptions' in locals() else []
         return inventory, transaction_cost, new_batch if 'new_batch' in locals() else None, consumed_batches
 
+    async def get_ingredient_history(self, ingredient_id: uuid.UUID, limit: int = 50) -> List[dict]:
+        """Obtiene el historial de movimientos de un ingrediente."""
+        from app.models.user import User
+
+        stmt = (
+            select(IngredientTransaction, User.full_name.label("user_name"))
+            .join(IngredientInventory, IngredientTransaction.inventory_id == IngredientInventory.id)
+            .outerjoin(User, IngredientTransaction.user_id == User.id)
+            .where(IngredientInventory.ingredient_id == ingredient_id)
+            .order_by(IngredientTransaction.created_at.desc())
+            .limit(limit)
+        )
+        
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        
+        history = []
+        for txn, user_name in rows:
+            history.append({
+                "id": txn.id,
+                "created_at": txn.created_at,
+                "transaction_type": txn.transaction_type,
+                "quantity": txn.quantity,
+                "balance_after": txn.balance_after,
+                "reference_id": txn.reference_id,
+                "reason": txn.reason,
+                "user_name": user_name or "Sistema",
+                "ingredient_name": None,
+                "ingredient_unit": None,
+                "ingredient_id": None
+            })
+        return history
+
+    async def get_global_audit_history(self, company_id: int, limit: int = 100) -> List[dict]:
+        """
+        Obtiene el historial global de auditorías (movimientos de ajuste) para una empresa.
+        """
+        from app.models.user import User
+        from app.models.ingredient import Ingredient
+
+        stmt = (
+            select(
+                IngredientTransaction, 
+                User.full_name.label("user_name"),
+                Ingredient.name.label("ingredient_name"),
+                Ingredient.base_unit.label("ingredient_unit"),
+                Ingredient.id.label("ingredient_id")
+            )
+            .join(IngredientInventory, IngredientTransaction.inventory_id == IngredientInventory.id)
+            .join(Ingredient, IngredientInventory.ingredient_id == Ingredient.id)
+            .outerjoin(User, IngredientTransaction.user_id == User.id)
+            .where(
+                and_(
+                    Ingredient.company_id == company_id,
+                    IngredientTransaction.transaction_type.in_(["ADJUST", "ADJ", "REVERT_ADJ", "PRODUCTION_ROLLBACK", "BATCH_DELETION"])
+                )
+            )
+            .order_by(IngredientTransaction.created_at.desc())
+            .limit(limit)
+        )
+        
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        
+        history = []
+        for txn, user_name, ingredient_name, ingredient_unit, ingredient_id in rows:
+            history.append({
+                "id": txn.id,
+                "created_at": txn.created_at,
+                "transaction_type": txn.transaction_type,
+                "quantity": txn.quantity,
+                "balance_after": txn.balance_after,
+                "reference_id": txn.reference_id,
+                "reason": txn.reason,
+                "user_name": user_name or "Sistema",
+                "ingredient_name": ingredient_name,
+                "ingredient_unit": ingredient_unit,
+                "ingredient_id": ingredient_id
+            })
+        return history
+
+    async def revert_ingredient_transaction(self, transaction_id: uuid.UUID, user_id: int) -> IngredientInventory:
+        """
+        Revierte un movimiento de inventario (Kardex).
+        - Solo permite revertir ajustes (ADJUST/ADJ).
+        - Utiliza update_stock para garantizar que los lotes (FIFO) se actualicen.
+        """
+        # 1. Obtener transacción original
+        stmt = select(IngredientTransaction).where(IngredientTransaction.id == transaction_id)
+        result = await self.db.execute(stmt)
+        txn = result.scalar_one_or_none()
+        
+        if not txn:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
+            
+        if txn.transaction_type not in ["ADJUST", "ADJ"]:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"No se puede revertir una transacción de tipo {txn.transaction_type}. Solo se permiten ajustes."
+            )
+
+        # 2. Obtener inventario e ingrediente relacionado
+        stmt_info = (
+            select(IngredientInventory, Ingredient)
+            .join(Ingredient, IngredientInventory.ingredient_id == Ingredient.id)
+            .where(IngredientInventory.id == txn.inventory_id)
+        )
+        result_info = await self.db.execute(stmt_info)
+        row = result_info.first()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Inventario o Ingrediente no encontrado")
+        
+        inventory, ingredient = row
+
+        # 3. Calcular delta inverso
+        # Si el ajuste sumó 5, ahora restamos 5 (OUT).
+        # Si el ajuste restó 5, ahora sumamos 5 (IN).
+        inverse_delta = txn.quantity * -1
+        
+        # 4. Ejecutar actualización de stock unificada (Maneja Lotes)
+        # Usamos el tipo REVERT_ADJ para que sea auditable
+        # Si inverse_delta > 0 (entrada), usamos el costo actual del ingrediente
+        cost = ingredient.current_cost if inverse_delta > 0 else None
+        
+        from .inventory_service import InventoryService
+        # Re-usamos la lógica de update_stock para asegurar consistencia de lotes
+        new_inv, _, _, _ = await self.update_stock(
+            branch_id=inventory.branch_id,
+            ingredient_id=ingredient.id,
+            quantity_delta=inverse_delta,
+            transaction_type="REVERT_ADJ",
+            user_id=user_id,
+            reference_id=str(txn.id),
+            reason=f"Reversión de ajuste {str(txn.id)[:8]}",
+            cost_per_unit=cost
+        )
+        
+        return new_inv
+
     async def restore_stock_to_batches(
         self,
         branch_id: int,

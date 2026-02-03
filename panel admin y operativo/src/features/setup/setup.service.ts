@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 export type MacroType = 'HOME' | 'INSUMOS' | 'PRODUCCION' | 'CARTA' | 'BEBIDAS' | 'EXTRAS';
 
 export interface RecipeItemRow {
-    ingredientId: number;
+    ingredientId: number | string;
     name: string;
     cost: number;
     quantity: number;
@@ -12,7 +12,7 @@ export interface RecipeItemRow {
 }
 
 export interface Product {
-    id: number;
+    id: number | any;
     name: string;
     price: number;
     stock: number;
@@ -21,6 +21,9 @@ export interface Product {
     is_active: boolean;
     image_url?: string;
     description?: string;
+    unit?: string;
+    sku?: string;
+    min_stock?: number;
 }
 
 export interface Ingredient extends Product {
@@ -35,7 +38,8 @@ export interface Category {
 }
 
 export interface RecipeItem {
-    ingredient_product_id: number;
+    ingredient_product_id?: number | null;
+    ingredient_id?: string | null;
     quantity: number;
     unit: string;
 }
@@ -50,10 +54,12 @@ export interface RecipePayload {
 export interface ModifierRecipeItem {
     id: number;
     modifier_id: number;
-    ingredient_product_id: number;
+    ingredient_product_id?: number | null;
+    ingredient_id?: string | null;
     quantity: number;
     unit: string;
-    ingredient?: Product; // Expanded by backend
+    ingredient?: Product; // Expanded by backend (Legacy)
+    ingredient_ref?: any; // Expanded by backend (New V4.1)
 }
 
 export interface ProductModifier {
@@ -156,7 +162,12 @@ export const setupService = {
     async getIngredients(): Promise<Product[]> {
         // Use the dedicated Ingredients endpoint to get Stock/WAC data
         const res = await api.get('/ingredients/');
-        return res.data;
+        // Normalize response to match Product interface expectations (price, unit)
+        return res.data.map((ing: any) => ({
+            ...ing,
+            price: Number(ing.current_cost) || 0,
+            unit: ing.base_unit || 'UNIDAD'
+        }));
     },
 
     // --- Products (Menu) ---
@@ -281,5 +292,39 @@ export const setupService = {
     async deleteBeverage(id: number): Promise<void> {
         // Use cascade endpoint that soft-deletes Product + Ingredient + Batches
         await api.delete(`/products/beverage/${id}`);
+    },
+
+    async updateIngredientStock(ingredientId: string, quantity: number, type: 'IN' | 'OUT' | 'ADJ' | 'ADJUST', reason?: string): Promise<any> {
+        const payload = {
+            quantity: Number(quantity),
+            transaction_type: type,
+            reason
+        };
+        const res = await api.post(`/ingredients/${ingredientId}/stock`, payload);
+        return res.data;
+    },
+
+    async updateIngredientSettings(ingredientId: string, minStock: number, maxStock?: number): Promise<any> {
+        const payload = {
+            min_stock: Number(minStock),
+            max_stock: maxStock ? Number(maxStock) : undefined
+        };
+        const res = await api.patch(`/ingredients/${ingredientId}/inventory`, payload);
+        return res.data;
+    },
+
+    async getIngredientHistory(ingredientId: string | number, limit: number = 20): Promise<any[]> {
+        const res = await api.get(`/ingredients/${ingredientId}/history`, { params: { limit } });
+        return res.data;
+    },
+
+    async getGlobalAuditHistory(limit: number = 100): Promise<any[]> {
+        const res = await api.get(`/ingredients/audits/history`, { params: { limit } });
+        return res.data;
+    },
+
+    async revertTransaction(transactionId: string): Promise<any> {
+        const res = await api.post(`/ingredients/transactions/${transactionId}/revert`);
+        return res.data;
     }
 };
