@@ -89,12 +89,17 @@ async def revert_transaction(
 ):
     """Revierte un movimiento de inventario."""
     inv_service = InventoryService(session)
-    inventory = await inv_service.revert_ingredient_transaction(transaction_id, current_user.id, data.reason)
+    inventory, transaction = await inv_service.revert_ingredient_transaction(
+        transaction_id=transaction_id, 
+        user_id=current_user.id, 
+        reason=data.reason
+    )
     
     return {
         "status": "success",
         "new_stock": inventory.stock,
-        "ingredient_id": inventory.ingredient_id
+        "ingredient_id": inventory.ingredient_id,
+        "reason_recorded": transaction.reason
     }
 
 

@@ -118,9 +118,11 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
 
         setIsReverting(revertConfirm.id);
         setRevertError(null);
+        console.log("🚀 Sending Reversion Request:", { id: revertConfirm.id, reason: revertReason });
 
         try {
-            await setupService.revertTransaction(revertConfirm.id, revertReason);
+            const result = await setupService.revertTransaction(revertConfirm.id, revertReason);
+            console.log("✅ Reversion successful:", result);
             await fetchHistory();
             if (onRevertSuccess) onRevertSuccess();
             setRevertConfirm(null);

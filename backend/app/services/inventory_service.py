@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from sqlmodel import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -316,7 +316,7 @@ class InventoryService:
             })
         return history
 
-    async def revert_ingredient_transaction(self, transaction_id: uuid.UUID, user_id: int, reason: Optional[str] = None) -> IngredientInventory:
+    async def revert_ingredient_transaction(self, transaction_id: uuid.UUID, user_id: int, reason: Optional[str] = None) -> Tuple[IngredientInventory, IngredientTransaction]:
         """
         Revierte un movimiento de inventario (Kardex).
         - Solo permite revertir ajustes (ADJUST/ADJ).
@@ -374,19 +374,18 @@ class InventoryService:
         # Si inverse_delta > 0 (entrada), usamos el costo actual del ingrediente
         cost = ingredient.current_cost if inverse_delta > 0 else Decimal(0)
         
-        # Re-usamos la lógica de update_ingredient_stock para asegurar consistencia de lotes
-        new_inv, _, _, _ = await self.update_ingredient_stock(
+        new_inv, _, _, new_txn = await self.update_ingredient_stock(
             branch_id=inventory.branch_id,
             ingredient_id=ingredient.id,
             quantity_delta=inverse_delta,
             transaction_type="REVERT_ADJ",
             user_id=user_id,
             reference_id=str(txn.id),
-            reason=reason or f"Reversión de ajuste {str(txn.id)[:8]}",
+            reason=reason.strip() if (reason and reason.strip()) else f"Reversión de ajuste {str(txn.id)[:8]}",
             cost_per_unit=cost
         )
         
-        return new_inv
+        return new_inv, new_txn
 
     async def restore_stock_to_batches(
         self,
