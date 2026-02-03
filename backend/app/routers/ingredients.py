@@ -29,6 +29,7 @@ from app.schemas.ingredients import (
     IngredientBatchResponse,
     IngredientBatchUpdate,
     IngredientInventorySettingsUpdate,
+    TransactionRevert,
 )
 
 router = APIRouter(
@@ -82,12 +83,13 @@ async def get_global_audit_history(
 @router.post("/transactions/{transaction_id}/revert", response_model=dict)
 async def revert_transaction(
     transaction_id: uuid.UUID,
+    data: TransactionRevert,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
     """Revierte un movimiento de inventario."""
     inv_service = InventoryService(session)
-    inventory = await inv_service.revert_ingredient_transaction(transaction_id, current_user.id)
+    inventory = await inv_service.revert_ingredient_transaction(transaction_id, current_user.id, data.reason)
     
     return {
         "status": "success",

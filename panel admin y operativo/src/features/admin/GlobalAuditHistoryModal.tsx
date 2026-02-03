@@ -16,6 +16,10 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'pos' | 'neg' | 'revert'>('all');
 
+    const [revertConfirm, setRevertConfirm] = useState<{ id: string, name: string } | null>(null);
+    const [revertReason, setRevertReason] = useState('');
+    const [revertError, setRevertError] = useState<string | null>(null);
+
     const fetchHistory = async () => {
         if (!isOpen) return;
         setIsLoading(true);
@@ -32,6 +36,15 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
 
     useEffect(() => {
         if (isOpen) fetchHistory();
+    }, [isOpen]);
+
+    // Limpiar estados al cerrar
+    useEffect(() => {
+        if (!isOpen) {
+            setRevertConfirm(null);
+            setRevertReason('');
+            setRevertError(null);
+        }
     }, [isOpen]);
 
     // Lógica de filtrado
@@ -91,16 +104,29 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
     }, [filteredHistory]);
 
 
-    const handleRevert = async (transactionId: string, ingredientName: string) => {
-        if (!window.confirm(`¿Estás seguro de que deseas revertir el ajuste de "${ingredientName}"?`)) return;
+    const handleRevertInitiate = (transactionId: string, ingredientName: string) => {
+        setRevertConfirm({ id: transactionId, name: ingredientName });
+        setRevertReason('');
+        setRevertError(null);
+    };
 
-        setIsReverting(transactionId);
+    const handleRevertAction = async () => {
+        if (!revertConfirm || !revertReason.trim()) {
+            setRevertError("Por favor ingresa un motivo para la reversión.");
+            return;
+        }
+
+        setIsReverting(revertConfirm.id);
+        setRevertError(null);
+
         try {
-            await setupService.revertTransaction(transactionId);
+            await setupService.revertTransaction(revertConfirm.id, revertReason);
             await fetchHistory();
             if (onRevertSuccess) onRevertSuccess();
+            setRevertConfirm(null);
+            setRevertReason('');
         } catch (error: any) {
-            alert(error.response?.data?.detail || "Error al revertir");
+            setRevertError(error.response?.data?.detail || "Error al procesar la reversión");
         } finally {
             setIsReverting(null);
         }
@@ -274,7 +300,7 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
 
                                                             return (
                                                                 <button
-                                                                    onClick={() => handleRevert(log.id, log.ingredient_name)}
+                                                                    onClick={() => handleRevertInitiate(log.id, log.ingredient_name)}
                                                                     disabled={!!isReverting}
                                                                     className={`w-9 h-9 flex items-center justify-center rounded-lg border border-white/10 hover:border-rose-500 hover:bg-rose-500/10 text-text-muted hover:text-rose-400 transition-all ${isReverting === log.id ? 'animate-spin bg-rose-500 text-white' : ''}`}
                                                                     title="Revertir este ajuste"
@@ -294,6 +320,72 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
                         </div>
                     )}
                 </div>
+
+                {/* MODAL DE CONFIRMACIÓN DE REVERSIÓN (Premium UX) */}
+                {revertConfirm && (
+                    <div className="absolute inset-0 bg-bg-deep/80 backdrop-blur-md z-[80] flex items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="bg-card-dark border border-white/10 w-full max-w-md rounded-2xl p-8 shadow-2xl shadow-black/50 overflow-hidden relative">
+                            {/* Decoración */}
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 via-orange-500 to-rose-500"></div>
+
+                            <div className="flex flex-col items-center text-center mb-6">
+                                <div className="w-16 h-16 rounded-full bg-rose-500/20 flex items-center justify-center mb-4 border border-rose-500/30">
+                                    <span className="material-symbols-outlined text-rose-500 text-3xl">history_toggle_off</span>
+                                </div>
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight mb-2">Revertir Ajuste</h4>
+                                <p className="text-sm text-text-muted">
+                                    Estás por deshacer el movimiento de <span className="text-white font-bold">{revertConfirm.name}</span>. Esto restaurará el stock original.
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-white uppercase tracking-widest block mb-2 opacity-50">Motivo de la Reversión</label>
+                                    <textarea
+                                        autoFocus
+                                        value={revertReason}
+                                        onChange={(e) => {
+                                            setRevertReason(e.target.value);
+                                            setRevertError(null);
+                                        }}
+                                        placeholder="Ej: Error en conteo físico, Ajuste duplicado..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white placeholder:text-white/20 focus:border-rose-500/50 focus:bg-white/10 transition-all outline-none min-h-[100px] resize-none"
+                                    />
+                                </div>
+
+                                {revertError && (
+                                    <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center gap-3 animate-shake">
+                                        <span className="material-symbols-outlined text-rose-500 text-lg">error</span>
+                                        <span className="text-xs font-bold text-rose-400">{revertError}</span>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3 pt-2">
+                                    <button
+                                        onClick={() => setRevertConfirm(null)}
+                                        className="flex-1 py-3 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/5 transition-all"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={handleRevertAction}
+                                        disabled={isReverting === revertConfirm.id || !revertReason.trim()}
+                                        className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-black text-xs uppercase tracking-widest hover:bg-rose-500 transition-all shadow-lg shadow-rose-600/20 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
+                                    >
+                                        {isReverting === revertConfirm.id ? (
+                                            <>
+                                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                                Procesando...
+                                            </>
+                                        ) : (
+                                            'Confirmar'
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="p-4 bg-white/5 border-t border-border-dark flex justify-between items-center shrink-0">

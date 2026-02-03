@@ -323,8 +323,8 @@ export const setupService = {
         return res.data;
     },
 
-    async revertTransaction(transactionId: string): Promise<any> {
-        const res = await api.post(`/ingredients/transactions/${transactionId}/revert`);
+    async revertTransaction(transactionId: string, reason: string): Promise<any> {
+        const res = await api.post(`/ingredients/transactions/${transactionId}/revert`, { reason });
         return res.data;
     }
 };

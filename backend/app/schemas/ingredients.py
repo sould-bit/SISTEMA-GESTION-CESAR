@@ -100,6 +100,11 @@ class IngredientStockUpdate(BaseModel):
     supplier: Optional[str] = Field(default=None, description="Proveedor del lote")
 
 
+class TransactionRevert(BaseModel):
+    """Schema para revertir una transacción con motivo."""
+    reason: str = Field(..., min_length=3, max_length=255, description="Motivo de la reversión")
+
+
 class IngredientBatchResponse(BaseModel):
     """Schema para respuesta de Lotes (Batches)."""
     id: uuid.UUID

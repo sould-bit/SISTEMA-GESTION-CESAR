@@ -316,7 +316,7 @@ class InventoryService:
             })
         return history
 
-    async def revert_ingredient_transaction(self, transaction_id: uuid.UUID, user_id: int) -> IngredientInventory:
+    async def revert_ingredient_transaction(self, transaction_id: uuid.UUID, user_id: int, reason: Optional[str] = None) -> IngredientInventory:
         """
         Revierte un movimiento de inventario (Kardex).
         - Solo permite revertir ajustes (ADJUST/ADJ).
@@ -382,7 +382,7 @@ class InventoryService:
             transaction_type="REVERT_ADJ",
             user_id=user_id,
             reference_id=str(txn.id),
-            reason=f"Reversión de ajuste {str(txn.id)[:8]}",
+            reason=reason or f"Reversión de ajuste {str(txn.id)[:8]}",
             cost_per_unit=cost
         )
         
