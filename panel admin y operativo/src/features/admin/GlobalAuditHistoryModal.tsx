@@ -21,6 +21,7 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
         setIsLoading(true);
         try {
             const data = await setupService.getGlobalAuditHistory(200);
+            console.log("📊 Audit History Received:", data?.length, "items", data?.slice(0, 5));
             setHistory(data);
         } catch (error) {
             console.error("Failed to fetch global history", error);
@@ -43,10 +44,11 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
 
             const qty = Number(item.quantity);
 
+            const typeStr = (item.transaction_type || '').toUpperCase();
             const isReversion =
-                item.transaction_type?.includes('REVERT') ||
-                item.transaction_type?.includes('ROLLBACK') ||
-                item.transaction_type?.includes('DELETION');
+                typeStr.includes('REVERT') ||
+                typeStr.includes('ROLLBACK') ||
+                typeStr.includes('DELETION');
 
             const matchesType =
                 filterType === 'all' ||
@@ -77,7 +79,8 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
 
             groups[dateKey].items.push(item);
             const qty = Number(item.quantity);
-            const isRev = item.transaction_type?.includes('REVERT') || item.transaction_type?.includes('ROLLBACK');
+            const typeStr = (item.transaction_type || '').toUpperCase();
+            const isRev = typeStr.includes('REVERT') || typeStr.includes('ROLLBACK');
 
             if (isRev) groups[dateKey].stats.rev += 1;
             else if (qty > 0) groups[dateKey].stats.pos += 1;

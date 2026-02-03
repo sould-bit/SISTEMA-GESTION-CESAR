@@ -358,9 +358,8 @@ class InventoryService:
         # 4. Ejecutar actualización de stock unificada (Maneja Lotes)
         # Usamos el tipo REVERT_ADJ para que sea auditable
         # Si inverse_delta > 0 (entrada), usamos el costo actual del ingrediente
-        cost = ingredient.current_cost if inverse_delta > 0 else None
+        cost = ingredient.current_cost if inverse_delta > 0 else Decimal(0)
         
-        from .inventory_service import InventoryService
         # Re-usamos la lógica de update_stock para asegurar consistencia de lotes
         new_inv, _, _, _ = await self.update_stock(
             branch_id=inventory.branch_id,
