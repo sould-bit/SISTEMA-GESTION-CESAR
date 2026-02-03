@@ -332,6 +332,7 @@ class InventoryService:
             
         if txn.transaction_type not in ["ADJUST", "ADJ"]:
             raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"No se puede revertir una transacción de tipo {txn.transaction_type}. Solo se permiten ajustes."
             )
 
