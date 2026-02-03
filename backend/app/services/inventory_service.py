@@ -1,6 +1,6 @@
 from decimal import Decimal
 from typing import List, Optional
-from sqlmodel import select
+from sqlmodel import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 import uuid
