@@ -120,6 +120,7 @@ export interface Recipe {
     id: number;  // INTEGER in database
     product_id: number;
     product_name?: string; // Populate from backend
+    product_image_url?: string; // Product image URL
     category_id?: number;  // Category of the product
     category_name?: string; // Category name for grouping
     name: string;
@@ -223,6 +224,16 @@ export const kitchenService = {
             description: description || '',
             is_active: true
         });
+        return data;
+    },
+
+    updateCategory: async (id: number, name: string, description?: string, is_active: boolean = true): Promise<Category> => {
+        const payload: any = { name, is_active };
+        if (description !== undefined) {
+            payload.description = description;
+        }
+        console.log(`[updateCategory] Payload for ID ${id}:`, payload);
+        const { data } = await api.put<Category>(`/categories/${id}`, payload);
         return data;
     },
 
@@ -335,6 +346,58 @@ export const kitchenService = {
     recalculateRecipeCost: async (id: string): Promise<Recipe> => {
         const { data } = await api.post<Recipe>(`/recipes/${id}/recalculate`);
         return data;
+    },
+
+    // Upload image for recipe/product
+    uploadImage: async (file: File): Promise<string> => {
+        console.log('📤 [UPLOAD] Starting image upload...');
+        console.log('📤 [UPLOAD] File:', {
+            name: file.name,
+            type: file.type,
+            size: `${(file.size / 1024).toFixed(2)} KB`
+        });
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const { data } = await api.post<{ url: string; filename: string }>('/uploads/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            console.log('✅ [UPLOAD] Success! Response:', data);
+            console.log('✅ [UPLOAD] Image URL:', data.url);
+            return data.url;
+        } catch (error: any) {
+            console.error('❌ [UPLOAD] Failed!', error);
+            console.error('❌ [UPLOAD] Error details:', {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                message: error.message
+            });
+            throw error;
+        }
+    },
+
+    // Update product image
+    updateProductImage: async (productId: number, imageUrl: string): Promise<void> => {
+        console.log('🖼️ [UPDATE_IMAGE] Updating product image...');
+        console.log('🖼️ [UPDATE_IMAGE] Product ID:', productId);
+        console.log('🖼️ [UPDATE_IMAGE] Image URL:', imageUrl);
+
+        try {
+            await api.patch(`/products/${productId}`, { image_url: imageUrl });
+            console.log('✅ [UPDATE_IMAGE] Product image updated successfully!');
+        } catch (error: any) {
+            console.error('❌ [UPDATE_IMAGE] Failed!', error);
+            console.error('❌ [UPDATE_IMAGE] Error details:', {
+                status: error.response?.status,
+                data: error.response?.data
+            });
+            throw error;
+        }
     },
 
     // ─────────────────────────────────────────

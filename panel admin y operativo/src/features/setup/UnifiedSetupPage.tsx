@@ -5,15 +5,19 @@ import { SetupNavigation } from './components/SetupNavigation';
 import { BeverageForm } from './components/BeverageForm';
 import { StandardForm } from './components/StandardForm';
 import { ModifierForm } from './components/ModifierForm';
-import { setupService, RecipeItemRow } from './setup.service';
+import { IngredientForm } from './components/IngredientForm';
 import { type Ingredient as KitchenIngredient } from '@/features/kitchen/kitchen.service';
+import { RecipeItemRow } from './setup.service';
 
 export const UnifiedSetupPage = () => {
     // --- Global Data Hook ---
     const {
         viewMode, setViewMode,
-        categories, ingredients, products, modifiers,
-        isLoading, refreshData
+        categories, ingredients, products,
+        modifiers,
+        isLoading,
+        isRefreshing,
+        refreshData
     } = useSetupData();
 
     // --- Selection State ---
@@ -30,12 +34,6 @@ export const UnifiedSetupPage = () => {
 
     // Aliases for different form modes (since all use the same unified hook logic)
     const handleSaveStandard = saveProduct;
-    // Modifiers might need separate logic or use the same hook
-    // (Assuming ModifierForm expects a specific signature, checking usage temporarily aliased)
-    const handleSaveModifier = async (data: any) => {
-        // Placeholder if distinct logic is needed, or reuse saveProduct if compatible
-        console.warn("Modifier save logic not fully integrated yet");
-    };
 
     // --- Category Selection Logic ---
     useEffect(() => {
@@ -44,9 +42,10 @@ export const UnifiedSetupPage = () => {
             const rawCat = categories.find(c => c.name.toLowerCase() === 'materia prima');
             if (rawCat) setSelectedCategory(rawCat);
         } else if (viewMode === 'BEBIDAS') {
-            // Strict enforcement: ONLY "Venta Directa"
+            // Strict enforcement: ONLY "Venta Directa" or "Bebidas"
             const bevCat = categories.find(c =>
-                c.name.toLowerCase().includes('venta directa')
+                c.name.toLowerCase().includes('venta directa') ||
+                c.name.toLowerCase().includes('bebidas')
             );
             if (bevCat) setSelectedCategory(bevCat);
             else setSelectedCategory(null);
@@ -70,7 +69,12 @@ export const UnifiedSetupPage = () => {
             <div className="relative z-10 max-w-7xl mx-auto p-4 md:p-8 space-y-8">
 
                 {/* HEADLINE */}
-                <div className="text-center space-y-2 mb-12">
+                <div className="relative text-center space-y-2 mb-12">
+                    {isRefreshing && (
+                        <div className="absolute top-0 right-0 bg-emerald-500/20 text-emerald-400 text-[10px] px-3 py-1 rounded-full border border-emerald-500/30 animate-pulse flex items-center gap-2">
+                            Actualizando datos...
+                        </div>
+                    )}
                     <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500 tracking-tight">
                         Ingeniería de Menú
                     </h1>
@@ -95,7 +99,7 @@ export const UnifiedSetupPage = () => {
                         onCancel={() => setViewMode('HOME')}
                         isSaving={isSaving}
                         products={products
-                            .filter(p => !p.category_id || p.category_name !== 'Materia Prima')
+                            .filter(p => selectedCategory ? p.category_id === selectedCategory.id : false)
                             .map(p => {
                                 // Enrich with stock from linked ingredient (Single Source of Truth)
                                 const linkedIng = (ingredients as unknown as KitchenIngredient[]).find(i =>
@@ -155,23 +159,25 @@ export const UnifiedSetupPage = () => {
 
                 {/* MODIFIERS MODULE */}
                 {viewMode === 'EXTRAS' && (
-                    <div>
-                        <button onClick={() => setViewMode('HOME')} className="mb-4 text-sm text-gray-500 hover:text-white underline">
-                            &larr; Volver
-                        </button>
-                        <ModifierForm
-                            modifiers={modifiers}
-                            handleSaveModifier={handleSaveModifier}
-                            isSaving={isSaving}
-                            recipeItems={recipeItems}
-                            setRecipeItems={setRecipeItems}
-                            ingredients={ingredients}
-                        />
-                    </div>
+                    <ModifierForm
+                        modifiers={modifiers}
+                        ingredients={ingredients}
+                        onRefresh={refreshData}
+                        onBack={() => setViewMode('HOME')}
+                    />
                 )}
 
-                {/* STANDARD FORM (INSUMOS / CARTA) */}
-                {(viewMode === 'INSUMOS' || viewMode === 'CARTA') && (
+                {/* INGREDIENTS MODULE */}
+                {viewMode === 'INSUMOS' && (
+                    <IngredientForm
+                        ingredients={ingredients}
+                        onRefresh={refreshData}
+                        onBack={() => setViewMode('HOME')}
+                    />
+                )}
+
+                {/* STANDARD FORM (CARTA) */}
+                {(viewMode === 'CARTA') && (
                     <div className="space-y-4">
                         <button onClick={() => setViewMode('HOME')} className="text-sm text-gray-500 hover:text-white underline">
                             &larr; Volver al Menú
@@ -192,19 +198,16 @@ export const UnifiedSetupPage = () => {
                         {/* PRODUCT GRID FOR STANDARD MODES */}
                         <div className="mt-8 pt-8 border-t border-gray-800">
                             <h3 className="text-xl font-bold text-gray-500 mb-4">
-                                {viewMode === 'INSUMOS' ? 'Insumos Registrados' : 'Platos Registrados'}
+                                Platos Registrados
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {products
-                                    .filter(p => {
-                                        if (viewMode === 'INSUMOS') return p.category_id === selectedCategory?.id; // Rough filter
-                                        return p.category_id !== categories.find(c => c.name === 'Materia Prima')?.id;
-                                    })
+                                    .filter(p => p.category_id === selectedCategory?.id)
                                     .slice(0, 12)
                                     .map(p => (
                                         <div key={p.id} className="bg-gray-800 p-3 rounded text-sm">
                                             <div className="font-bold text-white truncate">{p.name}</div>
-                                            <div className="text-gray-500">${p.price}</div>
+                                            <div className="text-gray-500">${Number(p.price).toLocaleString()}</div>
                                         </div>
                                     ))}
                             </div>

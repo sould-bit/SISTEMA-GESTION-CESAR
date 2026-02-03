@@ -66,6 +66,8 @@ class IngredientListResponse(BaseModel):
     stock: Optional[Decimal] = Field(default=Decimal(0))
     total_inventory_value: Optional[Decimal] = Field(default=Decimal(0))
     calculated_cost: Optional[Decimal] = Field(default=Decimal(0))
+    category_id: Optional[int] = None
+    min_stock: Optional[Decimal] = Field(default=Decimal(0))
 
 
     class Config:
@@ -91,11 +93,16 @@ class IngredientCostHistoryResponse(BaseModel):
 class IngredientStockUpdate(BaseModel):
     """Schema para actualizar el stock de un ingrediente."""
     quantity: Decimal = Field(..., description="Cantidad a mover (positiva para IN/ADJ, positiva para OUT que será convertida)")
-    transaction_type: str = Field(..., pattern="^(IN|OUT|ADJ|PURCHASE)$")
+    transaction_type: str = Field(..., pattern="^(IN|OUT|ADJ|PURCHASE|ADJUST)$")
     reference_id: Optional[str] = Field(default=None)
     reason: Optional[str] = Field(default=None)
     cost_per_unit: Optional[Decimal] = Field(default=None, gt=0, description="Costo unitario para registrar lote (Solo IN/PURCHASE)")
     supplier: Optional[str] = Field(default=None, description="Proveedor del lote")
+
+
+class TransactionRevert(BaseModel):
+    """Schema para revertir una transacción con motivo."""
+    reason: str = Field(..., min_length=3, max_length=255, description="Motivo de la reversión")
 
 
 class IngredientBatchResponse(BaseModel):
@@ -122,3 +129,27 @@ class IngredientBatchUpdate(BaseModel):
     total_cost: Optional[Decimal] = Field(default=None, ge=0, description="Costo total de la compra")
     supplier: Optional[str] = Field(default=None, max_length=100, description="Proveedor")
     is_active: Optional[bool] = None
+
+
+class IngredientInventorySettingsUpdate(BaseModel):
+    """Schema para actualizar configuraciones de inventario (min/max stock)."""
+    min_stock: Optional[Decimal] = Field(None, ge=0)
+    max_stock: Optional[Decimal] = Field(None, ge=0)
+
+
+class IngredientStockMovementResponse(BaseModel):
+    """Schema para respuesta de movimientos de stock."""
+    id: uuid.UUID
+    created_at: datetime
+    transaction_type: str
+    quantity: Decimal
+    balance_after: Optional[Decimal] = None
+    reference_id: Optional[str] = None
+    reason: Optional[str] = None
+    user_name: Optional[str] = None
+    ingredient_name: Optional[str] = None
+    ingredient_unit: Optional[str] = None
+    ingredient_id: Optional[uuid.UUID] = None
+
+    class Config:
+        from_attributes = True

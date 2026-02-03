@@ -305,12 +305,14 @@ class RecipeService:
             company_id=recipe.company_id,
             product_id=recipe.product_id,
             product_name=recipe.product.name if recipe.product else None,
+            product_image_url=recipe.product.image_url if recipe.product else None,
             category_id=recipe.product.category_id if recipe.product else None,
             category_name=recipe.product.category.name if recipe.product and recipe.product.category else None,
             name=recipe.name,
             total_cost=recipe.total_cost,
             is_active=recipe.is_active,
             recipe_type=recipe.recipe_type or "REAL",
+            preparation_time=recipe.preparation_time or 0,
             items_count=items_count,
             created_at=recipe.created_at
         )

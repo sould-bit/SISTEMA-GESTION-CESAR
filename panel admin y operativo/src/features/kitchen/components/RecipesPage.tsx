@@ -3,11 +3,13 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ImprovedRecipeBuilder } from './ImprovedRecipeBuilder';
 import { RecipeIntelligenceCard } from './RecipeIntelligenceCard';
 import { kitchenService, Recipe } from '../kitchen.service';
 
 export const RecipesPage = () => {
+    const navigate = useNavigate();
     const [view, setView] = useState<'list' | 'create' | 'detail' | 'edit'>('list');
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -186,13 +188,22 @@ export const RecipesPage = () => {
                     <h2 className="text-2xl font-bold text-white">Recetas Vivas</h2>
                     <p className="text-text-muted">Gestiona tus recetas y supervísalas en tiempo real</p>
                 </div>
-                <button
-                    onClick={() => setView('create')}
-                    className="flex items-center gap-2 px-4 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
-                >
-                    <span className="material-symbols-outlined">add</span>
-                    Nueva Receta
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => navigate('/kitchen/recipes-v2')}
+                        className="flex items-center gap-2 px-4 py-2 border border-purple-500/50 text-purple-300 rounded-lg hover:bg-purple-500/10 transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-sm">science</span>
+                        Probar Version 2.0
+                    </button>
+                    <button
+                        onClick={() => setView('create')}
+                        className="flex items-center gap-2 px-4 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+                    >
+                        <span className="material-symbols-outlined">add</span>
+                        Nueva Receta
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -295,23 +306,60 @@ export const RecipesPage = () => {
                                                 <div
                                                     key={recipe.id}
                                                     onClick={() => selectRecipe(recipe)}
-                                                    className="bg-bg-deep border border-border-dark rounded-xl p-4 cursor-pointer hover:border-accent-purple/50 transition-all hover:shadow-lg hover:shadow-purple-500/10 group"
+                                                    className="bg-bg-deep border border-border-dark rounded-xl overflow-hidden cursor-pointer hover:border-accent-purple/50 transition-all hover:shadow-lg hover:shadow-purple-500/10 group"
                                                 >
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <h3 className="font-bold text-white group-hover:text-accent-purple transition-colors">{recipe.name}</h3>
-                                                        {recipe.is_active ?
-                                                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span> :
-                                                            <span className="w-2 h-2 rounded-full bg-red-400"></span>
-                                                        }
+                                                    {/* Image Section */}
+                                                    <div className="relative h-32 overflow-hidden bg-gradient-to-br from-purple-900/30 to-pink-900/20">
+                                                        {recipe.product_image_url ? (
+                                                            <img
+                                                                src={recipe.product_image_url.startsWith('http')
+                                                                    ? recipe.product_image_url
+                                                                    : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${recipe.product_image_url}`
+                                                                }
+                                                                alt={recipe.name}
+                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <span className="material-symbols-outlined text-5xl text-purple-500/30">restaurant</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Active Badge */}
+                                                        <div className="absolute top-2 right-2">
+                                                            {recipe.is_active ? (
+                                                                <span className="w-3 h-3 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/50 block"></span>
+                                                            ) : (
+                                                                <span className="w-3 h-3 rounded-full bg-red-400 block"></span>
+                                                            )}
+                                                        </div>
+                                                        {/* Cost Badge */}
+                                                        <div className="absolute bottom-2 right-2">
+                                                            <span className="px-2 py-1 bg-black/60 backdrop-blur-sm rounded-lg text-emerald-400 font-mono text-sm font-medium">
+                                                                {formatCurrency(recipe.total_cost)}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <p className="text-sm text-text-muted mb-3 line-clamp-1">
-                                                        {recipe.product_name || 'Sin producto vinculado'}
-                                                    </p>
-                                                    <div className="flex items-center justify-between text-sm">
-                                                        <span className="text-gray-500">{recipe.items_count ?? recipe.items?.length ?? 0} ingredientes</span>
-                                                        <span className="font-mono text-emerald-400 font-medium">
-                                                            {formatCurrency(recipe.total_cost)}
-                                                        </span>
+
+                                                    {/* Content Section */}
+                                                    <div className="p-4">
+                                                        <h3 className="font-bold text-white group-hover:text-accent-purple transition-colors mb-1 truncate">
+                                                            {recipe.name}
+                                                        </h3>
+                                                        <p className="text-sm text-text-muted mb-2 line-clamp-1">
+                                                            {recipe.product_name || 'Sin producto vinculado'}
+                                                        </p>
+                                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="material-symbols-outlined text-[14px]">nutrition</span>
+                                                                {recipe.items_count ?? recipe.items?.length ?? 0} ingredientes
+                                                            </span>
+                                                            {recipe.preparation_time > 0 && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <span className="material-symbols-outlined text-[14px]">schedule</span>
+                                                                    {recipe.preparation_time} min
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}

@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.modifier import ProductModifier, ModifierRecipeItem
 from app.models.product import Product
+from app.models.ingredient import Ingredient
 
 class ModifierService:
     
@@ -14,7 +15,10 @@ class ModifierService:
             select(ProductModifier)
             .where(ProductModifier.company_id == company_id)
             .where(ProductModifier.is_active == True)
-            .options(selectinload(ProductModifier.recipe_items).selectinload(ModifierRecipeItem.ingredient))
+            .options(
+                selectinload(ProductModifier.recipe_items).selectinload(ModifierRecipeItem.ingredient),
+                selectinload(ProductModifier.recipe_items).selectinload(ModifierRecipeItem.ingredient_ref)
+            )
         )
         result = await session.execute(statement)
         modifiers = result.scalars().all()
@@ -22,6 +26,7 @@ class ModifierService:
         for output_modifier in modifiers:
             for item in output_modifier.recipe_items:
                 _ = item.ingredient
+                _ = item.ingredient_ref
         return modifiers
 
     async def get_modifier_by_id(self, session: AsyncSession, modifier_id: int) -> Optional[ProductModifier]:
@@ -29,7 +34,10 @@ class ModifierService:
         statement = (
             select(ProductModifier)
             .where(ProductModifier.id == modifier_id)
-            .options(selectinload(ProductModifier.recipe_items).selectinload(ModifierRecipeItem.ingredient))
+            .options(
+                selectinload(ProductModifier.recipe_items).selectinload(ModifierRecipeItem.ingredient),
+                selectinload(ProductModifier.recipe_items).selectinload(ModifierRecipeItem.ingredient_ref)
+            )
         )
         result = await session.execute(statement)
         return result.scalars().first()
@@ -71,7 +79,8 @@ class ModifierService:
         for item_data in items_data:
             new_item = ModifierRecipeItem(
                 modifier_id=modifier_id,
-                ingredient_product_id=item_data['ingredient_product_id'],
+                ingredient_product_id=item_data.get('ingredient_product_id'),
+                ingredient_id=item_data.get('ingredient_id'),
                 quantity=item_data['quantity'],
                 unit=item_data['unit']
             )

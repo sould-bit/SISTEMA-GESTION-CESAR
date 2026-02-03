@@ -120,6 +120,7 @@ class RecipeListResponse(BaseModel):
     company_id: int
     product_id: int
     product_name: Optional[str] = None
+    product_image_url: Optional[str] = None
     category_id: Optional[int] = None
     category_name: Optional[str] = None
     name: str
@@ -127,6 +128,7 @@ class RecipeListResponse(BaseModel):
     total_cost: Decimal
     is_active: bool
     recipe_type: str
+    preparation_time: int = 0
     items_count: int = 0
     created_at: datetime
 

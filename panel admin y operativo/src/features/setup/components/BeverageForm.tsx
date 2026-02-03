@@ -1,6 +1,8 @@
-import { ArrowLeft, Save, Camera, Beer, Trash2, X, ShoppingCart, LayoutGrid, Factory, History } from 'lucide-react';
+import { ArrowLeft, Save, Camera, Beer, Trash2, X, ShoppingCart, LayoutGrid, Factory, History, Plus } from 'lucide-react';
 import { MutableRefObject, useState, useEffect } from 'react';
 import { BatchHistoryModal } from './BatchHistoryModal';
+import { QuickPurchaseModal } from './QuickPurchaseModal';
+import { setupService } from '../setup.service';
 import { kitchenService, type Ingredient } from '@/features/kitchen/kitchen.service';
 
 interface BeverageFormProps {
@@ -36,9 +38,10 @@ export const BeverageForm = ({
 }: BeverageFormProps) => {
 
     const [showBatchModal, setShowBatchModal] = useState(false);
+    const [showQuickPurchase, setShowQuickPurchase] = useState(false);
     const [view, setView] = useState<'HOME' | 'INVENTORY' | 'CATALOG'>('HOME');
     const [inventoryFilter, setInventoryFilter] = useState('');
-    const [localSelectedProduct, setLocalSelectedProduct] = useState<Ingredient | null>(null); // For Inventory view
+    const [localSelectedProduct, setLocalSelectedProduct] = useState<Ingredient | null>(null);
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
     // Helper: Format stock with thousands separators and cleaner decimals
@@ -52,9 +55,14 @@ export const BeverageForm = ({
         }).format(n);
     };
 
+    // Helper: Refresh inventory data
+    const refreshInventory = () => {
+        kitchenService.getIngredients(undefined, 'MERCHANDISE').then(setIngredients);
+    };
+
     useEffect(() => {
         if (view === 'INVENTORY') {
-            kitchenService.getIngredients(undefined, 'MERCHANDISE').then(setIngredients);
+            refreshInventory();
         }
     }, [view, products]);
 
@@ -81,12 +89,12 @@ export const BeverageForm = ({
             // If editing, allow if it's the same item (name hasn't changed)
             if (selectedProduct) {
                 if (selectedProduct.name.trim().toLowerCase() !== nameLower) {
-                    alert(`Conflict: El nombre "${duplicate.name}" ya está en uso por otro insumo o bebida.`);
+                    alert(`El nombre "${duplicate.name}" ya está siendo usado por otro producto. Por favor elige uno diferente.`);
                     return;
                 }
             } else {
                 // If creating, reject immediate duplicates
-                alert(`Conflict: El nombre "${duplicate.name}" ya está en uso por otro insumo o bebida.`);
+                alert(`El nombre "${duplicate.name}" ya existe en el sistema. Usa un nombre único.`);
                 return;
             }
         }
@@ -129,12 +137,27 @@ export const BeverageForm = ({
     };
 
     const handleDeleteInventoryItem = async (ingredient: Ingredient) => {
-        if (!confirm(`¿Estás seguro de eliminar el insumo "${ingredient.name}"?`)) return;
+        if (!confirm(`¿Estás seguro de eliminar "${ingredient.name}"? Esto lo quitará del catálogo de ventas y del inventario.`)) return;
 
         try {
-            await kitchenService.deleteIngredient(ingredient.id);
-            // Refresh inventory
-            kitchenService.getIngredients(undefined, 'MERCHANDISE').then(setIngredients);
+            // Find if there's a matching product in the catalog to perform a cascading delete
+            const matchingProduct = products.find(p => p.name.toLowerCase() === ingredient.name.toLowerCase());
+
+            if (matchingProduct) {
+                // Use the cascading delete service
+                await setupService.deleteBeverage(matchingProduct.id);
+            } else {
+                // Fallback for ingredients without a 1:1 product link
+                await kitchenService.deleteIngredient(ingredient.id);
+            }
+
+            // Refresh local inventory state
+            const updatedIngs = await kitchenService.getIngredients(undefined, 'MERCHANDISE');
+            setIngredients(updatedIngs);
+
+            // Notify parent to refresh the product list
+            onCancel();
+
         } catch (error: any) {
             console.error('Delete error:', error);
             alert('Error al eliminar: ' + (error.response?.data?.detail || error.message));
@@ -173,7 +196,7 @@ export const BeverageForm = ({
                         <div className="z-10">
                             <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">Gestión de Compras</h3>
                             <p className="text-gray-400 group-hover:text-gray-300">
-                                Ver y gestionar historial de lotes, existencias y costos de todas las bebidas.
+                                Ver y gestionar historial de lotes, existencias y costos de todos los productos.
                             </p>
                         </div>
                     </button>
@@ -207,7 +230,7 @@ export const BeverageForm = ({
                         </button>
                         <div>
                             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                                <Factory className="text-emerald-400" /> Inventario de Bebidas
+                                <Factory className="text-emerald-400" /> Inventario de Venta Directa
                             </h2>
                             <p className="text-gray-500 text-sm">Gestión centralizada de existencias y lotes</p>
                         </div>
@@ -218,7 +241,7 @@ export const BeverageForm = ({
                             <div className="relative flex-1">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">search</span>
                                 <input
-                                    placeholder="Buscar bebida..."
+                                    placeholder="Buscar producto..."
                                     className="w-full bg-bg-deep border border-border-dark rounded-lg pl-10 pr-3 py-2 text-white focus:border-emerald-500 outline-none"
                                     value={inventoryFilter}
                                     onChange={e => setInventoryFilter(e.target.value)}
@@ -243,7 +266,7 @@ export const BeverageForm = ({
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <span className={`font-mono font-bold ${Number(p.stock) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {p.stock} {p.base_unit || 'und'}
+                                                {formatStock(p.stock || 0)} {p.base_unit || 'und'}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right text-gray-300 font-mono">
@@ -252,6 +275,16 @@ export const BeverageForm = ({
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setLocalSelectedProduct(p);
+                                                        setShowQuickPurchase(true);
+                                                    }}
+                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                                                    title="Registrar Compra"
+                                                >
+                                                    <Plus size={14} /> Compra
+                                                </button>
                                                 <button
                                                     onClick={() => handleDeleteInventoryItem(p)}
                                                     className="text-gray-500 hover:text-red-400 p-1 rounded hover:bg-white/10 transition-colors"
@@ -308,7 +341,7 @@ export const BeverageForm = ({
                                     </div>
                                     <div className="h-[15%] flex items-end justify-center pb-2">
                                         <span className="font-handwriting text-gray-800 font-bold opacity-80 decoration-slice text-xl">
-                                            {productForm.name || 'Nueva Bebida'}
+                                            {productForm.name || 'Nuevo Producto'}
                                         </span>
                                     </div>
                                 </div>
@@ -331,10 +364,10 @@ export const BeverageForm = ({
                                         </button>
                                         <div className="space-y-1 flex-1">
                                             <h2 className="text-3xl font-bold text-white tracking-tight">
-                                                {productForm.name || <span className="text-gray-600">Nombre de la Bebida</span>}
+                                                {productForm.name || <span className="text-gray-600">Nombre del Producto</span>}
                                             </h2>
                                             <div className="flex gap-2">
-                                                <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 text-xs font-bold uppercase rounded border border-amber-500/20">Bebida / Cafetería</span>
+                                                <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 text-xs font-bold uppercase rounded border border-amber-500/20">Venta Directa</span>
                                                 {selectedProduct && (
                                                     <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 text-xs font-bold uppercase rounded border border-blue-500/20">
                                                         Editando: {selectedProduct.name}
@@ -467,7 +500,7 @@ export const BeverageForm = ({
                                                             value={productForm.stock || ''}
                                                             onChange={e => handleTotalCostChange(productForm.totalCost, e.target.value)}
                                                         />
-                                                        <p className="text-[10px] text-gray-500 mt-1">Botellas/Unidades que vinieron.</p>
+                                                        <p className="text-[10px] text-gray-500 mt-1">Cantidad de unidades recibidas.</p>
                                                     </div>
                                                 </div>
                                                 <div className="bg-emerald-500/10 p-3 rounded border border-emerald-500/20 flex justify-between items-center">
@@ -559,17 +592,17 @@ export const BeverageForm = ({
                             </div>
                         </div>
 
-                        {/* --- BEVERAGE LIST SECTION --- */}
+                        {/* --- PRODUCT LIST SECTION --- */}
                         <div className="col-span-full pt-8 border-t border-border-dark animate-in slide-in-from-bottom-4 duration-700 delay-200">
                             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                                 <Beer size={20} className="text-accent-orange" />
-                                Catálogo de Bebidas
+                                Catálogo de Venta Directa
                             </h3>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {products.length === 0 ? (
                                     <div className="col-span-full p-8 text-center bg-gray-800/30 rounded-xl border border-dashed border-gray-700">
-                                        <p className="text-gray-500 italic">No hay bebidas registradas aún.</p>
+                                        <p className="text-gray-500 italic">No hay productos registrados aún.</p>
                                     </div>
                                 ) : (
                                     products.map((p: any) => (
@@ -591,7 +624,7 @@ export const BeverageForm = ({
                                                 <h4 className="font-bold text-gray-200 text-sm truncate" title={p.name}>{p.name}</h4>
                                                 <div className="flex justify-between items-center text-xs">
                                                     <span className="text-gray-500">Precio</span>
-                                                    <span className="font-bold text-accent-orange">${p.price?.toLocaleString()}</span>
+                                                    <span className="font-bold text-accent-orange">${Number(p.price).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] text-gray-600">
                                                     <span>Stock</span>
@@ -611,7 +644,7 @@ export const BeverageForm = ({
                 )
             }
 
-            {/* GLOBAL MODAL - Only for Inventory View (Ingredients) */}
+            {/* BATCH HISTORY MODAL */}
             {
                 showBatchModal && localSelectedProduct && (
                     <BatchHistoryModal
@@ -621,6 +654,27 @@ export const BeverageForm = ({
                         onClose={() => {
                             setShowBatchModal(false);
                             setLocalSelectedProduct(null);
+                        }}
+                    />
+                )
+            }
+
+            {/* QUICK PURCHASE MODAL */}
+            {
+                showQuickPurchase && localSelectedProduct && (
+                    <QuickPurchaseModal
+                        product={{
+                            id: localSelectedProduct.id,
+                            name: localSelectedProduct.name,
+                            stock: Number(localSelectedProduct.stock),
+                            base_unit: localSelectedProduct.base_unit
+                        }}
+                        onClose={() => {
+                            setShowQuickPurchase(false);
+                            setLocalSelectedProduct(null);
+                        }}
+                        onSuccess={() => {
+                            refreshInventory();
                         }}
                     />
                 )

@@ -38,13 +38,13 @@ const CARDS = [
     },
     {
         id: 'BEBIDAS',
-        label: 'Bebidas & Cafetería',
+        label: 'Venta Directa & Mercancía',
         icon: Beer,
         color: 'text-blue-400',
         bgIcon: 'bg-blue-500/10',
         border: 'hover:border-blue-500/50',
         gradient: 'from-blue-500/5 to-transparent',
-        desc: 'Productos de venta directa 1:1. Crea producto + inventario automáticamente.',
+        desc: 'Productos de venta directa 1:1. Snacks, bebidas y mercancía general.',
         navigateTo: null
     },
     {

@@ -22,12 +22,14 @@ from app.schemas.ingredients import (
     IngredientUpdate,
     IngredientResponse,
     IngredientListResponse,
-    IngredientListResponse,
     IngredientCostUpdate,
     IngredientStockUpdate,
     IngredientCostHistoryResponse,
+    IngredientStockMovementResponse,
     IngredientBatchResponse,
     IngredientBatchUpdate,
+    IngredientInventorySettingsUpdate,
+    TransactionRevert,
 )
 
 router = APIRouter(
@@ -61,6 +63,44 @@ async def list_ingredients(
         search=search,
     )
     return ingredients
+
+
+@router.get("/audits/history", response_model=List[IngredientStockMovementResponse])
+async def get_global_audit_history(
+    limit: int = Query(100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Obtiene el historial global de auditorías (movimientos de ajuste)."""
+    inv_service = InventoryService(session)
+    history = await inv_service.get_global_audit_history(
+        company_id=current_user.company_id,
+        limit=limit
+    )
+    return history
+
+
+@router.post("/transactions/{transaction_id}/revert", response_model=dict)
+async def revert_transaction(
+    transaction_id: uuid.UUID,
+    data: TransactionRevert,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Revierte un movimiento de inventario."""
+    inv_service = InventoryService(session)
+    inventory, transaction = await inv_service.revert_ingredient_transaction(
+        transaction_id=transaction_id, 
+        user_id=current_user.id, 
+        reason=data.reason
+    )
+    
+    return {
+        "status": "success",
+        "new_stock": inventory.stock,
+        "ingredient_id": inventory.ingredient_id,
+        "reason_recorded": transaction.reason
+    }
 
 
 @router.get("/{ingredient_id}", response_model=IngredientResponse)
@@ -186,7 +226,7 @@ async def update_ingredient_cost(
     
     return ingredient
 
-@router.get("/{ingredient_id}/history", response_model=List[IngredientCostHistoryResponse])
+@router.get("/{ingredient_id}/cost-history", response_model=List[IngredientCostHistoryResponse])
 async def get_cost_history(
     ingredient_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -202,6 +242,27 @@ async def get_cost_history(
         raise HTTPException(status_code=403, detail="Access denied")
         
     history = await service.get_cost_history(ingredient_id)
+    return history
+
+
+@router.get("/{ingredient_id}/history", response_model=List[IngredientStockMovementResponse])
+async def get_ingredient_history(
+    ingredient_id: uuid.UUID,
+    limit: int = Query(20, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Obtiene el historial de movimientos de stock de un ingrediente."""
+    # Verificar propiedad del ingrediente
+    ing_service = IngredientService(session)
+    existing = await ing_service.get_by_id(ingredient_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    if existing.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    inv_service = InventoryService(session)
+    history = await inv_service.get_ingredient_history(ingredient_id, limit=limit)
     return history
 
 
@@ -379,4 +440,65 @@ async def delete_batch(
         # Solo eliminar si NO era de producción (compra/ajuste)
         await service.delete_batch(batch_id)
     
+    
     return None
+
+
+@router.patch("/{ingredient_id}/inventory", response_model=dict)
+async def update_ingredient_inventory_settings(
+    ingredient_id: uuid.UUID,
+    data: IngredientInventorySettingsUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Actualiza configuraciones de inventario (min/max stock) para la sucursal actual.
+    """
+    # Verificar propiedad del ingrediente
+    ing_service = IngredientService(session)
+    existing = await ing_service.get_by_id(ingredient_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    if existing.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Obtener el branch_id (mismo fallback que en update_stock)
+    branch_id = current_user.branch_id if hasattr(current_user, 'branch_id') and current_user.branch_id else 1
+    
+    # Buscar el registro de inventario
+    from sqlalchemy import select
+    from app.models.ingredient_inventory import IngredientInventory
+    
+    stmt = select(IngredientInventory).where(
+        IngredientInventory.branch_id == branch_id,
+        IngredientInventory.ingredient_id == ingredient_id
+    )
+    result = await session.execute(stmt)
+    inventory = result.scalar_one_or_none()
+    
+    if not inventory:
+        # Inicializar si no existe
+        inventory = IngredientInventory(
+            branch_id=branch_id,
+            ingredient_id=ingredient_id,
+            stock=Decimal(0),
+            min_stock=Decimal(0)
+        )
+        session.add(inventory)
+    
+    # Actualizar campos
+    if data.min_stock is not None:
+        inventory.min_stock = data.min_stock
+    if data.max_stock is not None:
+        inventory.max_stock = data.max_stock
+        
+    session.add(inventory)
+    await session.commit()
+    await session.refresh(inventory)
+    
+    return {
+        "ingredient_id": ingredient_id,
+        "branch_id": branch_id,
+        "min_stock": inventory.min_stock,
+        "max_stock": inventory.max_stock
+    }

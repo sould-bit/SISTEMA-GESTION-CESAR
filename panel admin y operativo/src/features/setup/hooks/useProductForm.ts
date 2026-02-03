@@ -142,7 +142,7 @@ export const useProductForm = (
                     cost: Number(productForm.cost),
                     sale_price: Number(productForm.price),
                     initial_stock: Number(productForm.stock),
-                    unit: 'BOTELLA',
+                    unit: 'UNIDAD',
                     image_url: productForm.image_url,
                     supplier: productForm.supplier,
                     description: 'Bebida Venta Directa',
@@ -181,13 +181,23 @@ export const useProductForm = (
             resetForm();
             alert("Guardado correctamente");
         } catch (error: any) {
-            console.error(error);
-            if (error.response?.status === 500) {
-                alert("Error del servidor. Posiblemente el nombre ya existe o hay un problema interno.");
-            } else if (error.response?.status === 401) {
+            console.error('Save error:', error);
+            const serverDetail = error.response?.data?.detail;
+            const serverMsg = error.response?.data?.message;
+            let finalMsg = "Error al guardar.";
+
+            if (serverDetail) {
+                finalMsg = typeof serverDetail === 'string' ? serverDetail : JSON.stringify(serverDetail);
+            } else if (serverMsg) {
+                finalMsg = serverMsg;
+            } else {
+                finalMsg = error.message || "Error desconocido";
+            }
+
+            if (error.response?.status === 401) {
                 alert("Sesión expirada. Por favor recarga la página.");
             } else {
-                alert("Error al guardar. Verifica la consola para más detalles.");
+                alert(`⚠️ ${finalMsg}`);
             }
         } finally {
             setIsSaving(false);

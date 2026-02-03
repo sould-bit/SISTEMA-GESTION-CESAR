@@ -11,7 +11,7 @@ import { InventoryPage } from '../features/admin/InventoryPage';
 import { OrdersPage } from '../features/admin/OrdersPage';
 
 // Kitchen Module (V4.1 - Recetas Vivas)
-import { IngredientManager, RecipesPage, MenuMatrix } from '../features/kitchen';
+import { IngredientManager, RecipesPage, MenuMatrix, RecipeManagerV2 } from '../features/kitchen';
 import { IngredientHistoryPage } from '../features/kitchen/pages/IngredientHistoryPage';
 import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
 import { StaffPage } from '../features/staff/StaffPage';
@@ -114,6 +114,10 @@ export const router = createBrowserRouter([
                             {
                                 path: 'recipes',
                                 element: <RecipesPage />
+                            },
+                            {
+                                path: 'recipes-v2',
+                                element: <RecipeManagerV2 />
                             },
                             {
                                 path: 'menu-engineering',

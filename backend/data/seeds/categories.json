@@ -1,33 +1,28 @@
 {
     "categories": [
         {
-            "name": "venta directa ",
-            "description": "categoria de mercaderia clasifica os items que no tienen ningun proceso en el estado en el que entra sale a modo de venta ",
+            "name": "Venta Directa",
+            "description": "Categoría de mercadería. Clasifica los ítems que no tienen ningún proceso: en el estado en el que entra, sale (1 a 1).",
             "is_active": true
         },
         {
-            "name": "insumos",
-            "description": "materia prima y productos  que sirven para crear platos o hace parte de receta de un producto",
+            "name": "Materia Prima",
+            "description": "Insumos y productos que sirven para crear platos o hacen parte de la receta de un producto.",
             "is_active": true
         },
         {
-            "name": "producto",
-            "description": "el producto final que se vende tiene asociado receta",
+            "name": "Carta",
+            "description": "El producto final que se vende, tiene asociado receta (Platos).",
             "is_active": true
         },
         {
-            "name": "produccion",
-            "description": "son los productos que se fabrican en el lugar",
+            "name": "Producción Interna",
+            "description": "Productos intermedios que se fabrican en el lugar (Salsas, Masas).",
             "is_active": true
         },
         {
-            "name": "combos",
-            "description": "son los productos que se venden juntos",
-            "is_active": true
-        },
-        {
-            "name": "platos a la carta",
-            "description": "son platos que se pueden personalizar con recetas asociadas",
+            "name": "Combos",
+            "description": "Conjunto de productos que se venden juntos.",
             "is_active": true
         }
     ]

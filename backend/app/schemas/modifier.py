@@ -2,9 +2,12 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 from decimal import Decimal
 
+import uuid
+
 # --- Base Schemas ---
 class ModifierRecipeItemBase(BaseModel):
-    ingredient_product_id: int
+    ingredient_product_id: Optional[int] = None
+    ingredient_id: Optional[uuid.UUID] = None
     quantity: Decimal
     unit: str
 
@@ -30,11 +33,13 @@ class ProductModifierUpdate(BaseModel):
 
 # --- Response Schemas ---
 from app.schemas.products import ProductBase
+from app.schemas.ingredients import IngredientResponse
 
 class ModifierRecipeItemRead(ModifierRecipeItemBase):
     id: int
     modifier_id: int
     ingredient: Optional[ProductBase] = None
+    ingredient_ref: Optional[IngredientResponse] = None
     
     model_config = ConfigDict(from_attributes=True)
 

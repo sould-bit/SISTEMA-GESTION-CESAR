@@ -1,10 +1,14 @@
 import { useAppDispatch, useAppSelector } from '../../stores/store';
 import { logout } from '../../stores/auth.slice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export const Header = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Hide back button only on main dashboard
+    const isRootPage = location.pathname === '/admin/dashboard' || location.pathname === '/genesis';
 
     const user = useAppSelector(state => state.auth.user);
     const userInitials = user?.username ? user.username.substring(0, 2).toUpperCase() : 'JD';
@@ -21,6 +25,17 @@ export const Header = () => {
                 <button className="lg:hidden text-white">
                     <span className="material-symbols-outlined">menu</span>
                 </button>
+
+                {!isRootPage && (
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="flex items-center justify-center text-text-muted hover:text-white transition-colors hover:bg-white/10 rounded-full p-1"
+                        title="Atrás"
+                    >
+                        <span className="material-symbols-outlined">arrow_back</span>
+                    </button>
+                )}
+
                 <div className="flex items-center gap-3 text-white">
                     <span className="material-symbols-outlined text-accent-orange">storefront</span>
                     <h2 className="text-sm font-semibold tracking-wide text-white/90">Store #402 - Downtown Seattle</h2>

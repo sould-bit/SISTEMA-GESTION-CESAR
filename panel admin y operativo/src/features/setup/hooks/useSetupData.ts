@@ -30,10 +30,13 @@ export const useSetupData = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [modifiers, setModifiers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    const loadData = async () => {
-        setIsLoading(true);
+    const loadData = async (isInitial = false) => {
+        if (isInitial) setIsLoading(true);
+        else setIsRefreshing(true);
+
         setLoadError(null);
         console.log("🚀 [SETUP] Starting unified data load...");
         const startTime = Date.now();
@@ -70,14 +73,15 @@ export const useSetupData = () => {
             setLoadError(error.message || "Error desconocido");
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
     useEffect(() => {
-        loadData();
+        loadData(true);
     }, []);
 
-    const refreshData = loadData;
+    const refreshDataProxy = () => loadData(false);
 
     return {
         viewMode,
@@ -87,7 +91,8 @@ export const useSetupData = () => {
         products,
         modifiers,
         isLoading,
+        isRefreshing,
         loadError,
-        refreshData
+        refreshData: refreshDataProxy
     };
 };

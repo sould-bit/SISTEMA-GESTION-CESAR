@@ -112,7 +112,13 @@ class RecipeAnalyticsService:
                 # Example: Receta 150g. Eff 0.83 (150/180).
                 # New = 150 / 0.83 = 180g.
                 current_qty = float(item.gross_quantity)
-                suggested_qty = current_qty / stats["efficiency"]
+                # Evitar división por cero si la eficiencia es 0 (uso real sin teórico)
+                if stats["efficiency"] > 0:
+                    suggested_qty = current_qty / stats["efficiency"]
+                else:
+                    # Si no hay uso teórico pero hay uso real, sugerimos el uso real promedio?
+                    # Por ahora preservamos el actual o usamos real_usage si disponible
+                    suggested_qty = stats["real_usage"] if stats["real_usage"] > 0 else current_qty
                 
                 cost_impact = (suggested_qty - current_qty) * float(item.ingredient.current_cost or 0)
                 
