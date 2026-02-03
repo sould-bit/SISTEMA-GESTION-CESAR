@@ -360,8 +360,8 @@ class InventoryService:
         # Si inverse_delta > 0 (entrada), usamos el costo actual del ingrediente
         cost = ingredient.current_cost if inverse_delta > 0 else Decimal(0)
         
-        # Re-usamos la lógica de update_stock para asegurar consistencia de lotes
-        new_inv, _, _, _ = await self.update_stock(
+        # Re-usamos la lógica de update_ingredient_stock para asegurar consistencia de lotes
+        new_inv, _, _, _ = await self.update_ingredient_stock(
             branch_id=inventory.branch_id,
             ingredient_id=ingredient.id,
             quantity_delta=inverse_delta,
