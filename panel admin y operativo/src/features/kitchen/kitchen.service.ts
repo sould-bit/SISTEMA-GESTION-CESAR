@@ -207,6 +207,11 @@ export const kitchenService = {
         return data;
     },
 
+    getProduct: async (id: number): Promise<ProductSummary> => {
+        const { data } = await api.get<ProductSummary>(`/products/${id}`);
+        return data;
+    },
+
     createProduct: async (product: ProductCreate): Promise<ProductSummary> => {
         const { data } = await api.post<ProductSummary>('/products/', product);
         return data;

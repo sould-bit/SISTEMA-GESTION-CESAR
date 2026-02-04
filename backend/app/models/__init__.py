@@ -49,3 +49,6 @@ from .audit_log import AuditLog, AuditAction
 
 # Sistema de Modificadores (v6.1)
 from .modifier import ProductModifier, ModifierRecipeItem, OrderItemModifier
+
+# Sistema de Mesas (v7.0)
+from .table import Table, TableStatus

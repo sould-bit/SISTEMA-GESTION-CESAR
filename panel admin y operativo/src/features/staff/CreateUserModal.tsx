@@ -154,7 +154,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess, userToEdit }: Prop
                             <span className="absolute left-3 top-2.5 text-gray-500 material-symbols-outlined text-sm">person</span>
                             <input
                                 {...register('full_name')}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-orange transition-colors"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-primary transition-colors"
                                 placeholder="Ej: Juan Pérez"
                             />
                         </div>
@@ -166,7 +166,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess, userToEdit }: Prop
                             <label className="text-xs font-medium text-gray-400">Usuario</label>
                             <input
                                 {...register('username')}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-orange transition-colors"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-primary transition-colors"
                                 placeholder="juan.perez"
                             />
                             {errors.username && <p className="text-xs text-red-400 mt-1">{errors.username.message}</p>}
@@ -175,7 +175,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess, userToEdit }: Prop
                             <label className="text-xs font-medium text-gray-400">Rol</label>
                             <select
                                 {...register('role_id')}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-orange transition-colors appearance-none"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-primary transition-colors appearance-none"
                             >
                                 <option value="">Seleccionar...</option>
                                 {roles.map(role => (
@@ -193,7 +193,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess, userToEdit }: Prop
                             <input
                                 type="email"
                                 {...register('email')}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-orange transition-colors"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-primary transition-colors"
                                 placeholder="juan@empresa.com"
                             />
                         </div>
@@ -209,7 +209,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess, userToEdit }: Prop
                             <input
                                 type="password"
                                 {...register('password')}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-orange transition-colors"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-accent-primary transition-colors"
                                 placeholder={userToEdit ? "Dejar en blanco para mantener actual" : "******"}
                             />
                         </div>
@@ -222,7 +222,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess, userToEdit }: Prop
                             <span className="absolute left-3 top-2.5 text-gray-500 material-symbols-outlined text-sm">store</span>
                             <select
                                 {...register('branch_id')}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white focus:outline-none focus:border-accent-orange transition-colors appearance-none"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg pl-9 pr-3 py-2 text-white focus:outline-none focus:border-accent-primary transition-colors appearance-none"
                             >
                                 <option value="">Todas las sucursales (acceso global)</option>
                                 {branches.map(branch => (
@@ -246,7 +246,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess, userToEdit }: Prop
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:opacity-90 disabled:opacity-50 shadow-lg shadow-orange-500/20 transition-all"
+                            className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-accent-primary to-orange-600 text-white hover:opacity-90 disabled:opacity-50 shadow-lg shadow-orange-500/20 transition-all"
                         >
                             {loading ? (userToEdit ? 'Guardando...' : 'Creando...') : (userToEdit ? 'Guardar Cambios' : 'Crear Usuario')}
                         </button>

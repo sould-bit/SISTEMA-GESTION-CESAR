@@ -228,7 +228,7 @@ export const StockAudit = ({ onBack, initialType, initialSelection }: StockAudit
                                 className="group relative flex flex-col items-start p-8 rounded-2xl border-2 border-slate-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700/50 transition-all duration-300 text-left shadow-lg overflow-hidden"
                             >
                                 <PackageSearch size={120} className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform -rotate-12 text-blue-500" />
-                                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-400/20 to-indigo-500/20 text-blue-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ring-1 ring-white/10">
+                                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-400/20 to-orange-500/20 text-blue-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ring-1 ring-white/10">
                                     <PackageSearch size={32} />
                                 </div>
                                 <h3 className="text-2xl font-bold text-white mb-2">Inventario Completo</h3>
@@ -252,7 +252,7 @@ export const StockAudit = ({ onBack, initialType, initialSelection }: StockAudit
                             </h2>
                             <button
                                 onClick={toggleSelectAll}
-                                className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+                                className="text-sm text-orange-400 hover:text-indigo-300 font-medium"
                             >
                                 {selectedItemIds.size === filteredIngredients.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
                             </button>
@@ -271,12 +271,12 @@ export const StockAudit = ({ onBack, initialType, initialSelection }: StockAudit
                                             key={item.id}
                                             onClick={() => toggleSelection(item.id!)}
                                             className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${selectedItemIds.has(item.id!)
-                                                ? 'bg-indigo-500/10 border-indigo-500/50 shadow-sm'
+                                                ? 'bg-orange-500/10 border-orange-500/50 shadow-sm'
                                                 : 'bg-slate-800 border-slate-700 hover:bg-slate-700'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${selectedItemIds.has(item.id!) ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600 bg-slate-900'
+                                                <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${selectedItemIds.has(item.id!) ? 'bg-orange-500 border-orange-500' : 'border-slate-600 bg-slate-900'
                                                     }`}>
                                                     {selectedItemIds.has(item.id!) && <Check size={14} className="text-white" />}
                                                 </div>
@@ -304,7 +304,7 @@ export const StockAudit = ({ onBack, initialType, initialSelection }: StockAudit
                             <button
                                 onClick={startWizard}
                                 disabled={selectedItemIds.size === 0}
-                                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold shadow-lg shadow-indigo-600/20 flex items-center gap-2 transition-all w-full md:w-auto justify-center"
+                                className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold shadow-lg shadow-indigo-600/20 flex items-center gap-2 transition-all w-full md:w-auto justify-center"
                             >
                                 COMENZAR AUDITORÍA ({selectedItemIds.size}) <ChevronRight size={20} />
                             </button>
@@ -431,7 +431,7 @@ export const StockAudit = ({ onBack, initialType, initialSelection }: StockAudit
                                                                 }));
                                                             }
                                                         }}
-                                                        className="text-indigo-400 hover:text-white p-2 bg-slate-700/50 hover:bg-indigo-600 rounded-lg transition-all"
+                                                        className="text-orange-400 hover:text-white p-2 bg-slate-700/50 hover:bg-orange-600 rounded-lg transition-all"
                                                         title="Corregir Conteo"
                                                     >
                                                         <RefreshCcw size={16} />

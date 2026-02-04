@@ -57,7 +57,7 @@ export const StandardForm = ({
                 <button
                     onClick={handleSave}
                     disabled={!productForm.name || isSaving}
-                    className={`px-4 py-2 rounded-lg font-bold text-sm shadow-lg flex items-center gap-2 transition-all ${isIngredient ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20' : 'bg-accent-orange hover:bg-orange-600 text-white shadow-accent-orange/20'} disabled:opacity-50 disabled:grayscale`}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm shadow-lg flex items-center gap-2 transition-all ${isIngredient ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20' : 'bg-accent-primary hover:bg-orange-600 text-white shadow-accent-primary/20'} disabled:opacity-50 disabled:grayscale`}
                 >
                     <Save size={16} />
                     {isSaving ? 'Guardando...' : 'Guardar'}
@@ -72,7 +72,7 @@ export const StandardForm = ({
                             <div className="col-span-2">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Nombre</label>
                                 <input
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white focus:border-accent-orange outline-none transition-colors"
+                                    className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 text-white focus:border-accent-primary outline-none transition-colors"
                                     placeholder={isIngredient ? "Ej. Harina de Trigo" : "Ej. Hamburguesa Clásica"}
                                     value={productForm.name}
                                     onChange={e => setProductForm({ ...productForm, name: e.target.value })}
@@ -87,7 +87,7 @@ export const StandardForm = ({
                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
                                     <input
                                         type="number"
-                                        className="w-full bg-bg-deep pl-7 pr-3 py-2 border border-border-dark rounded-lg text-white focus:border-accent-orange outline-none"
+                                        className="w-full bg-bg-deep pl-7 pr-3 py-2 border border-border-dark rounded-lg text-white focus:border-accent-primary outline-none"
                                         placeholder="0.00"
                                         value={productForm.price}
                                         onChange={e => setProductForm({ ...productForm, price: e.target.value })}
@@ -99,7 +99,7 @@ export const StandardForm = ({
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Stock Inicial</label>
                                 <input
                                     type="number"
-                                    className="w-full bg-bg-deep px-3 py-2 border border-border-dark rounded-lg text-white focus:border-accent-orange outline-none"
+                                    className="w-full bg-bg-deep px-3 py-2 border border-border-dark rounded-lg text-white focus:border-accent-primary outline-none"
                                     placeholder="0"
                                     value={productForm.stock}
                                     onChange={e => setProductForm({ ...productForm, stock: e.target.value })}
@@ -110,7 +110,7 @@ export const StandardForm = ({
                         {!isIngredient && (
                             <div className="mt-4">
                                 <label className="flex items-center gap-2 cursor-pointer group">
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${productForm.hasRecipe ? 'bg-accent-orange border-accent-orange' : 'bg-transparent border-border-dark group-hover:border-gray-500'}`}>
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${productForm.hasRecipe ? 'bg-accent-primary border-accent-primary' : 'bg-transparent border-border-dark group-hover:border-gray-500'}`}>
                                         {productForm.hasRecipe && <CheckCircle2 size={14} className="text-white" />}
                                     </div>
                                     <input

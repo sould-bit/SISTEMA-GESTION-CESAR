@@ -159,7 +159,7 @@ export const StaffPage = () => {
                                 setEditingUser(null);
                                 setIsCreateModalOpen(true);
                             }}
-                            className="flex items-center gap-2 bg-accent-orange text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+                            className="flex items-center gap-2 bg-accent-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
                         >
                             <span className="material-symbols-outlined">add</span>
                             Nuevo Miembro
@@ -167,7 +167,7 @@ export const StaffPage = () => {
                     ) : (
                         <button
                             onClick={handleCreateRole}
-                            className="flex items-center gap-2 bg-accent-orange text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+                            className="flex items-center gap-2 bg-accent-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
                         >
                             <span className="material-symbols-outlined">security</span>
                             Crear Rol
@@ -181,7 +181,7 @@ export const StaffPage = () => {
                 <button
                     onClick={() => setViewMode('users')}
                     className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${viewMode === 'users'
-                        ? 'border-accent-orange text-white'
+                        ? 'border-accent-primary text-white'
                         : 'border-transparent text-gray-400 hover:text-white'
                         }`}
                 >
@@ -190,7 +190,7 @@ export const StaffPage = () => {
                 <button
                     onClick={() => setViewMode('roles')}
                     className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${viewMode === 'roles'
-                        ? 'border-accent-orange text-white'
+                        ? 'border-accent-primary text-white'
                         : 'border-transparent text-gray-400 hover:text-white'
                         }`}
                 >
@@ -220,7 +220,7 @@ export const StaffPage = () => {
                                     <tr key={user.id} className="hover:bg-white/5 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="size-8 rounded-full bg-accent-orange/20 flex items-center justify-center text-accent-orange font-bold">
+                                                <div className="size-8 rounded-full bg-accent-primary/20 flex items-center justify-center text-accent-primary font-bold">
                                                     {user.username.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
@@ -240,7 +240,7 @@ export const StaffPage = () => {
                                                 <span className="text-gray-500 italic">Global</span>
                                             ) : (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="material-symbols-outlined text-base text-accent-orange">store</span>
+                                                    <span className="material-symbols-outlined text-base text-accent-primary">store</span>
                                                     {user.branch_name || 'Todas'}
                                                 </div>
                                             )}
@@ -307,10 +307,10 @@ export const StaffPage = () => {
                             <div
                                 key={role.id}
                                 onClick={() => handleEditRole(role)}
-                                className="bg-card-dark border border-border-dark rounded-xl p-6 hover:border-accent-orange/50 transition-all cursor-pointer group relative overflow-hidden"
+                                className="bg-card-dark border border-border-dark rounded-xl p-6 hover:border-accent-primary/50 transition-all cursor-pointer group relative overflow-hidden"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="material-symbols-outlined text-accent-orange">edit_square</span>
+                                    <span className="material-symbols-outlined text-accent-primary">edit_square</span>
                                 </div>
 
                                 <div className="size-12 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center mb-4 border border-white/5">
@@ -344,7 +344,7 @@ export const StaffPage = () => {
                         {/* New Role Card */}
                         <button
                             onClick={handleCreateRole}
-                            className="bg-[#0B1120] border border-border-dark border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors group text-gray-400 hover:text-accent-orange hover:border-accent-orange/50 aspect-[4/3] md:aspect-auto"
+                            className="bg-[#0B1120] border border-border-dark border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors group text-gray-400 hover:text-accent-primary hover:border-accent-primary/50 aspect-[4/3] md:aspect-auto"
                         >
                             <div className="size-14 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <span className="material-symbols-outlined text-3xl">add</span>

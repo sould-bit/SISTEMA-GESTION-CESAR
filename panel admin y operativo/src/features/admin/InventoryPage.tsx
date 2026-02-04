@@ -147,7 +147,7 @@ export const InventoryPage = () => {
         switch (status) {
             case 'in_stock': return 'text-status-success bg-status-success/10 border-status-success/20';
             case 'low_stock': return 'text-status-warning bg-status-warning/10 border-status-warning/20';
-            case 'critical': return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+            case 'critical': return 'text-status-alert bg-status-alert/10 border-status-alert/20';
             case 'out_of_stock': return 'text-status-alert bg-status-alert/10 border-status-alert/20';
             default: return 'text-text-muted bg-white/5 border-white/10';
         }
@@ -181,7 +181,7 @@ export const InventoryPage = () => {
                 <div className="flex gap-3">
                     <button
                         onClick={() => setAuditConfig({ type: 'FLASH' })}
-                        className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide shadow-lg shadow-orange-500/20 transition-all active:scale-95"
                     >
                         <span className="material-symbols-outlined">rule</span>
                         AUDITORÍA
@@ -202,9 +202,9 @@ export const InventoryPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div
                     onClick={() => setFilterStatus('all')}
-                    className={`bg - card - dark p - 4 rounded - xl border ${filterStatus === 'all' ? 'border-indigo-500 bg-indigo-500/5' : 'border-border-dark'} flex items - center gap - 4 cursor - pointer hover: border - indigo - 500 / 50 transition - all`}
+                    className={`bg-card-dark p-4 rounded-xl border ${filterStatus === 'all' ? 'border-orange-500 bg-orange-500/5' : 'border-border-dark'} flex items-center gap-4 cursor-pointer hover:border-indigo-500/50 transition-all`}
                 >
-                    <div className="h-12 w-12 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                    <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400">
                         <span className="material-symbols-outlined text-2xl">inventory_2</span>
                     </div>
                     <div>
@@ -214,7 +214,7 @@ export const InventoryPage = () => {
                 </div>
                 <div
                     onClick={() => setFilterStatus('critical')}
-                    className={`bg - card - dark p - 4 rounded - xl border ${filterStatus === 'critical' ? 'border-status-alert bg-status-alert/5' : 'border-border-dark'} flex items - center gap - 4 cursor - pointer hover: border - status - alert / 50 transition - all`}
+                    className={`bg-card-dark p-4 rounded-xl border ${filterStatus === 'critical' ? 'border-status-alert bg-status-alert/5' : 'border-border-dark'} flex items-center gap-4 cursor-pointer hover:border-status-alert/50 transition-all`}
                 >
                     <div className="h-12 w-12 rounded-lg bg-status-alert/10 flex items-center justify-center text-status-alert">
                         <span className="material-symbols-outlined text-2xl">warning</span>
@@ -242,7 +242,7 @@ export const InventoryPage = () => {
                     <input
                         type="text"
                         placeholder="Buscar por nombre, SKU o categoría..."
-                        className="w-full bg-card-dark border border-border-dark rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all"
+                        className="w-full bg-card-dark border border-border-dark rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -251,7 +251,7 @@ export const InventoryPage = () => {
                 <div className="flex bg-card-dark rounded-lg p-1 border border-border-dark shadow-sm h-11 self-start md:self-auto">
                     <button
                         onClick={() => setFilterStatus('all')}
-                        className={`px - 4 rounded - md text - xs font - bold transition - all ${filterStatus === 'all'
+                        className={`px-4 rounded-md text-xs font-bold transition-all ${filterStatus === 'all'
                             ? 'bg-white/10 text-white shadow-sm'
                             : 'text-text-muted hover:text-white hover:bg-white/5'
                             } `}
@@ -260,7 +260,7 @@ export const InventoryPage = () => {
                     </button>
                     <button
                         onClick={() => setFilterStatus('critical')}
-                        className={`px - 4 rounded - md text - xs font - bold transition - all flex items - center gap - 2 ${filterStatus === 'critical'
+                        className={`px-4 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${filterStatus === 'critical'
                             ? 'bg-status-alert text-white shadow-sm'
                             : 'text-text-muted hover:text-white hover:bg-white/5'
                             } `}
@@ -272,7 +272,7 @@ export const InventoryPage = () => {
                     </button>
                     <button
                         onClick={() => setFilterStatus('low_stock')}
-                        className={`px - 4 rounded - md text - xs font - bold transition - all flex items - center gap - 2 ${filterStatus === 'low_stock'
+                        className={`px-4 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${filterStatus === 'low_stock'
                             ? 'bg-status-warning text-white shadow-sm'
                             : 'text-text-muted hover:text-white hover:bg-white/5'
                             } `}
@@ -327,12 +327,12 @@ export const InventoryPage = () => {
                                                 </div>
                                                 <div className="h-1.5 w-full bg-bg-deep rounded-full overflow-hidden">
                                                     <div
-                                                        className={`h - full rounded - full ${item.status === 'out_of_stock' ? 'bg-status-alert' :
+                                                        className={`h-full rounded-full ${item.status === 'out_of_stock' ? 'bg-status-alert' :
                                                             item.status === 'critical' ? 'bg-status-alert' :
                                                                 item.status === 'low_stock' ? 'bg-status-warning' :
                                                                     'bg-status-success'
                                                             } `}
-                                                        style={{ width: `${Math.min(100, (item.stock / (item.minStock * 2)) * 100)}% ` }}
+                                                        style={{ width: `${Math.min(100, (item.stock / (item.minStock * 2)) * 100)}%` }}
                                                     ></div>
                                                 </div>
                                             </div>
@@ -341,7 +341,7 @@ export const InventoryPage = () => {
                                             {Number(item.minStock).toLocaleString('es-MX', { maximumFractionDigits: 2 })} {item.unit}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline - flex items - center px - 2.5 py - 0.5 rounded - full text - xs font - medium border ${getStatusColor(item.status)} `}>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(item.status)}`}>
                                                 {getStatusLabel(item.status)}
                                             </span>
                                         </td>
@@ -378,7 +378,7 @@ export const InventoryPage = () => {
                                                 ) : (
                                                     <button
                                                         onClick={() => setAuditConfig({ type: 'FLASH', initialSelection: [item.id!] })}
-                                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-all text-xs font-semibold shadow-sm hover:shadow-indigo-500/10 active:scale-95"
+                                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-status-success/10 border border-status-success/20 text-status-success hover:bg-status-success/20 hover:text-emerald-300 transition-all text-xs font-semibold shadow-sm hover:shadow-status-success/10 active:scale-95"
                                                         title="Realizar Auditoría Regular"
                                                     >
                                                         <span className="material-symbols-outlined text-[16px]">check_circle</span>
@@ -409,7 +409,7 @@ export const InventoryPage = () => {
                                         <h3 className="font-bold text-white text-sm">{item.name}</h3>
                                         <p className="text-xs text-text-muted font-mono">{item.sku || 'N/A'} • {item.category_name}</p>
                                     </div>
-                                    <span className={`shrink - 0 inline - flex items - center px - 2 py - 0.5 rounded - full text - [10px] uppercase font - bold border ${getStatusColor(item.status)} `}>
+                                    <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border ${getStatusColor(item.status)}`}>
                                         {getStatusLabel(item.status)}
                                     </span>
                                 </div>
@@ -422,12 +422,12 @@ export const InventoryPage = () => {
                                     </div>
                                     <div className="h-1.5 w-full bg-bg-deep rounded-full overflow-hidden">
                                         <div
-                                            className={`h - full rounded - full ${item.status === 'out_of_stock' ? 'bg-status-alert' :
+                                            className={`h-full rounded-full ${item.status === 'out_of_stock' ? 'bg-status-alert' :
                                                 item.status === 'critical' ? 'bg-status-alert' :
                                                     item.status === 'low_stock' ? 'bg-status-warning' :
                                                         'bg-status-success'
                                                 } `}
-                                            style={{ width: `${Math.min(100, (item.stock / (item.minStock * 2)) * 100)}% ` }}
+                                            style={{ width: `${Math.min(100, (item.stock / (item.minStock * 2)) * 100)}%` }}
                                         ></div>
                                     </div>
                                 </div>
@@ -452,7 +452,7 @@ export const InventoryPage = () => {
                                     ) : (
                                         <button
                                             onClick={() => setAuditConfig({ type: 'FLASH', initialSelection: [item.id!] })}
-                                            className="flex-1 ml-4 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold text-sm hover:bg-indigo-500/20 active:scale-95"
+                                            className="flex-1 ml-4 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-status-success/10 border border-status-success/20 text-status-success font-bold text-sm hover:bg-status-success/20 active:scale-95"
                                         >
                                             <span className="material-symbols-outlined text-[18px]">check_circle</span>
                                             Auditoría Regular
@@ -552,7 +552,7 @@ const InventoryEditModal = ({ item, isOpen, onClose, onSave }: InventoryEditModa
                             <input
                                 type="number"
                                 step="0.01"
-                                className="w-full bg-bg-deep border border-border-dark rounded-lg py-3 pl-10 pr-4 text-white focus:ring-1 focus:ring-accent-orange focus:border-accent-orange outline-none transition-all"
+                                className="w-full bg-bg-deep border border-border-dark rounded-lg py-3 pl-10 pr-4 text-white focus:ring-1 focus:ring-accent-primary focus:border-accent-primary outline-none transition-all"
                                 value={minStock}
                                 onChange={(e) => setMinStock(e.target.value === '' ? '' as any : parseFloat(e.target.value))}
                             />
@@ -573,7 +573,7 @@ const InventoryEditModal = ({ item, isOpen, onClose, onSave }: InventoryEditModa
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                        className="px-5 py-2.5 rounded-lg bg-orange-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                         {isSaving ? <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span> : <span className="material-symbols-outlined text-sm">save</span>}
                         Guardar Cambios

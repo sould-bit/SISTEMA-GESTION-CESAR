@@ -190,7 +190,7 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                                     <input
                                         value={name}
                                         onChange={e => setName(e.target.value)}
-                                        className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-orange transition-colors"
+                                        className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors"
                                         placeholder="Ej: Supervisor de Barra"
                                     />
                                 </div>
@@ -199,7 +199,7 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                                     <input
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
-                                        className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-orange transition-colors"
+                                        className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors"
                                         placeholder="Descripción de responsabilidades..."
                                     />
                                 </div>
@@ -208,7 +208,7 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                             {/* Permissions Grid */}
                             <div className="space-y-4">
                                 <h4 className="text-white font-semibold flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-accent-orange">lock_open</span>
+                                    <span className="material-symbols-outlined text-accent-primary">lock_open</span>
                                     Permisos y Accesos
                                 </h4>
 
@@ -236,8 +236,8 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                                                         </div>
                                                         <span className="font-medium text-gray-200">{cat.name}</span>
                                                     </div>
-                                                    <div className={`size-5 rounded border flex items-center justify-center transition-colors ${allSelected ? 'bg-accent-orange border-accent-orange' :
-                                                        someSelected ? 'bg-accent-orange/50 border-accent-orange' : 'border-gray-500'
+                                                    <div className={`size-5 rounded border flex items-center justify-center transition-colors ${allSelected ? 'bg-accent-primary border-accent-primary' :
+                                                        someSelected ? 'bg-accent-primary/50 border-accent-primary' : 'border-gray-500'
                                                         }`}>
                                                         {allSelected && <span className="material-symbols-outlined text-xs text-black font-bold">check</span>}
                                                         {someSelected && !allSelected && <div className="w-2 h-0.5 bg-white rounded-full"></div>}
@@ -252,15 +252,15 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                                                             <div
                                                                 key={perm.id}
                                                                 onClick={() => handleTogglePermission(perm.id)}
-                                                                className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all ${isSelected ? 'bg-accent-orange/10' : 'hover:bg-white/5'
+                                                                className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all ${isSelected ? 'bg-accent-primary/10' : 'hover:bg-white/5'
                                                                     }`}
                                                             >
-                                                                <div className={`mt-0.5 size-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'bg-accent-orange border-accent-orange' : 'border-gray-600'
+                                                                <div className={`mt-0.5 size-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'bg-accent-primary border-accent-primary' : 'border-gray-600'
                                                                     }`}>
                                                                     {isSelected && <span className="material-symbols-outlined text-[10px] text-black font-bold">check</span>}
                                                                 </div>
                                                                 <div>
-                                                                    <div className={`text-sm font-medium ${isSelected ? 'text-accent-orange' : 'text-gray-400'}`}>
+                                                                    <div className={`text-sm font-medium ${isSelected ? 'text-accent-primary' : 'text-gray-400'}`}>
                                                                         {perm.name}
                                                                     </div>
                                                                     {perm.description && (
@@ -291,7 +291,7 @@ export const RoleEditorModal = ({ isOpen, roleId, onClose, onSuccess }: Props) =
                     <button
                         onClick={handleSubmit}
                         disabled={saving}
-                        className="px-6 py-2 rounded-lg bg-accent-orange text-white font-medium hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20 disabled:opacity-50 flex items-center gap-2"
+                        className="px-6 py-2 rounded-lg bg-accent-primary text-white font-medium hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20 disabled:opacity-50 flex items-center gap-2"
                     >
                         {saving && <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
                         {saving ? 'Guardando...' : 'Guardar Cambios'}

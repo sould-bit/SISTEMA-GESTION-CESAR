@@ -122,7 +122,7 @@ export const BCGMatrix = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-orange"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-primary"></div>
             </div>
         );
     }
@@ -143,7 +143,7 @@ export const BCGMatrix = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-accent-orange">analytics</span>
+                        <span className="material-symbols-outlined text-accent-primary">analytics</span>
                         Ingeniería de Menú
                     </h1>
                     <p className="text-text-muted text-sm">
@@ -153,14 +153,14 @@ export const BCGMatrix = () => {
                 <div className="flex gap-2">
                     <button
                         onClick={() => setViewMode('matrix')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-accent-orange text-white' : 'bg-card-dark text-text-muted hover:text-white'}`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-accent-primary text-white' : 'bg-card-dark text-text-muted hover:text-white'}`}
                     >
                         <span className="material-symbols-outlined text-[18px] align-middle mr-1">grid_view</span>
                         Matriz
                     </button>
                     <button
                         onClick={() => setViewMode('table')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'table' ? 'bg-accent-orange text-white' : 'bg-card-dark text-text-muted hover:text-white'}`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'table' ? 'bg-accent-primary text-white' : 'bg-card-dark text-text-muted hover:text-white'}`}
                     >
                         <span className="material-symbols-outlined text-[18px] align-middle mr-1">table_rows</span>
                         Tabla

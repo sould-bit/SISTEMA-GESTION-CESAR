@@ -37,7 +37,7 @@ export const InventoryHistoryModal = ({ item, isOpen, onClose }: InventoryHistor
                 <div className="p-6 border-b border-border-dark bg-white/5 flex justify-between items-center shrink-0">
                     <div>
                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                            <span className="material-symbols-outlined text-indigo-400">history</span>
+                            <span className="material-symbols-outlined text-orange-400">history</span>
                             Historial de Movimientos
                         </h3>
                         <p className="text-sm text-text-muted mt-1">{item.name}</p>
@@ -51,7 +51,7 @@ export const InventoryHistoryModal = ({ item, isOpen, onClose }: InventoryHistor
                 <div className="flex-1 overflow-y-auto p-0 md:p-2">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-48 space-y-3">
-                            <span className="material-symbols-outlined animate-spin text-indigo-500 text-3xl">progress_activity</span>
+                            <span className="material-symbols-outlined animate-spin text-orange-500 text-3xl">progress_activity</span>
                             <span className="text-text-muted text-sm">Cargando historial...</span>
                         </div>
                     ) : history.length === 0 ? (

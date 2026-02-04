@@ -17,7 +17,7 @@ const ORDERS_DATA = {
 
 const OrderCard = ({ order }: { order: any }) => (
     <div className={`
-        bg-card-dark p-4 rounded-xl border border-border-dark hover:border-accent-orange/50 transition-colors cursor-pointer group shadow-lg
+        bg-card-dark p-4 rounded-xl border border-border-dark hover:border-accent-primary/50 transition-colors cursor-pointer group shadow-lg
         ${order.priority === 'high' ? 'border-l-4 border-l-status-alert' : ''}
     `}>
         <div className="flex justify-between items-start mb-3">
@@ -34,7 +34,7 @@ const OrderCard = ({ order }: { order: any }) => (
         <div className="space-y-1 mb-4">
             {order.items.map((item: string, idx: number) => (
                 <p key={idx} className="text-xs text-gray-300 flex items-center gap-2">
-                    <span className="w-1 h-1 rounded-full bg-accent-orange"></span>
+                    <span className="w-1 h-1 rounded-full bg-accent-primary"></span>
                     {item}
                 </p>
             ))}
@@ -42,7 +42,7 @@ const OrderCard = ({ order }: { order: any }) => (
 
         <div className="flex items-center justify-between pt-3 border-t border-border-dark/50">
             <span className="font-bold text-white text-sm">${order.total.toLocaleString()}</span>
-            <button className="text-xs font-medium text-accent-orange opacity-0 group-hover:opacity-100 transition-opacity hover:underline">
+            <button className="text-xs font-medium text-accent-primary opacity-0 group-hover:opacity-100 transition-opacity hover:underline">
                 Ver Detalles
             </button>
         </div>

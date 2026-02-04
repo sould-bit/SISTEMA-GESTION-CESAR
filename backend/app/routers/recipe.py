@@ -46,7 +46,7 @@ def get_recipe_service(session: AsyncSession = Depends(get_session)) -> RecipeSe
 # ENDPOINTS CRUD
 # ============================================
 
-@router.get("", response_model=List[RecipeListResponse])
+@router.get("", response_model=List[RecipeResponse])
 async def list_recipes(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -67,7 +67,7 @@ async def list_recipes(
         limit=limit,
         include_inactive=include_inactive
     )
-    return [recipe_service.build_recipe_list_response(r) for r in recipes]
+    return [recipe_service.build_recipe_response(r) for r in recipes]
 
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)

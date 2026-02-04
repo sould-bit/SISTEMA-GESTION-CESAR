@@ -4,10 +4,10 @@ export const DashboardPage = () => {
         <div className="space-y-6">
             {/* Stats Grid */}
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-orange/30 transition-all group shadow-sm">
+                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-primary/30 transition-all group shadow-sm">
                     <div className="flex justify-between items-start mb-3">
                         <p className="text-text-muted text-sm font-medium">Total Revenue</p>
-                        <span className="material-symbols-outlined text-accent-orange bg-accent-orange/10 p-1.5 rounded-md text-[20px]">payments</span>
+                        <span className="material-symbols-outlined text-accent-primary bg-accent-primary/10 p-1.5 rounded-md text-[20px]">payments</span>
                     </div>
                     <div className="flex items-end gap-3">
                         <p className="text-white text-3xl font-bold tracking-tight font-mono">$4,240</p>
@@ -18,20 +18,20 @@ export const DashboardPage = () => {
                     <p className="text-text-muted text-xs mt-3">Vs. average daily target</p>
                 </div>
 
-                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-orange/30 transition-all group relative overflow-hidden shadow-sm">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-accent-orange/5 to-transparent -mr-4 -mt-4 rounded-bl-3xl"></div>
+                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-primary/30 transition-all group relative overflow-hidden shadow-sm">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-accent-primary/5 to-transparent -mr-4 -mt-4 rounded-bl-3xl"></div>
                     <div className="flex justify-between items-start mb-3">
                         <p className="text-text-muted text-sm font-medium">Active Orders</p>
                         <span className="material-symbols-outlined text-white bg-white/5 p-1.5 rounded-md text-[20px]">receipt</span>
                     </div>
                     <div className="flex items-end gap-3">
                         <p className="text-white text-3xl font-bold tracking-tight font-mono">14</p>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent-orange/20 text-accent-orange border border-accent-orange/30 tracking-wide">3 PRIORITY</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent-primary/20 text-accent-primary border border-accent-primary/30 tracking-wide">3 PRIORITY</span>
                     </div>
                     <p className="text-text-muted text-xs mt-3">Current kitchen load: <span className="text-white font-medium">85%</span></p>
                 </div>
 
-                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-orange/30 transition-all group shadow-sm">
+                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-primary/30 transition-all group shadow-sm">
                     <div className="flex justify-between items-start mb-3">
                         <p className="text-text-muted text-sm font-medium">Avg Prep Time</p>
                         <span className="material-symbols-outlined text-white bg-white/5 p-1.5 rounded-md text-[20px]">timer</span>
@@ -45,7 +45,7 @@ export const DashboardPage = () => {
                     <p className="text-text-muted text-xs mt-3">Target: 4m 30s</p>
                 </div>
 
-                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-orange/30 transition-all group shadow-sm">
+                <div className="bg-card-dark rounded-xl p-5 border border-border-dark hover:border-accent-primary/30 transition-all group shadow-sm">
                     <div className="flex justify-between items-start mb-3">
                         <p className="text-text-muted text-sm font-medium">Staff on Duty</p>
                         <span className="material-symbols-outlined text-white bg-white/5 p-1.5 rounded-md text-[20px]">badge</span>
@@ -106,19 +106,19 @@ export const DashboardPage = () => {
                 {/* Right Column: AI & Alerts */}
                 <div className="flex flex-col gap-6">
                     {/* AI Prediction */}
-                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-accent-orange/40 p-5 relative overflow-hidden shadow-[0_0_20px_rgba(255,107,0,0.05)]">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-accent-primary/40 p-5 relative overflow-hidden shadow-[0_0_20px_rgba(255,107,0,0.05)]">
                         <div className="absolute top-0 right-0 p-3 opacity-10">
                             <span className="material-symbols-outlined text-6xl text-white">psychology</span>
                         </div>
                         <div className="flex items-center gap-2 mb-3 relative z-10">
-                            <span className="material-symbols-outlined text-accent-orange animate-pulse">auto_awesome</span>
+                            <span className="material-symbols-outlined text-accent-primary animate-pulse">auto_awesome</span>
                             <h4 className="text-white font-bold text-sm tracking-wide">AI PREDICTION</h4>
                         </div>
                         <p className="text-gray-300 text-sm leading-relaxed mb-4 relative z-10">
-                            Predicted rush incoming in <span className="text-accent-orange font-bold">15 mins</span> based on local event traffic. Suggest preparing 20 extra patties.
+                            Predicted rush incoming in <span className="text-accent-primary font-bold">15 mins</span> based on local event traffic. Suggest preparing 20 extra patties.
                         </p>
                         <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden relative z-10">
-                            <div className="bg-accent-orange h-full rounded-full w-[92%] shadow-[0_0_10px_#FF6B00]"></div>
+                            <div className="bg-accent-primary h-full rounded-full w-[92%] shadow-[0_0_10px_#FF6B00]"></div>
                         </div>
                         <p className="text-right text-[10px] text-text-muted mt-2 font-mono relative z-10">CONFIDENCE: 92%</p>
                     </div>
@@ -127,7 +127,7 @@ export const DashboardPage = () => {
                     <div className="bg-card-dark rounded-xl border border-border-dark p-5 flex-1 flex flex-col shadow-sm">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-white font-bold text-base">Inventory Alerts</h3>
-                            <button className="text-xs text-accent-orange hover:text-white transition-colors font-medium">View All</button>
+                            <button className="text-xs text-accent-primary hover:text-white transition-colors font-medium">View All</button>
                         </div>
                         <div className="space-y-3 flex-1">
                             <div className="flex items-center justify-between p-3 rounded-lg bg-bg-deep border border-border-dark hover:border-status-alert/30 transition-colors">
@@ -144,14 +144,14 @@ export const DashboardPage = () => {
                                     Reorder
                                 </button>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-bg-deep border border-border-dark hover:border-accent-orange/30 transition-colors">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-bg-deep border border-border-dark hover:border-accent-primary/30 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className="size-9 rounded bg-accent-orange/10 flex items-center justify-center text-accent-orange border border-accent-orange/20">
+                                    <div className="size-9 rounded bg-accent-primary/10 flex items-center justify-center text-accent-primary border border-accent-primary/20">
                                         <span className="material-symbols-outlined text-[18px]">production_quantity_limits</span>
                                     </div>
                                     <div>
                                         <p className="text-white text-sm font-medium">Paper Cups (L)</p>
-                                        <p className="text-accent-orange text-xs font-medium">Running Low (12%)</p>
+                                        <p className="text-accent-primary text-xs font-medium">Running Low (12%)</p>
                                     </div>
                                 </div>
                                 <button className="p-1 rounded text-text-muted hover:text-white hover:bg-white/10">
@@ -168,7 +168,7 @@ export const DashboardPage = () => {
                 <div className="px-6 py-5 border-b border-border-dark flex flex-wrap gap-4 justify-between items-center bg-card-dark">
                     <div className="flex items-center gap-3">
                         <h3 className="text-white text-lg font-bold">Live Operations</h3>
-                        <span className="px-2.5 py-1 rounded-full bg-accent-orange/10 text-accent-orange text-xs font-bold border border-accent-orange/20">5 Pending</span>
+                        <span className="px-2.5 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">5 Pending</span>
                     </div>
                     <div className="flex gap-2">
                         <button className="px-3 py-1.5 rounded-lg bg-bg-deep border border-border-dark text-text-muted text-xs font-medium hover:text-white hover:border-white/20 transition-all flex items-center gap-2">
@@ -206,7 +206,7 @@ export const DashboardPage = () => {
                                 </td>
                                 <td className="px-6 py-4 font-mono text-gray-300">04:12</td>
                                 <td className="px-6 py-4 text-right">
-                                    <button className="text-white/70 hover:text-accent-orange text-xs font-bold uppercase tracking-wider transition-colors">View</button>
+                                    <button className="text-white/70 hover:text-accent-primary text-xs font-bold uppercase tracking-wider transition-colors">View</button>
                                 </td>
                             </tr>
                             <tr className="hover:bg-white/[0.02] transition-colors group">
@@ -221,7 +221,7 @@ export const DashboardPage = () => {
                                 </td>
                                 <td className="px-6 py-4 font-mono text-gray-300">01:45</td>
                                 <td className="px-6 py-4 text-right">
-                                    <button className="text-accent-orange hover:text-white text-xs font-bold uppercase tracking-wider transition-colors">Serve</button>
+                                    <button className="text-accent-primary hover:text-white text-xs font-bold uppercase tracking-wider transition-colors">Serve</button>
                                 </td>
                             </tr>
                             <tr className="hover:bg-white/[0.02] transition-colors group">
@@ -230,13 +230,13 @@ export const DashboardPage = () => {
                                     <span className="font-medium text-white">Fam Bundle A</span>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-accent-orange/10 text-accent-orange border border-accent-orange/20">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-accent-primary/10 text-accent-primary border border-accent-primary/20">
                                         <span className="material-symbols-outlined text-[14px]">skillet</span> Cooking
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 font-mono text-status-alert font-bold">08:30</td>
                                 <td className="px-6 py-4 text-right">
-                                    <button className="text-white/70 hover:text-accent-orange text-xs font-bold uppercase tracking-wider transition-colors">View</button>
+                                    <button className="text-white/70 hover:text-accent-primary text-xs font-bold uppercase tracking-wider transition-colors">View</button>
                                 </td>
                             </tr>
                             <tr className="hover:bg-white/[0.02] transition-colors group">
@@ -251,7 +251,7 @@ export const DashboardPage = () => {
                                 </td>
                                 <td className="px-6 py-4 font-mono text-gray-300">00:20</td>
                                 <td className="px-6 py-4 text-right">
-                                    <button className="bg-accent-orange hover:bg-accent-orange/90 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">Start</button>
+                                    <button className="bg-accent-primary hover:bg-accent-primary/90 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">Start</button>
                                 </td>
                             </tr>
                         </tbody>

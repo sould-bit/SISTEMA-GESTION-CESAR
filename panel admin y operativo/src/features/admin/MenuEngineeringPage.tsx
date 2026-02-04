@@ -32,7 +32,7 @@ export const MenuEngineeringPage = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${activeTab === tab.id
-                                    ? 'bg-accent-orange text-white shadow-lg shadow-accent-orange/20'
+                                    ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20'
                                     : 'bg-card-dark text-text-muted hover:text-white border border-border-dark'
                                 }`}
                         >
@@ -64,7 +64,7 @@ export const MenuEngineeringPage = () => {
                     <p className="text-text-muted mb-4">Administra las materias primas para tus recetas</p>
                     <Link
                         to="/admin/ingredients"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-accent-orange hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-accent-primary hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                     >
                         Ir a Insumos
                         <span className="material-symbols-outlined">arrow_forward</span>
@@ -79,7 +79,7 @@ export const MenuEngineeringPage = () => {
                     <p className="text-text-muted mb-4">Crea y gestiona las recetas de tus productos</p>
                     <Link
                         to="/admin/setup"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-accent-orange hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-accent-primary hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                     >
                         Ir a Recetas
                         <span className="material-symbols-outlined">arrow_forward</span>

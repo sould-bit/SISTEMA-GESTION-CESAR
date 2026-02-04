@@ -149,7 +149,7 @@ export const RecipeBuilder = ({ productId, onSave, onCancel }: RecipeBuilderProp
             {/* Header */}
             <div className="p-6 border-b border-border-dark">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <span className="material-symbols-outlined text-accent-orange">restaurant</span>
+                    <span className="material-symbols-outlined text-accent-primary">restaurant</span>
                     Constructor de Receta
                 </h2>
                 <p className="text-text-muted text-sm mt-1">
@@ -167,7 +167,7 @@ export const RecipeBuilder = ({ productId, onSave, onCancel }: RecipeBuilderProp
                             value={recipeName}
                             onChange={(e) => setRecipeName(e.target.value)}
                             placeholder="Ej: Hamburguesa Clásica"
-                            className="w-full bg-bg-deep border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:border-accent-orange transition-all"
+                            className="w-full bg-bg-deep border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:border-accent-primary transition-all"
                         />
                     </div>
                     <div>
@@ -177,7 +177,7 @@ export const RecipeBuilder = ({ productId, onSave, onCancel }: RecipeBuilderProp
                             min="0"
                             value={preparationTime}
                             onChange={(e) => setPreparationTime(parseInt(e.target.value) || 0)}
-                            className="w-full bg-bg-deep border border-border-dark rounded-lg py-2.5 px-4 text-white font-mono focus:outline-none focus:border-accent-orange transition-all"
+                            className="w-full bg-bg-deep border border-border-dark rounded-lg py-2.5 px-4 text-white font-mono focus:outline-none focus:border-accent-primary transition-all"
                         />
                     </div>
                 </div>
@@ -196,7 +196,7 @@ export const RecipeBuilder = ({ productId, onSave, onCancel }: RecipeBuilderProp
                             }}
                             onFocus={() => setShowDropdown(true)}
                             placeholder="Buscar por nombre o SKU..."
-                            className="w-full bg-bg-deep border border-border-dark rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-accent-orange transition-all"
+                            className="w-full bg-bg-deep border border-border-dark rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-accent-primary transition-all"
                         />
                     </div>
 
@@ -257,7 +257,7 @@ export const RecipeBuilder = ({ productId, onSave, onCancel }: RecipeBuilderProp
                                                     step="0.01"
                                                     value={item.gross_quantity || ''}
                                                     onChange={(e) => updateItemQuantity(index, parseFloat(e.target.value) || 0)}
-                                                    className="w-20 bg-bg-deep border border-border-dark rounded px-2 py-1 text-white font-mono text-center focus:outline-none focus:border-accent-orange"
+                                                    className="w-20 bg-bg-deep border border-border-dark rounded px-2 py-1 text-white font-mono text-center focus:outline-none focus:border-accent-primary"
                                                 />
                                                 <span className="text-text-muted">{item.measure_unit}</span>
                                             </div>
@@ -334,7 +334,7 @@ export const RecipeBuilder = ({ productId, onSave, onCancel }: RecipeBuilderProp
                 <button
                     onClick={handleSave}
                     disabled={!recipeName || items.length === 0 || loading}
-                    className="px-6 py-2 bg-accent-orange hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                    className="px-6 py-2 bg-accent-primary hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                     {loading ? 'Guardando...' : 'Guardar Receta'}
                 </button>

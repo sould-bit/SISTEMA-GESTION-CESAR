@@ -35,7 +35,7 @@ export const ErrorPage = () => {
 
                 <button
                     onClick={() => window.location.href = '/'}
-                    className="w-full py-3 px-4 bg-accent-orange hover:bg-orange-600 rounded-lg text-white font-bold transition-colors"
+                    className="w-full py-3 px-4 bg-accent-primary hover:bg-orange-600 rounded-lg text-white font-bold transition-colors"
                 >
                     Volver al Inicio
                 </button>

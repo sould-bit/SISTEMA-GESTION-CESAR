@@ -17,10 +17,8 @@ export const MainLayout = () => {
             {/* Global Access Denied Overlay */}
             {isAccessDenied && <AccessDenied isBlocking={isAccessDeniedBlocking} />}
 
-            {/* Sidebar */}
-            <div className="hidden lg:flex flex-col h-full shrink-0">
-                <Sidebar />
-            </div>
+            {/* Sidebar (handles its own mobile/desktop visibility) */}
+            <Sidebar />
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 h-full relative">

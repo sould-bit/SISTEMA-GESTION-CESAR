@@ -59,10 +59,10 @@ export const UnifiedSetupPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] text-gray-100 font-sans selection:bg-accent-orange/30">
+        <div className="min-h-screen bg-[#1a1a1a] text-gray-100 font-sans selection:bg-accent-primary/30">
             {/* Background Gradients */}
             <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-accent-orange/5 rounded-full blur-[120px] mix-blend-screen" />
+                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-accent-primary/5 rounded-full blur-[120px] mix-blend-screen" />
                 <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] mix-blend-screen" />
             </div>
 

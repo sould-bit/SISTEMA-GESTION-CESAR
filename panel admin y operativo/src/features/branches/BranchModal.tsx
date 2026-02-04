@@ -81,7 +81,7 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
             <div className="bg-[#1A2333] border border-border-dark rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div className="p-4 border-b border-border-dark flex justify-between items-center bg-[#0B1120]">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-accent-orange">store</span>
+                        <span className="material-symbols-outlined text-accent-primary">store</span>
                         {isEditing ? 'Editar Sucursal' : 'Nueva Sucursal'}
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-white">
@@ -101,7 +101,7 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
                             <label className="text-xs font-medium text-gray-400">Nombre</label>
                             <input
                                 {...register('name')}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-orange"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-primary"
                                 placeholder="Sucursal Centro"
                             />
                             {errors.name && <p className="text-xs text-red-400">{errors.name.message}</p>}
@@ -114,7 +114,7 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
                                         e.target.value = e.target.value.toUpperCase();
                                     }
                                 })}
-                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white uppercase focus:outline-none focus:border-accent-orange"
+                                className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white uppercase focus:outline-none focus:border-accent-primary"
                                 placeholder="CENTRO"
                             />
                             {errors.code && <p className="text-xs text-red-400">{errors.code.message}</p>}
@@ -125,7 +125,7 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
                         <label className="text-xs font-medium text-gray-400">Dirección</label>
                         <input
                             {...register('address')}
-                            className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-orange"
+                            className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-primary"
                             placeholder="Calle 80 #45-23"
                         />
                     </div>
@@ -134,7 +134,7 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
                         <label className="text-xs font-medium text-gray-400">Teléfono</label>
                         <input
                             {...register('phone')}
-                            className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-orange"
+                            className="w-full bg-[#0B1120] border border-border-dark rounded-lg px-3 py-2 text-white focus:outline-none focus:border-accent-primary"
                             placeholder="+57 300 123 4567"
                         />
                     </div>
@@ -144,7 +144,7 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
                             type="checkbox"
                             {...register('is_main')}
                             id="is_main"
-                            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-accent-orange focus:ring-accent-orange"
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-accent-primary focus:ring-accent-primary"
                         />
                         <label htmlFor="is_main" className="text-sm text-gray-300 flex items-center gap-2">
                             <span className="material-symbols-outlined text-yellow-500 text-lg">star</span>
@@ -163,7 +163,7 @@ export const BranchModal = ({ isOpen, branch, onClose, onSuccess }: Props) => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-accent-orange to-orange-600 text-white hover:opacity-90 disabled:opacity-50"
+                            className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-accent-primary to-orange-600 text-white hover:opacity-90 disabled:opacity-50"
                         >
                             {loading ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Crear Sucursal')}
                         </button>

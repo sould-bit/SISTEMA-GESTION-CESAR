@@ -203,16 +203,16 @@ export const BeverageForm = ({
 
                     <button
                         onClick={() => setView('CATALOG')}
-                        className="group relative h-64 bg-card-dark border border-border-dark rounded-2xl p-8 hover:border-accent-orange/50 transition-all hover:bg-accent-orange/5 text-left flex flex-col justify-between overflow-hidden"
+                        className="group relative h-64 bg-card-dark border border-border-dark rounded-2xl p-8 hover:border-accent-primary/50 transition-all hover:bg-accent-primary/5 text-left flex flex-col justify-between overflow-hidden"
                     >
-                        <div className="absolute right-0 top-0 p-32 bg-accent-orange/10 rounded-full blur-3xl group-hover:bg-accent-orange/20 transition-all" />
+                        <div className="absolute right-0 top-0 p-32 bg-accent-primary/10 rounded-full blur-3xl group-hover:bg-accent-primary/20 transition-all" />
 
-                        <div className="bg-accent-orange/10 w-14 h-14 rounded-xl flex items-center justify-center text-accent-orange group-hover:scale-110 transition-transform mb-4 z-10">
+                        <div className="bg-accent-primary/10 w-14 h-14 rounded-xl flex items-center justify-center text-accent-primary group-hover:scale-110 transition-transform mb-4 z-10">
                             <LayoutGrid size={32} />
                         </div>
 
                         <div className="z-10">
-                            <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-accent-orange transition-colors">Catálogo de Productos</h3>
+                            <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-accent-primary transition-colors">Catálogo de Productos</h3>
                             <p className="text-gray-400 group-hover:text-gray-300">
                                 Gestionar carta, precios, subir fotos y lanzar nuevos productos.
                             </p>
@@ -319,14 +319,14 @@ export const BeverageForm = ({
                             <ArrowLeft size={14} /> Menú Anterior
                         </button>
 
-                        {/* 2-Column Creative Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                        {/* 2-Column Creative Grid - Reduced Gap */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
 
-                            {/* LEFT COL: Visual Identity (4 cols) */}
-                            <div className="md:col-span-4 space-y-4">
-                                {/* Polaroid-style Image Uploader */}
+                            {/* LEFT COL: Visual Identity (3 cols - Reduced width) */}
+                            <div className="md:col-span-3 space-y-3">
+                                {/* Polaroid-style Image Uploader - Scaled Down */}
                                 <div
-                                    className="aspect-[4/5] bg-white p-3 shadow-xl transform rotate-[-2deg] hover:rotate-0 transition-all duration-300 cursor-pointer group relative"
+                                    className="aspect-[4/5] bg-white p-2 shadow-lg transform rotate-[-1deg] hover:rotate-0 transition-all duration-300 cursor-pointer group relative max-w-[220px] mx-auto md:mx-0"
                                     onClick={() => fileInputRef.current?.click()}
                                 >
                                     <div className="w-full h-[85%] bg-gray-100 overflow-hidden relative">
@@ -334,43 +334,43 @@ export const BeverageForm = ({
                                             <img src={productForm.image_url} className="w-full h-full object-cover" alt="Product" />
                                         ) : (
                                             <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                                                <Camera size={48} className="mb-2 opacity-50" />
-                                                <span className="text-xs uppercase font-bold tracking-widest text-center">Foto del<br />Producto</span>
+                                                <Camera size={32} className="mb-1 opacity-50" />
+                                                <span className="text-[10px] uppercase font-bold tracking-widest text-center">Foto del<br />Producto</span>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="h-[15%] flex items-end justify-center pb-2">
-                                        <span className="font-handwriting text-gray-800 font-bold opacity-80 decoration-slice text-xl">
-                                            {productForm.name || 'Nuevo Producto'}
+                                    <div className="h-[15%] flex items-end justify-center pb-1">
+                                        <span className="font-handwriting text-gray-800 font-bold opacity-80 decoration-slice text-sm leading-tight truncate px-1">
+                                            {productForm.name || 'Nuevo'}
                                         </span>
                                     </div>
                                 </div>
                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                                <p className="text-center text-xs text-gray-500 italic">Clic en la foto para subir imagen</p>
+                                <p className="text-center md:text-left text-[10px] text-gray-500 italic pl-2">Clic para subir imagen</p>
                             </div>
 
-                            {/* RIGHT COL: Data Details (8 cols) */}
-                            <div className="md:col-span-8 space-y-6">
+                            {/* RIGHT COL: Data Details (9 cols - Expanded width) */}
+                            <div className="md:col-span-9 space-y-4">
 
-                                {/* Header Section */}
+                                {/* Header Section - Compacted */}
                                 <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-4 w-full">
+                                    <div className="flex items-center gap-3 w-full">
                                         <button
                                             onClick={onCancel}
-                                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors border border-white/10 group"
+                                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors border border-white/10 group"
                                             title="Volver al menú"
                                         >
-                                            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                                            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                                         </button>
-                                        <div className="space-y-1 flex-1">
-                                            <h2 className="text-3xl font-bold text-white tracking-tight">
+                                        <div className="space-y-0.5 flex-1">
+                                            <h2 className="text-2xl font-bold text-white tracking-tight leading-tight">
                                                 {productForm.name || <span className="text-gray-600">Nombre del Producto</span>}
                                             </h2>
                                             <div className="flex gap-2">
-                                                <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 text-xs font-bold uppercase rounded border border-amber-500/20">Venta Directa</span>
+                                                <span className="bg-amber-500/10 text-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border border-amber-500/20">Venta Directa</span>
                                                 {selectedProduct && (
-                                                    <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 text-xs font-bold uppercase rounded border border-blue-500/20">
-                                                        Editando: {selectedProduct.name}
+                                                    <span className="bg-blue-500/10 text-blue-400 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border border-blue-500/20">
+                                                        Editando
                                                     </span>
                                                 )}
                                             </div>
@@ -380,50 +380,50 @@ export const BeverageForm = ({
                                             <button
                                                 onClick={handleLocalSave}
                                                 disabled={!productForm.name || isSaving}
-                                                className={`${selectedProduct ? 'bg-blue-600 hover:bg-blue-700' : 'bg-accent-orange hover:bg-orange-600'} text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 whitespace-nowrap`}
+                                                className={`${selectedProduct ? 'bg-blue-600 hover:bg-blue-700' : 'bg-accent-primary hover:bg-orange-600'} text-white px-4 py-2 rounded-full font-bold shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 whitespace-nowrap text-sm`}
                                             >
-                                                <Save size={18} /> {isSaving ? 'Guardando...' : (selectedProduct ? 'ACTUALIZAR' : 'LANZAR PRODUCTO 🚀')}
+                                                <Save size={16} /> {isSaving ? 'Guardando...' : (selectedProduct ? 'ACTUALIZAR' : 'LANZAR')}
                                             </button>
                                             {selectedProduct && onCancelEdit && (
                                                 <button
                                                     onClick={onCancelEdit}
-                                                    className="p-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-full transition-all border border-gray-600"
+                                                    className="p-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-full transition-all border border-gray-600"
                                                     title="Cancelar edición"
                                                 >
-                                                    <X size={20} />
+                                                    <X size={16} />
                                                 </button>
                                             )}
                                             {selectedProduct && onDelete && (
                                                 <button
                                                     onClick={onDelete}
                                                     disabled={isSaving}
-                                                    className="p-3 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 rounded-full transition-all border border-red-500/20"
+                                                    className="p-2 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 rounded-full transition-all border border-red-500/20"
                                                     title="Eliminar producto"
                                                 >
-                                                    <Trash2 size={20} />
+                                                    <Trash2 size={16} />
                                                 </button>
                                             )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Inputs Grid */}
-                                <div className="bg-card-dark/50 p-6 rounded-2xl border border-border-dark space-y-6">
+                                {/* Inputs Grid - Compacted Padding */}
+                                <div className="bg-card-dark/50 p-4 rounded-xl border border-border-dark space-y-4">
 
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-3 gap-3">
                                         <div className="col-span-2 space-y-1">
-                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nombre del Producto</label>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nombre del Producto</label>
                                             <input
-                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 font-bold text-white focus:border-accent-orange outline-none transition-colors"
+                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 font-bold text-white focus:border-accent-primary outline-none transition-colors text-sm"
                                                 placeholder="Ej. Coca Cola Zero"
                                                 value={productForm.name}
                                                 onChange={e => setProductForm({ ...productForm, name: e.target.value })}
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">SKU / CÓDIGO <span className="text-[10px] text-gray-600 normal-case">(Opcional)</span></label>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">SKU / CÓDIGO <span className="text-[9px] text-gray-600 normal-case">(Opcional)</span></label>
                                             <input
-                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-4 py-2.5 font-bold text-gray-300 focus:border-accent-orange outline-none transition-colors"
+                                                className="w-full bg-bg-deep border border-border-dark rounded-lg px-3 py-2 font-bold text-gray-300 focus:border-accent-primary outline-none transition-colors text-sm"
                                                 placeholder="BEV-001"
                                                 value={productForm.sku || ''}
                                                 onChange={e => setProductForm({ ...productForm, sku: e.target.value })}
@@ -431,40 +431,36 @@ export const BeverageForm = ({
                                         </div>
                                     </div>
 
-                                    {/* Calculator Row */}
-                                    <div className="grid grid-cols-2 gap-6 pt-4 border-t border-border-dark/50">
+                                    {/* Calculator Row - Compacted */}
+                                    <div className="grid grid-cols-2 gap-5 pt-2 border-t border-border-dark/50">
 
                                         {/* COST CALC - MODE SWITCH */}
                                         {selectedProduct ? (
                                             // VIEW MODE: EDIT (Restrictions applied)
-                                            <div className="space-y-4">
-                                                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                                                    <div className="flex items-start gap-3">
-                                                        <span className="material-symbols-outlined text-blue-400 mt-0.5">info</span>
+                                            <div className="space-y-2">
+                                                <div className="bg-blue-500/10 border border-blue-500/20 rounded p-2">
+                                                    <div className="flex items-start gap-2">
+                                                        <span className="material-symbols-outlined text-blue-400 text-sm mt-0.5">info</span>
                                                         <div>
-                                                            <h4 className="text-sm font-bold text-blue-400 mb-1">Gestión de Costos y Stock</h4>
-                                                            <p className="text-xs text-gray-400 leading-relaxed mb-3">
-                                                                Para mantener la integridad del inventario, los costos y existencias no se editan aquí.
-                                                            </p>
-                                                            <p className="text-xs text-gray-500 italic">
-                                                                ¿Necesitas corregir un costo o ajustar stock?
-                                                                <br />Ve a <strong className="text-gray-300">Gestión de Lotes</strong> en la vista de Inventario.
+                                                            <h4 className="text-xs font-bold text-blue-400 mb-0.5">Gestión de Costos y Stock</h4>
+                                                            <p className="text-[10px] text-gray-400 leading-tight">
+                                                                Costos y existencias se gestionan desde el Inventario.
                                                             </p>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {/* Read-Only Display of Current Values */}
-                                                <div className="grid grid-cols-2 gap-4 opacity-50">
+                                                <div className="grid grid-cols-2 gap-2 opacity-50">
                                                     <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Costo Unitario Actual</label>
-                                                        <div className="bg-bg-deep px-3 py-2 rounded border border-border-dark text-white text-sm">
+                                                        <label className="text-[9px] text-gray-500 block mb-0.5">Costo Unitario</label>
+                                                        <div className="bg-bg-deep px-2 py-1.5 rounded border border-border-dark text-white text-xs">
                                                             ${Number(productForm.cost).toLocaleString()}
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Stock Actual</label>
-                                                        <div className="bg-bg-deep px-3 py-2 rounded border border-border-dark text-white text-sm">
+                                                        <label className="text-[9px] text-gray-500 block mb-0.5">Stock Actual</label>
+                                                        <div className="bg-bg-deep px-2 py-1.5 rounded border border-border-dark text-white text-xs">
                                                             {formatStock(productForm.stock)} u
                                                         </div>
                                                     </div>
@@ -472,40 +468,40 @@ export const BeverageForm = ({
                                             </div>
                                         ) : (
                                             // VIEW MODE: CREATE (Full Access)
-                                            <div className="space-y-4">
-                                                <h4 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                                            <div className="space-y-2">
+                                                <h4 className="text-xs font-bold text-emerald-400 flex items-center gap-1">
                                                     COSTO ADQUISICIÓN (TOTAL)
                                                 </h4>
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-2 gap-2">
                                                     <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Costo Total Lote</label>
+                                                        <label className="text-[9px] text-gray-500 block mb-0.5">Costo Total Lote</label>
                                                         <div className="relative">
-                                                            <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                                            <span className="absolute left-2 top-1.5 text-gray-500 text-xs">$</span>
                                                             <input
                                                                 type="number"
-                                                                className="w-full bg-bg-deep pl-7 pr-3 py-2 rounded border border-border-dark text-white text-sm focus:border-emerald-500 outline-none"
+                                                                className="w-full bg-bg-deep pl-5 pr-2 py-1.5 rounded border border-border-dark text-white text-xs focus:border-emerald-500 outline-none"
                                                                 placeholder="0"
                                                                 value={productForm.totalCost || ''}
                                                                 onChange={e => handleTotalCostChange(e.target.value, productForm.stock)}
                                                             />
                                                         </div>
-                                                        <p className="text-[10px] text-gray-500 mt-1">¿Cuánto pagaste por todo el lote?</p>
+                                                        <p className="text-[9px] text-gray-500 mt-0.5 leading-tight">¿Total pagado?</p>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Unidades</label>
+                                                        <label className="text-[9px] text-gray-500 block mb-0.5">Unidades</label>
                                                         <input
                                                             type="number"
-                                                            className="w-full bg-bg-deep px-3 py-2 rounded border border-border-dark text-white text-sm focus:border-emerald-500 outline-none"
+                                                            className="w-full bg-bg-deep px-2 py-1.5 rounded border border-border-dark text-white text-xs focus:border-emerald-500 outline-none"
                                                             placeholder="1"
                                                             value={productForm.stock || ''}
                                                             onChange={e => handleTotalCostChange(productForm.totalCost, e.target.value)}
                                                         />
-                                                        <p className="text-[10px] text-gray-500 mt-1">Cantidad de unidades recibidas.</p>
+                                                        <p className="text-[9px] text-gray-500 mt-0.5 leading-tight">Unidades recibidas</p>
                                                     </div>
                                                 </div>
-                                                <div className="bg-emerald-500/10 p-3 rounded border border-emerald-500/20 flex justify-between items-center">
-                                                    <span className="text-xs text-emerald-400 font-bold">COSTO UNITARIO</span>
-                                                    <span className="text-lg font-bold text-emerald-400">
+                                                <div className="bg-emerald-500/10 p-2 rounded border border-emerald-500/20 flex justify-between items-center">
+                                                    <span className="text-[10px] text-emerald-400 font-bold">COSTO UNITARIO</span>
+                                                    <span className="text-sm font-bold text-emerald-400">
                                                         ${Number(productForm.cost).toLocaleString()}
                                                     </span>
                                                 </div>
@@ -513,43 +509,42 @@ export const BeverageForm = ({
                                         )}
 
                                         {/* PRICE CALC (Always Visible) */}
-                                        <div className="space-y-4 border-l border-border-dark/50 pl-6">
-                                            <h4 className="text-sm font-bold text-accent-orange flex items-center gap-2">
+                                        <div className="space-y-2 border-l border-border-dark/50 pl-4">
+                                            <h4 className="text-xs font-bold text-accent-primary flex items-center gap-1">
                                                 PRECIO VENTA (UNITARIO)
                                             </h4>
                                             <div>
-                                                <label className="text-[10px] text-gray-500 block mb-1">Precio Carta</label>
+                                                <label className="text-[9px] text-gray-500 block mb-0.5">Precio Carta</label>
                                                 <div className="relative">
-                                                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                                    <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
                                                     <input
                                                         type="number"
-                                                        className="w-full bg-bg-deep pl-7 pr-3 py-2 rounded border border-border-dark text-white text-xl font-bold focus:border-accent-orange outline-none"
+                                                        className="w-full bg-bg-deep pl-6 pr-3 py-1.5 rounded border border-border-dark text-white text-lg font-bold focus:border-accent-primary outline-none"
                                                         placeholder="0"
                                                         value={productForm.price || ''}
                                                         onChange={e => setProductForm({ ...productForm, price: e.target.value })}
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="bg-bg-deep p-3 rounded border border-border-dark flex justify-between items-center relative group/profit">
+                                            <div className="bg-bg-deep p-2 rounded border border-border-dark flex justify-between items-center relative group/profit">
                                                 {isWeighted && (
                                                     <div className="absolute -top-10 left-0 bg-gray-800 text-xs p-2 rounded shadow-xl border border-gray-700 opacity-0 group-hover/profit:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
-                                                        Calculado con Costo Promedio Ponderado de todos los lotes.
-                                                        <br />Inversión Real vs Precio Venta.
+                                                        Calculado con Costo Promedio Ponderado.
                                                     </div>
                                                 )}
 
                                                 <div className="flex flex-col">
-                                                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                                                        {isWeighted ? 'MARGEN REAL (PONDERADO)' : 'MARGEN REFERENCIAL'}
+                                                    <span className="text-[9px] text-gray-400 flex items-center gap-1">
+                                                        {isWeighted ? 'MARGEN REAL' : 'MARGEN REF.'}
                                                         {isWeighted && <span className="material-symbols-outlined text-[10px] text-emerald-400">verified</span>}
                                                     </span>
-                                                    <span className={`text-xl font-bold ${realMargin >= 30 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    <span className={`text-base font-bold ${realMargin >= 30 ? 'text-emerald-400' : 'text-red-400'}`}>
                                                         {realMargin.toFixed(1)}%
                                                     </span>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className="text-[10px] text-gray-400 block">Net Profit</span>
-                                                    <span className="text-sm font-bold text-white">
+                                                    <span className="text-[9px] text-gray-400 block">Ganancia Neta</span>
+                                                    <span className="text-xs font-bold text-white">
                                                         ${realProfit.toLocaleString()}
                                                     </span>
                                                 </div>
@@ -558,13 +553,13 @@ export const BeverageForm = ({
 
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-4 mt-2">
                                         <div>
                                             {selectedProduct ? null : (
                                                 <>
-                                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Proveedor</label>
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Proveedor</label>
                                                     <input
-                                                        className="w-full bg-bg-deep border border-border-dark rounded px-3 py-2 text-white text-sm focus:border-white/20 outline-none"
+                                                        className="w-full bg-bg-deep border border-border-dark rounded px-2 py-1.5 text-white text-xs focus:border-white/20 outline-none"
                                                         placeholder="Ej. Coca-Cola Company"
                                                         value={productForm.supplier || ''}
                                                         onChange={e => setProductForm({ ...productForm, supplier: e.target.value })}
@@ -573,12 +568,12 @@ export const BeverageForm = ({
                                             )}
                                         </div>
                                         <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Stock Total</label>
+                                            <div className="flex justify-between items-center mb-0.5">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Stock Total</label>
                                             </div>
                                             <div className="flex gap-2">
                                                 <input
-                                                    className="w-full bg-bg-deep border border-border-dark rounded px-3 py-2 text-white text-sm focus:border-white/20 outline-none"
+                                                    className="w-full bg-bg-deep border border-border-dark rounded px-2 py-1.5 text-white text-xs focus:border-white/20 outline-none"
                                                     value={formatStock(productForm.stock)}
                                                     disabled
                                                     title="Calculado según lotes activos"
@@ -595,23 +590,23 @@ export const BeverageForm = ({
                         {/* --- PRODUCT LIST SECTION --- */}
                         <div className="col-span-full pt-8 border-t border-border-dark animate-in slide-in-from-bottom-4 duration-700 delay-200">
                             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                                <Beer size={20} className="text-accent-orange" />
+                                <Beer size={20} className="text-accent-primary" />
                                 Catálogo de Venta Directa
                             </h3>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                 {products.length === 0 ? (
-                                    <div className="col-span-full p-8 text-center bg-gray-800/30 rounded-xl border border-dashed border-gray-700">
-                                        <p className="text-gray-500 italic">No hay productos registrados aún.</p>
+                                    <div className="col-span-full p-6 text-center bg-gray-800/30 rounded-lg border border-dashed border-gray-700">
+                                        <p className="text-gray-500 text-sm italic">No hay productos registrados aún.</p>
                                     </div>
                                 ) : (
                                     products.map((p: any) => (
                                         <div
                                             key={p.id}
                                             onClick={() => onSelectProduct && onSelectProduct(p)}
-                                            className={`group bg-card-dark hover:bg-white/5 border ${selectedProduct?.id === p.id ? 'border-accent-orange ring-1 ring-accent-orange' : 'border-border-dark'} hover:border-accent-orange/50 p-3 rounded-xl transition-all duration-300 cursor-pointer`}
+                                            className={`group bg-card-dark hover:bg-white/5 border ${selectedProduct?.id === p.id ? 'border-accent-primary ring-1 ring-accent-primary' : 'border-border-dark'} hover:border-accent-primary/50 p-2 rounded-lg transition-all duration-300 cursor-pointer`}
                                         >
-                                            <div className="aspect-square bg-black/20 rounded-lg mb-3 overflow-hidden relative">
+                                            <div className="aspect-square bg-black/20 rounded-md mb-2 overflow-hidden relative">
                                                 {p.image_url ? (
                                                     <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={p.name} />
                                                 ) : (
@@ -624,7 +619,7 @@ export const BeverageForm = ({
                                                 <h4 className="font-bold text-gray-200 text-sm truncate" title={p.name}>{p.name}</h4>
                                                 <div className="flex justify-between items-center text-xs">
                                                     <span className="text-gray-500">Precio</span>
-                                                    <span className="font-bold text-accent-orange">${Number(p.price).toLocaleString()}</span>
+                                                    <span className="font-bold text-accent-primary">${Number(p.price).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] text-gray-600">
                                                     <span>Stock</span>

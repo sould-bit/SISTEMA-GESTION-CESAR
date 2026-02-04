@@ -30,7 +30,8 @@ from app.routers import (
     inventory_count,
     intelligence,
     users,
-    branches
+    branches,
+    tables
 )
 from fastapi.staticfiles import StaticFiles
 from .core.websockets import sio # Import Socket.IO server
@@ -48,19 +49,11 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Configurar CORS
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+# Configurar CORS (Permitir todo en desarrollo para acceso móvil)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False, # Cambiado a False para permitir "*" en desarrollo
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -90,9 +83,11 @@ app.include_router(inventory_count.router)
 app.include_router(intelligence.router)
 app.include_router(users.router)
 app.include_router(branches.router)
+app.include_router(tables.router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Handler global para excepciones RBAC
 app.add_exception_handler(RBACException, create_rbac_exception_handler())
@@ -118,6 +113,16 @@ async def on_startup():
             "features": ["RBAC", "JWT", "PostgreSQL", "FastAPI", "Storefront"]
         }
     )
+    
+    # Auto-create schema if missing (Fallback for Alembic issues in dev)
+    try:
+        async with engine.begin() as conn:
+            # Importar todos los modelos para asegurar que se registren en metadata
+            # Esto ya se hace arriba con "from .models import ...", pero aseguramos
+            await conn.run_sync(SQLModel.metadata.create_all)
+        logger.info("✅ Schema auto-created (if needed)")
+    except Exception as e:
+        logger.error(f"❌ Schema auto-creation failed: {e}")
     
     # Auto-sync RBAC global metadata on startup
     try:

@@ -6,10 +6,14 @@
     --font-mono: "JetBrains Mono", monospace;
 
     /* Colors */
-    --color-bg-deep: #0F172A;
-    /* Asfalto Profundo */
-    --color-accent-orange: #FF6B00;
-    /* Naranja FastOps */
+    /* Colors - Minimalist "Obsidian & Mist" */
+    /* Colors - "Zapote & Jungle" Custom Theme */
+    --color-bg-deep: #202124;
+    /* Dark Gray (Anthracite) - "Gris oscuro" */
+    --color-accent-primary: #EA580C;
+    /* Zapote (Burnt Orange) */
+    --color-accent-secondary: #10B981;
+    /* Green (Emerald) */
 
     /* Semantic Status Colors */
     --color-status-success: #10B981;
@@ -17,13 +21,14 @@
     --color-status-info: #3B82F6;
 
     /* UI Component Colors */
-    --color-card-dark: #1E293B;
-    --color-card-hover: #334155;
-    --color-border-dark: #334155;
+    --color-card-dark: #2D2E32;
+    /* Slightly lighter gray for cards */
+    --color-card-hover: #3A3B40;
+    --color-border-dark: #3A3B40;
 
     /* Text Colors */
-    --color-text-muted: #94A3B8;
-    --color-text-body: #CBD5E1;
+    --color-text-muted: #9CA3AF;
+    --color-text-body: #E5E7EB;
     --color-text-white: #FFFFFF;
 
     /* Spacing & Layout */
@@ -64,9 +69,19 @@
 
     /* Keyframes */
     @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-4px); }
-        75% { transform: translateX(4px); }
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        25% {
+            transform: translateX(-4px);
+        }
+
+        75% {
+            transform: translateX(4px);
+        }
     }
 
     @keyframes fade-in-up {
@@ -74,6 +89,7 @@
             opacity: 0;
             transform: translateY(10px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);

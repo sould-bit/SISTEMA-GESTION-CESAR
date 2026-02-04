@@ -46,18 +46,18 @@ export const Step2Territory = () => {
                 {/* Map Grid Overlay */}
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-[80%] h-[80%] border border-accent-orange/20 rounded-lg flex items-center justify-center relative">
-                        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-accent-orange"></div>
-                        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-accent-orange"></div>
-                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-accent-orange"></div>
-                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-accent-orange"></div>
+                    <div className="w-[80%] h-[80%] border border-accent-primary/20 rounded-lg flex items-center justify-center relative">
+                        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-accent-primary"></div>
+                        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-accent-primary"></div>
+                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-accent-primary"></div>
+                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-accent-primary"></div>
                     </div>
                 </div>
 
                 {/* Draggable Pin */}
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-move z-20 hover:scale-110 transition-transform">
                     <div className="relative">
-                        <span className="material-symbols-outlined text-4xl text-accent-orange drop-shadow-[0_0_15px_rgba(255,107,0,0.8)]">location_on</span>
+                        <span className="material-symbols-outlined text-4xl text-accent-primary drop-shadow-[0_0_15px_rgba(255,107,0,0.8)]">location_on</span>
                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 bg-black/50 blur-sm rounded-full"></div>
                     </div>
                 </div>
@@ -65,7 +65,7 @@ export const Step2Territory = () => {
                 {/* Overlay Text */}
                 <div className="absolute bottom-4 left-4 right-4 bg-bg-deep/90 backdrop-blur border border-white/10 rounded-lg p-3">
                     <p className="text-xs text-text-muted flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm animate-bounce text-accent-orange">touch_app</span>
+                        <span className="material-symbols-outlined text-sm animate-bounce text-accent-primary">touch_app</span>
                         Arrastra el pin para ajustar las coordenadas de tu base.
                     </p>
                 </div>
@@ -108,7 +108,7 @@ export const Step2Territory = () => {
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 bg-accent-orange hover:bg-orange-500 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_20px_rgba(255,107,0,0.3)] hover:shadow-[0_4px_30px_rgba(255,107,0,0.5)] transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 group"
+                            className="flex-1 bg-accent-primary hover:bg-orange-500 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_20px_rgba(255,107,0,0.3)] hover:shadow-[0_4px_30px_rgba(255,107,0,0.5)] transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 group"
                         >
                             <span className="tracking-widest uppercase text-sm">Establecer Base</span>
                             <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">my_location</span>

@@ -218,7 +218,7 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
                                                 <span className="text-[9px] font-bold text-text-muted">{group.stats.neg} Ajustes</span>
                                             </div>
                                             <div className="flex items-center gap-1.5">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                                                 <span className="text-[9px] font-bold text-text-muted">{group.stats.rev} Reversiones</span>
                                             </div>
                                         </div>
@@ -281,7 +281,7 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
                                                             </div>
                                                             <div className="flex items-center gap-1 mt-1">
                                                                 {(log.transaction_type?.includes('REVERT') || log.transaction_type?.includes('ROLLBACK')) && (
-                                                                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" title="Registro de Reversión"></span>
+                                                                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" title="Registro de Reversión"></span>
                                                                 )}
                                                                 <span className="text-[8px] font-bold text-text-muted uppercase">Variación</span>
                                                             </div>

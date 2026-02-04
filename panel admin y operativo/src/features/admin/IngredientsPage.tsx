@@ -115,7 +115,7 @@ export const IngredientsPage = () => {
     if (loading && ingredients.length === 0) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-orange"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-primary"></div>
             </div>
         );
     }
@@ -130,7 +130,7 @@ export const IngredientsPage = () => {
                 </div>
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-2 bg-accent-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-accent-orange/20"
+                    className="flex items-center gap-2 bg-accent-primary hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-accent-primary/20"
                 >
                     <span className="material-symbols-outlined">add</span>
                     Nuevo Insumo
@@ -184,7 +184,7 @@ export const IngredientsPage = () => {
                 <input
                     type="text"
                     placeholder="Buscar por nombre o SKU..."
-                    className="w-full bg-card-dark border border-border-dark rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all"
+                    className="w-full bg-card-dark border border-border-dark rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -293,7 +293,7 @@ export const IngredientsPage = () => {
                                     required
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-orange"
+                                    className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-primary"
                                     placeholder="Ej: Carne de Res Premium"
                                 />
                             </div>
@@ -305,7 +305,7 @@ export const IngredientsPage = () => {
                                         required
                                         value={formData.sku}
                                         onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
-                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-orange"
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-primary"
                                         placeholder="MAT-001"
                                     />
                                 </div>
@@ -315,7 +315,7 @@ export const IngredientsPage = () => {
                                         required
                                         value={formData.base_unit}
                                         onChange={(e) => setFormData({ ...formData, base_unit: e.target.value })}
-                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-orange"
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-primary"
                                     >
                                         {BASE_UNITS.map((unit) => (
                                             <option key={unit.value} value={unit.value}>
@@ -334,7 +334,7 @@ export const IngredientsPage = () => {
                                         step="0.01"
                                         value={formData.current_cost}
                                         onChange={(e) => setFormData({ ...formData, current_cost: parseFloat(e.target.value) || 0 })}
-                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-orange"
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-primary"
                                     />
                                 </div>
                                 <div>
@@ -349,7 +349,7 @@ export const IngredientsPage = () => {
                                         step="0.01"
                                         value={formData.yield_factor}
                                         onChange={(e) => setFormData({ ...formData, yield_factor: parseFloat(e.target.value) || 1 })}
-                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-orange"
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-primary"
                                     />
                                 </div>
                             </div>
@@ -363,7 +363,7 @@ export const IngredientsPage = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-accent-orange hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                                    className="px-4 py-2 bg-accent-primary hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                                 >
                                     {editingIngredient ? 'Guardar Cambios' : 'Crear Insumo'}
                                 </button>
@@ -403,7 +403,7 @@ export const IngredientsPage = () => {
                                         step="0.01"
                                         value={newCost}
                                         onChange={(e) => setNewCost(parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-orange"
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg py-2 px-3 text-white font-mono focus:outline-none focus:border-accent-primary"
                                     />
                                 </div>
                             </div>

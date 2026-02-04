@@ -165,7 +165,8 @@ class OrderService:
                     subtotal=line_subtotal, # Incluye modifiers
                     tax_amount=line_tax,
                     notes=user_item.notes,
-                    modifiers=item_modifiers_orm 
+                    modifiers=item_modifiers_orm,
+                    removed_ingredients=user_item.removed_ingredients or []
                 )
                 order_items.append(item)
                 
@@ -199,8 +200,29 @@ class OrderService:
                 recipe = await recipe_service.get_recipe_by_product(pid, company_id)
                 
                 if recipe:
+                    item_removed_ingredients = user_item.removed_ingredients or []
+
                     # Deduct Ingredients (FIFO)
                     for recipe_item in recipe.items:
+                        # Check if ingredient is removed
+                        # Logic: removed_ingredients contains IDs (ints as string or raw int)
+                        # recipe_item.ingredient_id is UUID? product_id is int? 
+                        # We need to robustly check. 
+                        # Frontend sends Product IDs for Products acting as ingredients?
+                        # Or UUIDs? 
+                        # Assuming frontend sends compatible IDs.
+                        # Convert to string for comparison safety
+                        
+                        is_removed = False
+                        rec_ing_id = str(recipe_item.ingredient_id) if recipe_item.ingredient_id else str(recipe_item.ingredient_product_id)
+                        
+                        if rec_ing_id in [str(x) for x in item_removed_ingredients]:
+                            is_removed = True
+                            
+                        if is_removed:
+                            # Skip stock deduction
+                            continue
+
                         # Use gross_quantity and ingredient_id (UUID)
                         # We use InventoryService.update_ingredient_stock which handles FIFO
                         # Quantity to consume = recipe_item.gross_quantity * quantity
@@ -279,7 +301,10 @@ class OrderService:
                 customer_id=order_data.customer_id,
                 delivery_type=order_data.delivery_type,
                 delivery_address=order_data.delivery_address, # Snapshot
-                delivery_notes=order_data.delivery_notes
+                delivery_notes=order_data.delivery_notes,
+
+                # Mesas
+                table_id=order_data.table_id
             )
             
             # Asociar items

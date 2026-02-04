@@ -72,7 +72,7 @@ export const BranchesPage = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <span className="material-symbols-outlined text-accent-orange text-3xl">store</span>
+                        <span className="material-symbols-outlined text-accent-primary text-3xl">store</span>
                         Sucursales
                     </h1>
                     <p className="text-gray-400 text-sm mt-1">
@@ -81,7 +81,7 @@ export const BranchesPage = () => {
                 </div>
                 <button
                     onClick={handleCreate}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-accent-orange to-orange-600 text-white rounded-lg hover:opacity-90 transition-opacity"
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-accent-primary to-orange-600 text-white rounded-lg hover:opacity-90 transition-opacity"
                 >
                     <span className="material-symbols-outlined">add</span>
                     Nueva Sucursal
@@ -95,7 +95,7 @@ export const BranchesPage = () => {
                         type="checkbox"
                         checked={showInactive}
                         onChange={(e) => setShowInactive(e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-accent-orange"
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-accent-primary"
                     />
                     Mostrar inactivas
                 </label>
@@ -111,7 +111,7 @@ export const BranchesPage = () => {
             {/* Loading */}
             {loading && (
                 <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-orange"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
                 </div>
             )}
 
@@ -121,14 +121,14 @@ export const BranchesPage = () => {
                     {branches.map(branch => (
                         <div
                             key={branch.id}
-                            className={`bg-[#1A2333] border rounded-xl p-5 transition-all hover:border-accent-orange/50 ${branch.is_active ? 'border-border-dark' : 'border-red-500/30 opacity-60'
+                            className={`bg-[#1A2333] border rounded-xl p-5 transition-all hover:border-accent-primary/50 ${branch.is_active ? 'border-border-dark' : 'border-red-500/30 opacity-60'
                                 }`}
                         >
                             {/* Header */}
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${branch.is_main ? 'bg-yellow-500/20' : 'bg-accent-orange/20'}`}>
-                                        <span className={`material-symbols-outlined ${branch.is_main ? 'text-yellow-500' : 'text-accent-orange'}`}>
+                                    <div className={`p-2 rounded-lg ${branch.is_main ? 'bg-yellow-500/20' : 'bg-accent-primary/20'}`}>
+                                        <span className={`material-symbols-outlined ${branch.is_main ? 'text-yellow-500' : 'text-accent-primary'}`}>
                                             {branch.is_main ? 'star' : 'store'}
                                         </span>
                                     </div>
@@ -209,7 +209,7 @@ export const BranchesPage = () => {
                             <p>No hay sucursales registradas</p>
                             <button
                                 onClick={handleCreate}
-                                className="mt-4 text-accent-orange hover:underline"
+                                className="mt-4 text-accent-primary hover:underline"
                             >
                                 Crear primera sucursal
                             </button>

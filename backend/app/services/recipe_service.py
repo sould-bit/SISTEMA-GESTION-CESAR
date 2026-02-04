@@ -40,7 +40,7 @@ class RecipeService:
         stmt = stmt.offset(skip).limit(limit).order_by(Recipe.created_at.desc())
         stmt = stmt.options(
             joinedload(Recipe.product).joinedload(Product.category), 
-            selectinload(Recipe.items)
+            selectinload(Recipe.items).selectinload(RecipeItem.ingredient)
         ) 
         
         result = await self.session.execute(stmt)

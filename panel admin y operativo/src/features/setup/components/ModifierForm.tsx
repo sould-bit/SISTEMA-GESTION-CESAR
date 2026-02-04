@@ -137,7 +137,7 @@ export const ModifierForm = ({
                     </div>
 
                     {/* Financial Summary Card */}
-                    <div className="bg-gradient-to-br from-indigo-950/40 to-black rounded-2xl border border-white/5 p-6 space-y-4 shadow-xl">
+                    <div className="bg-gradient-to-br from-orange-950/40 to-black rounded-2xl border border-white/5 p-6 space-y-4 shadow-xl">
                         <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
                             <Info size={14} /> Análisis de Rentabilidad
                         </h4>

@@ -16,6 +16,7 @@ class OrderItemCreate(BaseModel):
     # Por ahora simple: cantidad y producto.
     notes: Optional[str] = None
     modifiers: Optional[List[int]] = []
+    removed_ingredients: Optional[List[str]] = []
 
 class OrderItemRead(BaseModel):
     id: int
@@ -25,6 +26,7 @@ class OrderItemRead(BaseModel):
     unit_price: Decimal
     subtotal: Decimal
     notes: Optional[str] = None
+    removed_ingredients: List[str] = []
     
     class Config:
         from_attributes = True
@@ -60,7 +62,14 @@ class OrderCreate(BaseModel):
     customer_id: Optional[int] = None
     delivery_type: str = "dine_in" # dine_in, takeaway, delivery
     delivery_address: Optional[str] = None
+    # CRM Fields (V5.0)
+    customer_id: Optional[int] = None
+    delivery_type: str = "dine_in" # dine_in, takeaway, delivery
+    delivery_address: Optional[str] = None
     delivery_notes: Optional[str] = None
+
+    # Mesas (V7.0)
+    table_id: Optional[int] = None
 
     @field_validator('items')
     def validate_items_params(cls, v):

@@ -65,7 +65,7 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
                         <Search size={14} /> La Despensa
                     </label>
                     <input
-                        className="w-full mt-2 text-sm bg-bg-deep border border-border-dark rounded-lg px-3 py-2 focus:border-accent-orange text-white outline-none transition-all shadow-sm placeholder-gray-600"
+                        className="w-full mt-2 text-sm bg-bg-deep border border-border-dark rounded-lg px-3 py-2 focus:border-accent-primary text-white outline-none transition-all shadow-sm placeholder-gray-600"
                         placeholder="Buscar insumo..."
                         value={pantrySearch}
                         onChange={e => setPantrySearch(e.target.value)}
@@ -77,7 +77,7 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
                             key={ing.id}
                             draggable
                             onDragStart={(e) => handleDragStart(e, ing)}
-                            className="p-3 bg-card-dark border border-border-dark rounded-lg flex justify-between items-center cursor-move hover:border-accent-orange/50 hover:bg-accent-orange/5 transition-all group active:scale-95"
+                            className="p-3 bg-card-dark border border-border-dark rounded-lg flex justify-between items-center cursor-move hover:border-accent-primary/50 hover:bg-accent-primary/5 transition-all group active:scale-95"
                         >
                             <span className="text-sm font-medium text-gray-200">{ing.name}</span>
                             <span className="text-xs text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
@@ -107,7 +107,7 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
                 ) : (
                     <div className="space-y-2">
                         {recipeItems.map((item) => (
-                            <div key={item.ingredientId} className="flex items-center gap-3 bg-card-dark p-3 rounded-lg border border-border-dark animate-in slide-in-from-left-2 shadow-sm group hover:border-accent-orange/30">
+                            <div key={item.ingredientId} className="flex items-center gap-3 bg-card-dark p-3 rounded-lg border border-border-dark animate-in slide-in-from-left-2 shadow-sm group hover:border-accent-primary/30">
                                 <GripVertical size={16} className="text-gray-600 cursor-grab" />
                                 <div className="flex-1">
                                     <div className="flex justify-between">
@@ -119,7 +119,7 @@ export const RecipeBuilder = ({ recipeItems, setRecipeItems, ingredients }: Reci
                                             <span className="text-[10px] text-gray-400 uppercase">Cant.</span>
                                             <input
                                                 type="number"
-                                                className="w-20 bg-bg-deep border border-border-dark rounded px-2 py-1 text-xs text-white focus:border-accent-orange outline-none"
+                                                className="w-20 bg-bg-deep border border-border-dark rounded px-2 py-1 text-xs text-white focus:border-accent-primary outline-none"
                                                 value={item.quantity}
                                                 onChange={e => updateItemQuantity(item.ingredientId, Number(e.target.value))}
                                             />

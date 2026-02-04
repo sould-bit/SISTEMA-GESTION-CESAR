@@ -25,7 +25,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
                         ref={ref}
                         className={`
                             block w-full bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted/50 
-                            focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all sm:text-sm py-3
+                            focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all sm:text-sm py-3
                             ${icon ? 'pl-10 pr-3' : 'px-3'}
                             ${error ? 'border-status-alert focus:border-status-alert focus:ring-status-alert' : ''}
                         `}

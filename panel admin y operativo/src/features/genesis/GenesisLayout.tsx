@@ -15,7 +15,7 @@ export const GenesisLayout = ({ children }: GenesisLayoutProps) => {
         <div className="bg-bg-deep min-h-screen flex flex-col font-sans text-white relative overflow-hidden">
             {/* Immersive Background */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-accent-orange/5 rounded-full blur-[150px] animate-pulse"></div>
+                <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-accent-primary/5 rounded-full blur-[150px] animate-pulse"></div>
                 <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-status-info/5 rounded-full blur-[120px]"></div>
 
                 {/* Grid Pattern Overlay */}
@@ -26,7 +26,7 @@ export const GenesisLayout = ({ children }: GenesisLayoutProps) => {
             {/* Header / Progress */}
             <header className="relative z-20 px-8 py-6 flex items-center justify-between border-b border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 bg-gradient-to-br from-accent-orange to-orange-600 rounded-lg flex items-center justify-center shadow-lg shadow-accent-orange/20">
+                    <div className="h-8 w-8 bg-gradient-to-br from-accent-primary to-orange-600 rounded-lg flex items-center justify-center shadow-lg shadow-accent-primary/20">
                         <span className="material-symbols-outlined text-white text-lg font-bold">bolt</span>
                     </div>
                     <div>
@@ -38,11 +38,11 @@ export const GenesisLayout = ({ children }: GenesisLayoutProps) => {
                 {/* Steps Indicator */}
                 <div className="hidden md:flex items-center gap-12">
                     {[1, 2, 3].map((step) => (
-                        <div key={step} className={`flex items-center gap-2 ${step === currentStep ? 'text-accent-orange' : step < currentStep ? 'text-status-success' : 'text-white/20'}`}>
+                        <div key={step} className={`flex items-center gap-2 ${step === currentStep ? 'text-accent-primary' : step < currentStep ? 'text-status-success' : 'text-white/20'}`}>
                             <div className={`
                                 w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold border transition-all duration-500
                                 ${step === currentStep
-                                    ? 'border-accent-orange bg-accent-orange/10 shadow-[0_0_15px_rgba(255,107,0,0.3)]'
+                                    ? 'border-accent-primary bg-accent-primary/10 shadow-[0_0_15px_rgba(255,107,0,0.3)]'
                                     : step < currentStep
                                         ? 'border-status-success bg-status-success/10 text-status-success'
                                         : 'border-white/10 bg-white/5'}
@@ -64,12 +64,12 @@ export const GenesisLayout = ({ children }: GenesisLayoutProps) => {
             {/* Progress Line */}
             <div className="relative z-20 h-0.5 bg-white/5 w-full">
                 <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-status-success via-accent-orange to-accent-orange transition-all duration-700 ease-out"
+                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-status-success via-accent-primary to-accent-primary transition-all duration-700 ease-out"
                     style={{ width: progressWidth }}
                 ></div>
                 {/* Glow effect at the tip of the progress bar */}
                 <div
-                    className="absolute top-1/2 -translate-y-1/2 h-1.5 w-24 bg-accent-orange blur-md transition-all duration-700 ease-out -ml-12"
+                    className="absolute top-1/2 -translate-y-1/2 h-1.5 w-24 bg-accent-primary blur-md transition-all duration-700 ease-out -ml-12"
                     style={{ left: progressWidth, opacity: progressWidth === '0%' ? 0 : 1 }}
                 ></div>
             </div>

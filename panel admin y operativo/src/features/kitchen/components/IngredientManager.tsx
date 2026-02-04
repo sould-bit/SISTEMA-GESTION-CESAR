@@ -110,10 +110,18 @@ export const IngredientManager = () => {
     const [activeTab, setActiveTab] = useState<'RAW' | 'PROCESSED'>(forcedTab || 'RAW');
     const [viewMode, setViewMode] = useState<'MENU' | 'LIST' | 'INGRESAR'>('MENU');
 
-    // Reset view mode when tab changes if in list? No, keep context.
-    // Actually, if switching tabs in INGRESAR mode, might want to reset search.
+    // Reset view mode or force LIST for PROCESSED
     useEffect(() => {
-        setSearchQuery('');
+        if (activeTab === 'PROCESSED') {
+            setViewMode('LIST');
+        } else {
+            // Optional: Reset to MENU when switching back to RAW? 
+            // The user might prefer to stay in LIST if they were there. 
+            // For now, let's reset search but keep viewMode flexible or default to MENU for RAW if desired.
+            // But per request, only PROCESSED needs to skip menu.
+            setSearchQuery('');
+            if (viewMode === 'INGRESAR') setViewMode('MENU'); // Reset INGRESAR but keep LIST/MENU context
+        }
     }, [activeTab]);
 
 
@@ -696,7 +704,7 @@ export const IngredientManager = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-orange"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-primary"></div>
             </div>
         );
     }
@@ -713,7 +721,7 @@ export const IngredientManager = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-accent-orange">
+                        <span className="material-symbols-outlined text-accent-primary">
                             {activeTab === 'PROCESSED' ? 'factory' : 'nutrition'}
                         </span>
                         {activeTab === 'PROCESSED' ? 'Producción Interna' : 'Gestión de Insumos'}
@@ -753,7 +761,7 @@ export const IngredientManager = () => {
                             <button
                                 onClick={activeTab === 'RAW' ? openCreate : openFactory}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium shadow-lg ${activeTab === 'RAW'
-                                    ? 'bg-accent-orange hover:bg-orange-600 shadow-orange-500/20 text-white'
+                                    ? 'bg-accent-primary hover:bg-orange-600 shadow-orange-500/20 text-white'
                                     : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white'
                                     }`}
                             >
@@ -772,7 +780,7 @@ export const IngredientManager = () => {
                     <button
                         onClick={() => setActiveTab('RAW')}
                         className={`px-6 py-3 text-sm font-medium flex items-center gap-2 transition-colors border-b-2 ${activeTab === 'RAW'
-                            ? 'border-accent-orange text-accent-orange'
+                            ? 'border-accent-primary text-accent-primary'
                             : 'border-transparent text-text-muted hover:text-white hover:bg-white/5'
                             }`}
                     >
@@ -795,8 +803,8 @@ export const IngredientManager = () => {
             {/* Content Logic */}
             <div className="flex flex-col gap-4">
 
-                {/* MENU VIEW - Only show when NOT viewing deactivated items */}
-                {viewMode === 'MENU' && !showDeleted && (
+                {/* MENU VIEW - Only show when NOT viewing deactivated items AND NOT in PROCESSED tab */}
+                {viewMode === 'MENU' && !showDeleted && activeTab !== 'PROCESSED' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         {/* Card 1: Ingresar / Registrar */}
                         <button
@@ -909,13 +917,16 @@ export const IngredientManager = () => {
                 {viewMode === 'LIST' && (
                     <>
                         <div className="flex items-center gap-2 mb-2">
-                            <button
-                                onClick={() => setViewMode('MENU')}
-                                className="text-xs flex items-center gap-1 text-text-muted hover:text-white"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">arrow_back</span>
-                                Volver al menú
-                            </button>
+                            {/* Hide Back button in PROCESSED mode as there is no Menu */}
+                            {activeTab !== 'PROCESSED' && (
+                                <button
+                                    onClick={() => setViewMode('MENU')}
+                                    className="text-xs flex items-center gap-1 text-text-muted hover:text-white"
+                                >
+                                    <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                                    Volver al menú
+                                </button>
+                            )}
                         </div>
 
                         {/* Search */}
@@ -926,7 +937,7 @@ export const IngredientManager = () => {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder={`Buscar ${activeTab === 'RAW' ? 'materia prima' : 'producción'} por nombre o SKU...`}
-                                className="w-full bg-card-dark border border-border-dark rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-accent-orange"
+                                className="w-full bg-card-dark border border-border-dark rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-accent-primary"
                             />
                         </div>
 
@@ -1235,7 +1246,7 @@ export const IngredientManager = () => {
 
                                 <div className="flex justify-end gap-3 pt-4 border-t border-border-dark mt-4">
                                     <button type="button" onClick={closeModal} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancelar</button>
-                                    <button type="submit" className="px-6 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600 shadow-lg shadow-orange-500/20">
+                                    <button type="submit" className="px-6 py-2 bg-accent-primary text-white rounded-lg hover:bg-orange-600 shadow-lg shadow-orange-500/20">
                                         {editingIngredient ? 'Guardar Cambios' : 'Crear Item'}
                                     </button>
                                 </div>
@@ -1472,7 +1483,7 @@ export const IngredientManager = () => {
                         <div className="p-6 overflow-y-auto flex-1">
                             {loadingBatches ? (
                                 <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin w-8 h-8 border-2 border-accent-orange border-t-transparent rounded-full"></div>
+                                    <div className="animate-spin w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full"></div>
                                 </div>
                             ) : batchData.length === 0 ? (
                                 <div className="text-center py-8 text-text-muted">

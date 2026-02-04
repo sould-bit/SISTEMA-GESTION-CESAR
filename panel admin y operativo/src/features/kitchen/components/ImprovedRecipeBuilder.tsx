@@ -48,7 +48,8 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [imageUrl, setImageUrl] = useState<string>(existingRecipe?.product?.image_url || '');
+    // Fix: check both locations for image URL (recipe top-level or nested product)
+    const [imageUrl, setImageUrl] = useState<string>(existingRecipe?.product_image_url || existingRecipe?.product?.image_url || '');
 
     const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<RecipeFormData>({
         defaultValues: {
@@ -226,6 +227,37 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
         }
     };
 
+    // Load Product Data (Price, Category) on Init
+    useEffect(() => {
+        const loadProductData = async () => {
+            const targetProductId = existingRecipe?.product_id || productId;
+
+            if (targetProductId) {
+                try {
+                    const product = await kitchenService.getProduct(Number(targetProductId));
+                    if (product) {
+                        // Update Price (always, as it might be 0 in recipe)
+                        setValue('selling_price', product.price);
+
+                        // Update Category if missing
+                        if (!watchedCategoryId && product.category_id) {
+                            setValue('category_id', product.category_id.toString());
+                        }
+
+                        // If creating new recipe from product, set name
+                        if (!isEditMode && productId) {
+                            setValue('name', product.name);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading product details:', error);
+                }
+            }
+        };
+
+        loadProductData();
+    }, [existingRecipe, productId, isEditMode]);
+
     // Calculate totals
     const calculations = useMemo(() => {
         const totalCost = watchedItems.reduce((sum, item) => {
@@ -281,16 +313,19 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
             // EDIT MODE
             if (isEditMode && existingRecipe) {
                 // 1. Update recipe basic info if name changed
-                if (data.name !== existingRecipe.name) {
+                if (data.name !== existingRecipe.name || data.preparation_time !== existingRecipe.preparation_time) {
                     await kitchenService.updateRecipe(String(existingRecipe.id), {
                         name: data.name,
                         preparation_time: data.preparation_time
                     } as any);
                 }
 
-                // 2. Update product image if changed
+                // 2. Update product image if changed (or if just present to be safe)
+                const currentImg = existingRecipe.product_image_url || existingRecipe.product?.image_url;
                 if (imageUrl && existingRecipe.product_id) {
+                    // We update if it's different OR if we just want to ensure consistency
                     try {
+                        console.log('🖼️ Attempting to update product image for ID:', existingRecipe.product_id);
                         await kitchenService.updateProductImage(existingRecipe.product_id, imageUrl);
                         console.log('✅ Updated product image');
                     } catch (e) {
@@ -303,6 +338,18 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                     String(existingRecipe.id),
                     itemsPayload
                 );
+
+                // FORCE UPDATE LOCAL OBJECT: Ensure the image we just uploaded is reflected in the UI object
+                // The backend response might not include the fresh joined product image immediately depending on the endpoint
+                if (imageUrl) {
+                    updatedRecipe.product_image_url = imageUrl;
+                    if (updatedRecipe.product) {
+                        updatedRecipe.product.image_url = imageUrl;
+                    } else {
+                        // If product object is missing, try to patch it minimally if we know it exists
+                        updatedRecipe.product = { image_url: imageUrl } as any;
+                    }
+                }
 
                 onSave?.(updatedRecipe);
                 alert(`✅ Receta "${data.name}" actualizada correctamente`);
@@ -380,7 +427,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                            <span className="p-2.5 bg-accent-orange/10 rounded-xl text-accent-orange material-symbols-outlined icon-md">menu_book</span>
+                            <span className="p-2.5 bg-accent-primary/10 rounded-xl text-accent-primary material-symbols-outlined icon-md">menu_book</span>
                             Constructor de Recetas
                         </h2>
                         <p className="text-text-muted mt-1 ml-1 text-sm">Configura los detalles técnicos y comerciales de tu producto.</p>
@@ -419,7 +466,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                     <div className="xl:col-span-8">
                         <div className="bg-card-dark border border-border-dark rounded-2xl p-8 space-y-8 h-full shadow-lg shadow-black/20 relative overflow-hidden">
                             {/* Background decoration */}
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-accent-orange/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-accent-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
                             {/* SECCIÓN A: IDENTIFICACIÓN */}
                             <div className="relative z-10">
@@ -440,7 +487,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                                             <input
                                                 {...register('name', { required: 'Nombre requerido' })}
                                                 autoComplete="off"
-                                                className={`w-full bg-bg-deep border ${watchedProductId ? 'border-emerald-500/50 pl-10' : 'border-border-dark'} rounded-xl px-4 py-3 text-white placeholder-text-muted focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all`}
+                                                className={`w-full bg-bg-deep border ${watchedProductId ? 'border-emerald-500/50 pl-10' : 'border-border-dark'} rounded-xl px-4 py-3 text-white placeholder-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all`}
                                                 placeholder="Ej: Hamburguesa Doble Queso"
                                             />
                                             {watchedProductId ? (
@@ -459,14 +506,14 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                                     <div className="space-y-2">
                                         <label className="block text-sm font-medium text-gray-300 flex items-center gap-2">
                                             Categoría
-                                            {!watchedProductId && <span className="text-accent-orange text-xs">(Requerido)</span>}
+                                            {!watchedProductId && <span className="text-accent-primary text-xs">(Requerido)</span>}
                                         </label>
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
                                                 <select
                                                     {...register('category_id')}
                                                     disabled={!!watchedProductId}
-                                                    className="w-full appearance-none bg-bg-deep border border-border-dark rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-orange disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                                    className="w-full appearance-none bg-bg-deep border border-border-dark rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                                 >
                                                     <option value="">-- Seleccionar --</option>
                                                     {categories.map(cat => (
@@ -514,7 +561,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                                             <input
                                                 type="number"
                                                 {...register('selling_price', { required: true, min: 0 })}
-                                                className="w-full bg-bg-deep border border-border-dark rounded-xl pl-8 pr-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all"
+                                                className="w-full bg-bg-deep border border-border-dark rounded-xl pl-8 pr-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all"
                                                 placeholder="0"
                                             />
                                         </div>
@@ -526,7 +573,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                                             <input
                                                 type="number"
                                                 {...register('preparation_time')}
-                                                className="w-full bg-bg-deep border border-border-dark rounded-xl pl-11 pr-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all"
+                                                className="w-full bg-bg-deep border border-border-dark rounded-xl pl-11 pr-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all"
                                                 placeholder="0"
                                             />
                                             <span className="absolute right-4 top-3.5 text-xs text-text-muted font-medium uppercase">Min</span>
@@ -555,7 +602,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                             <button
                                 type="button"
                                 onClick={() => setShowSearch(!showSearch)}
-                                className={`w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all font-bold text-sm shadow-lg shadow-accent-orange/10 ${showSearch ? 'bg-accent-orange text-white ring-2 ring-accent-orange ring-offset-2 ring-offset-[#0f172a]' : 'bg-accent-orange/10 text-accent-orange hover:bg-accent-orange hover:text-white'}`}
+                                className={`w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all font-bold text-sm shadow-lg shadow-accent-primary/10 ${showSearch ? 'bg-accent-primary text-white ring-2 ring-accent-primary ring-offset-2 ring-offset-[#0f172a]' : 'bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white'}`}
                             >
                                 <span className="material-symbols-outlined text-[20px]">{showSearch ? 'close' : 'add'}</span>
                                 {showSearch ? 'Cerrar Buscador' : 'Agregar Insumo'}
@@ -572,7 +619,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 placeholder="Nombre, SKU o tipo..."
-                                                className="w-full bg-[#1E293B] border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all placeholder:text-gray-500"
+                                                className="w-full bg-[#1E293B] border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all placeholder:text-gray-500"
                                                 autoFocus
                                             />
                                         </div>
@@ -619,7 +666,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                                                                     className="w-full px-5 py-3 hover:bg-white/5 transition-colors text-left border-b border-gray-700/30 flex items-center justify-between group"
                                                                 >
                                                                     <div>
-                                                                        <div className="text-white font-bold text-sm group-hover:text-accent-orange transition-colors">{ing.name}</div>
+                                                                        <div className="text-white font-bold text-sm group-hover:text-accent-primary transition-colors">{ing.name}</div>
                                                                         <div className="text-gray-500 text-xs font-mono mt-0.5 opacity-80 group-hover:opacity-100">{ing.sku} • Base: {ing.base_unit}</div>
                                                                     </div>
                                                                     <div className="text-right">
@@ -679,7 +726,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                                         <input
                                             type="number" step="0.001"
                                             {...register(`items.${index}.gross_quantity`, { valueAsNumber: true })}
-                                            className="w-full bg-card-dark border border-border-dark rounded-lg px-3 py-2 text-white text-center font-mono focus:border-accent-orange focus:ring-1 focus:ring-accent-orange outline-none"
+                                            className="w-full bg-card-dark border border-border-dark rounded-lg px-3 py-2 text-white text-center font-mono focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none"
                                             placeholder="0"
                                         />
                                     </div>
@@ -758,7 +805,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                     <button
                         type="submit"
                         disabled={saving || fields.length === 0}
-                        className="px-10 py-3 bg-accent-orange text-white rounded-xl hover:bg-orange-600 disabled:opacity-50 disabled:grayscale font-bold shadow-lg shadow-orange-500/20 flex items-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95"
+                        className="px-10 py-3 bg-accent-primary text-white rounded-xl hover:bg-orange-600 disabled:opacity-50 disabled:grayscale font-bold shadow-lg shadow-orange-500/20 flex items-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95"
                     >
                         {saving ? (
                             <>
@@ -804,7 +851,7 @@ export const ImprovedRecipeBuilder = ({ productId, existingRecipe, onSave, onCan
                         <div className="space-y-5">
                             <div>
                                 <label className="block text-sm font-bold text-gray-300 mb-1.5">
-                                    Nombre de la Categoría <span className="text-accent-orange">*</span>
+                                    Nombre de la Categoría <span className="text-accent-primary">*</span>
                                 </label>
                                 <input
                                     type="text"

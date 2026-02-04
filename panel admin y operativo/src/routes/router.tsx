@@ -9,6 +9,8 @@ import { PermissionGuard } from './PermissionGuard';
 import { DashboardPage } from '../features/admin/DashboardPage';
 import { InventoryPage } from '../features/admin/InventoryPage';
 import { OrdersPage } from '../features/admin/OrdersPage';
+import { CreateOrderPage } from '../features/admin/CreateOrderPage';
+import { TablesPage } from '../features/tables/TablesPage';
 
 // Kitchen Module (V4.1 - Recetas Vivas)
 import { IngredientManager, RecipesPage, MenuMatrix, RecipeManagerV2 } from '../features/kitchen';
@@ -59,10 +61,18 @@ export const router = createBrowserRouter([
                                 ]
                             },
                             {
+                                path: 'tables',
+                                element: <PermissionGuard requiredPermission="orders.read" />,
+                                children: [
+                                    { index: true, element: <TablesPage /> }
+                                ]
+                            },
+                            {
                                 path: 'orders',
                                 element: <PermissionGuard requiredPermission="orders.read" />,
                                 children: [
-                                    { index: true, element: <OrdersPage /> }
+                                    { index: true, element: <OrdersPage /> },
+                                    { path: 'new', element: <CreateOrderPage /> }
                                 ]
                             },
                             {

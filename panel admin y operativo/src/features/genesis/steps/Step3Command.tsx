@@ -80,8 +80,8 @@ export const Step3Auth = () => {
 
             <div className="max-w-md mx-auto w-full bg-card-dark p-8 rounded-2xl border border-border-dark shadow-xl">
                 <div className="mb-6 flex justify-center">
-                    <div className="w-20 h-20 bg-accent-orange/10 rounded-full flex items-center justify-center border border-accent-orange/20">
-                        <span className="material-symbols-outlined text-4xl text-accent-orange">badge</span>
+                    <div className="w-20 h-20 bg-accent-primary/10 rounded-full flex items-center justify-center border border-accent-primary/20">
+                        <span className="material-symbols-outlined text-4xl text-accent-primary">badge</span>
                     </div>
                 </div>
 
@@ -95,7 +95,7 @@ export const Step3Auth = () => {
                 {/* Display generated Company Slug */}
                 <div className="mb-6 bg-bg-deep p-4 rounded-xl border border-white/10 text-center">
                     <p className="text-xs text-text-muted uppercase tracking-widest mb-1">Identificador de Negocio</p>
-                    <p className="text-xl font-mono text-accent-orange font-bold tracking-wider">{companySlug}</p>
+                    <p className="text-xl font-mono text-accent-primary font-bold tracking-wider">{companySlug}</p>
                     <p className="text-[10px] text-text-muted mt-2">Este código distingue tu empresa en el sistema.</p>
                 </div>
 
@@ -145,7 +145,7 @@ export const Step3Auth = () => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="flex-1 bg-accent-orange hover:bg-orange-500 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_20px_rgba(255,107,0,0.3)] transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 bg-accent-primary hover:bg-orange-500 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_20px_rgba(255,107,0,0.3)] transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
                                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>

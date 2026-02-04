@@ -2,7 +2,7 @@ from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from sqlalchemy import Index, UniqueConstraint, String, Column, Numeric
+from sqlalchemy import Index, UniqueConstraint, String, Column, Numeric, JSON
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -46,6 +46,13 @@ class OrderItem(SQLModel, table=True):
     order: "Order" = Relationship(back_populates="items")
     product: "Product" = Relationship()
     modifiers: List["OrderItemModifier"] = Relationship(sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    
+    modifiers: List["OrderItemModifier"] = Relationship(sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    
+    # New V9.0: Recipe Customization
+    # Almacenamos lista de IDs (Strings o Ints) de ingredientes removidos de la receta base
+    removed_ingredients: List[str] = Field(default=[], sa_column=Column(JSON))
+
 
     @property
     def product_name(self) -> str:
@@ -82,7 +89,10 @@ class Order(SQLModel, table=True):
     
     # CRM & Delivery (V5.0)
     customer_id: Optional[int] = Field(default=None, foreign_key="customers.id", index=True)
-    delivery_type: str = Field(default="dine_in", sa_column=Column(String, default="dine_in")) # dine_in, takeaway, delivery
+    delivery_type: str = Field(default="dine_in", sa_column=Column(String, default="dine_in")) # dine_in, takeaway, delivery, eat_here
+    
+    # Mesas
+    table_id: Optional[int] = Field(default=None, foreign_key="tables.id", index=True)
     
     # Snapshot de Datos de Entrega
     delivery_address: Optional[str] = Field(default=None, description="Dirección snapshot al momento del pedido")
@@ -102,8 +112,10 @@ class Order(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(default=None)
 
     # Relaciones
+    # Relaciones
     items: List[OrderItem] = Relationship(back_populates="order", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     payments: List["Payment"] = Relationship(back_populates="order")
     company: "Company" = Relationship()
     branch: "Branch" = Relationship()
     customer: Optional["Customer"] = Relationship(back_populates="orders")
+    # table: Optional["Table"] = Relationship(back_populates="orders")

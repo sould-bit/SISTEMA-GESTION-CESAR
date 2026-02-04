@@ -59,22 +59,22 @@ export const Step1Foundation = () => {
                     />
 
                     {/* Animated Circles */}
-                    <div className="absolute inset-0 bg-accent-orange/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500 animate-pulse"></div>
+                    <div className="absolute inset-0 bg-accent-primary/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500 animate-pulse"></div>
 
                     <div className={`
                         w-48 h-48 rounded-full border-2 border-dashed flex flex-col items-center justify-center relative z-20 bg-bg-deep/50 backdrop-blur-sm transition-all duration-300
-                        ${logoPreview ? 'border-accent-orange' : 'border-white/20 group-hover:border-accent-orange'}
+                        ${logoPreview ? 'border-accent-primary' : 'border-white/20 group-hover:border-accent-primary'}
                     `}>
                         {logoPreview ? (
                             <img src={logoPreview} alt="Logo" className="w-full h-full object-cover rounded-full p-2" />
                         ) : (
                             <>
-                                <span className="material-symbols-outlined text-4xl text-white/50 group-hover:text-accent-orange transition-colors mb-2">upload_file</span>
+                                <span className="material-symbols-outlined text-4xl text-white/50 group-hover:text-accent-primary transition-colors mb-2">upload_file</span>
                                 <span className="text-xs text-white/50 uppercase tracking-widest font-bold group-hover:text-white transition-colors">Subir Insignia</span>
                             </>
                         )}
                         {!logoPreview && (
-                            <div className="absolute inset-0 rounded-full border border-accent-orange/0 group-hover:border-accent-orange/50 scale-110 transition-all duration-500"></div>
+                            <div className="absolute inset-0 rounded-full border border-accent-primary/0 group-hover:border-accent-primary/50 scale-110 transition-all duration-500"></div>
                         )}
                     </div>
                 </div>
@@ -127,7 +127,7 @@ export const Step1Foundation = () => {
                     <div className="pt-8">
                         <button
                             type="submit"
-                            className="w-full bg-accent-orange hover:bg-orange-500 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_20px_rgba(255,107,0,0.3)] hover:shadow-[0_4px_30px_rgba(255,107,0,0.5)] transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 group"
+                            className="w-full bg-accent-primary hover:bg-orange-500 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_20px_rgba(255,107,0,0.3)] hover:shadow-[0_4px_30px_rgba(255,107,0,0.5)] transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 group"
                         >
                             <span className="tracking-widest uppercase text-sm">Establecer Cimientos</span>
                             <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>

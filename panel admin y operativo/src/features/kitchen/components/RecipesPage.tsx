@@ -69,6 +69,10 @@ export const RecipesPage = () => {
         }).format(value);
     };
 
+    const formatQuantity = (value: number | string) => {
+        return Number(value).toString();
+    };
+
     if (view === 'create') {
         return (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -122,14 +126,11 @@ export const RecipesPage = () => {
                             </div>
                         </div>
                     </div>
-                    {/* Edit Button - Premium Design */}
+                    {/* Edit Button - Premium Design (Zapote Theme) */}
                     <button
                         onClick={() => setView('edit')}
-                        className="group relative flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:from-violet-500 hover:to-purple-500 transition-all duration-300 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98]"
+                        className="group relative flex items-center gap-2.5 px-5 py-2.5 bg-card-dark border border-orange-500/30 text-orange-400 rounded-xl hover:bg-orange-500/10 hover:border-orange-500/60 transition-all duration-300 shadow-lg shadow-orange-500/5 hover:shadow-orange-500/20"
                     >
-                        {/* Glow effect */}
-                        <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-400 to-purple-400 opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-300"></span>
-
                         <span className="relative material-symbols-outlined text-[20px] group-hover:rotate-12 transition-transform duration-300">edit</span>
                         <span className="relative font-medium">Editar Receta</span>
 
@@ -163,8 +164,8 @@ export const RecipesPage = () => {
                                         <td className="px-4 py-3 font-medium text-white">
                                             {item.ingredient_name || `Ingrediente ${item.ingredient_id.substring(0, 8)}...`}
                                         </td>
-                                        <td className="px-4 py-3 text-center">
-                                            {item.gross_quantity} {item.measure_unit}
+                                        <td className="px-4 py-3 text-center font-mono text-gray-300">
+                                            {formatQuantity(item.gross_quantity)} {item.measure_unit}
                                         </td>
                                         <td className="px-4 py-3 text-center font-mono text-emerald-400">
                                             {formatCurrency(item.calculated_cost || 0)}
@@ -198,7 +199,7 @@ export const RecipesPage = () => {
                     </button>
                     <button
                         onClick={() => setView('create')}
-                        className="flex items-center gap-2 px-4 py-2 bg-accent-orange text-white rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+                        className="flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
                     >
                         <span className="material-symbols-outlined">add</span>
                         Nueva Receta

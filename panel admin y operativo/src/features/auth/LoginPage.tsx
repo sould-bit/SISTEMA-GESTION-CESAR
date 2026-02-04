@@ -116,8 +116,8 @@ export const LoginPage = () => {
         return (
             <AuthLayout>
                 <div className="flex flex-col items-center mb-8 text-center">
-                    <div className="h-14 w-14 bg-gradient-to-br from-card-dark to-bg-deep border border-border-dark rounded-xl flex items-center justify-center shadow-xl shadow-accent-orange/10 mb-3">
-                        <span className="material-symbols-outlined text-3xl text-accent-orange">domain</span>
+                    <div className="h-14 w-14 bg-gradient-to-br from-card-dark to-bg-deep border border-border-dark rounded-xl flex items-center justify-center shadow-xl shadow-accent-primary/10 mb-3">
+                        <span className="material-symbols-outlined text-3xl text-accent-primary">domain</span>
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight text-white">Elige tu destino</h1>
                     <p className="text-text-muted text-sm mt-1">Tu email está asociado a varias empresas.</p>
@@ -130,10 +130,10 @@ export const LoginPage = () => {
                                 key={opt.slug}
                                 onClick={() => handleCompanySelect(opt.slug)}
                                 disabled={loading}
-                                className="w-full flex items-center justify-between p-4 bg-bg-deep border border-border-dark hover:border-accent-orange/50 hover:bg-white/5 rounded-xl transition-all group"
+                                className="w-full flex items-center justify-between p-4 bg-bg-deep border border-border-dark hover:border-accent-primary/50 hover:bg-white/5 rounded-xl transition-all group"
                             >
                                 <div className="flex flex-col items-start">
-                                    <span className="font-bold text-white group-hover:text-accent-orange transition-colors">{opt.name}</span>
+                                    <span className="font-bold text-white group-hover:text-accent-primary transition-colors">{opt.name}</span>
                                     <span className="text-xs text-text-muted uppercase tracking-wider">{opt.role}</span>
                                 </div>
                                 <span className="material-symbols-outlined text-text-muted group-hover:translate-x-1 transition-transform">arrow_forward_ios</span>
@@ -156,8 +156,8 @@ export const LoginPage = () => {
     return (
         <AuthLayout>
             <div className="flex flex-col items-center mb-8 text-center">
-                <div className="h-14 w-14 bg-gradient-to-br from-card-dark to-bg-deep border border-border-dark rounded-xl flex items-center justify-center shadow-xl shadow-accent-orange/10 mb-3">
-                    <span className="material-symbols-outlined text-3xl text-accent-orange">restaurant_menu</span>
+                <div className="h-14 w-14 bg-gradient-to-br from-card-dark to-bg-deep border border-border-dark rounded-xl flex items-center justify-center shadow-xl shadow-accent-primary/10 mb-3">
+                    <span className="material-symbols-outlined text-3xl text-accent-primary">restaurant_menu</span>
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight text-white">Bienvenido de nuevo</h1>
                 <p className="text-text-muted text-sm mt-1">Ingresa a tu panel de control</p>
@@ -181,7 +181,7 @@ export const LoginPage = () => {
                             </div>
                             <input
                                 {...register('email')}
-                                className="block w-full pl-10 pr-3 py-2.5 bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all sm:text-sm"
+                                className="block w-full pl-10 pr-3 py-2.5 bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all sm:text-sm"
                                 id="email"
                                 placeholder="tu@email.com"
                                 type="email"
@@ -201,7 +201,7 @@ export const LoginPage = () => {
                             </div>
                             <input
                                 {...register('password')}
-                                className="block w-full pl-10 pr-3 py-2.5 bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-accent-orange focus:ring-1 focus:ring-accent-orange transition-all sm:text-sm"
+                                className="block w-full pl-10 pr-3 py-2.5 bg-bg-deep border border-border-dark rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all sm:text-sm"
                                 id="password"
                                 placeholder="••••••••"
                                 type="password"
@@ -217,14 +217,14 @@ export const LoginPage = () => {
                                 {...register('remember')}
                                 id="remember-me"
                                 type="checkbox"
-                                className="h-4 w-4 text-accent-orange focus:ring-accent-orange border-border-dark rounded bg-bg-deep"
+                                className="h-4 w-4 text-accent-primary focus:ring-accent-primary border-border-dark rounded bg-bg-deep"
                             />
                             <label htmlFor="remember-me" className="ml-2 block text-sm text-text-muted">
                                 Recordarme
                             </label>
                         </div>
                         <div className="text-sm">
-                            <a href="#" className="font-medium text-accent-orange hover:text-orange-400 transition-colors">
+                            <a href="#" className="font-medium text-accent-primary hover:text-orange-400 transition-colors">
                                 ¿Olvidaste tu contraseña?
                             </a>
                         </div>
@@ -233,7 +233,7 @@ export const LoginPage = () => {
                     <button
                         disabled={loading}
                         type="submit"
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-accent-orange hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-orange focus:ring-offset-bg-deep transition-all transform hover:scale-[1.01] uppercase tracking-wide disabled:opacity-50"
+                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-accent-primary hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-primary focus:ring-offset-bg-deep transition-all transform hover:scale-[1.01] uppercase tracking-wide disabled:opacity-50"
                     >
                         {loading ? 'Iniciando...' : 'Iniciar Sesión'}
                     </button>
@@ -241,7 +241,7 @@ export const LoginPage = () => {
                     <div className="mt-8 text-center">
                         <p className="text-text-muted text-sm">
                             ¿Nueva franquicia?{' '}
-                            <a href="/genesis" className="text-accent-orange hover:text-orange-400 font-bold transition-colors">
+                            <a href="/genesis" className="text-accent-primary hover:text-orange-400 font-bold transition-colors">
                                 Inicializar Protocolo Génesis
                             </a>
                         </p>

@@ -60,13 +60,13 @@ export const OnboardingGuide = () => {
 
     return (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full animate-slide-in-right">
-            <div className="bg-[#1A1F2E] border border-accent-orange/30 p-6 rounded-2xl shadow-2xl relative overflow-hidden backdrop-blur-xl">
+            <div className="bg-[#1A1F2E] border border-accent-primary/30 p-6 rounded-2xl shadow-2xl relative overflow-hidden backdrop-blur-xl">
                 {/* Glow effect */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-accent-orange/10 rounded-full blur-2xl -mr-16 -mt-16 pointer-events-none"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-accent-primary/10 rounded-full blur-2xl -mr-16 -mt-16 pointer-events-none"></div>
 
                 <div className="flex items-start gap-4 mb-4 relative z-10">
-                    <div className="size-12 rounded-xl bg-accent-orange/20 flex items-center justify-center shrink-0 border border-accent-orange/20">
-                        <span className="material-symbols-outlined text-accent-orange text-2xl">
+                    <div className="size-12 rounded-xl bg-accent-primary/20 flex items-center justify-center shrink-0 border border-accent-primary/20">
+                        <span className="material-symbols-outlined text-accent-primary text-2xl">
                             {currentConfig.icon}
                         </span>
                     </div>
@@ -89,7 +89,7 @@ export const OnboardingGuide = () => {
                     </button>
                     <button
                         onClick={currentConfig.action}
-                        className="px-5 py-2 bg-accent-orange hover:bg-orange-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-orange-500/20 transition-all flex items-center gap-2"
+                        className="px-5 py-2 bg-accent-primary hover:bg-orange-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-orange-500/20 transition-all flex items-center gap-2"
                     >
                         {currentConfig.actionText}
                         <span className="material-symbols-outlined text-base">arrow_forward</span>

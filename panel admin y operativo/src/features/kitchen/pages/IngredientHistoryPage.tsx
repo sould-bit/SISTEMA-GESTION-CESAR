@@ -131,7 +131,7 @@ export const IngredientHistoryPage = () => {
                 <div className="px-6 py-4 border-b border-border-dark flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-white">Lotes de Compra Activos</h3>
                     <div className="text-sm text-text-muted">
-                        Método: <span className="text-accent-orange font-bold">FIFO</span> (Primero en entrar, primero en salir)
+                        Método: <span className="text-accent-primary font-bold">FIFO</span> (Primero en entrar, primero en salir)
                     </div>
                 </div>
                 <div className="overflow-x-auto">
