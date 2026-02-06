@@ -1,23 +1,46 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import { LoginPage } from '../features/auth/LoginPage';
 
-import { GenesisPage } from '../features/genesis/GenesisPage';
+// Layout & Core
 import { MainLayout } from '../components/layout/MainLayout';
 import { ErrorPage } from '../components/ErrorPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PermissionGuard } from './PermissionGuard';
-import { DashboardPage } from '../features/admin/DashboardPage';
-import { InventoryPage } from '../features/admin/InventoryPage';
-import { OrdersPage } from '../features/admin/OrdersPage';
-import { CreateOrderPage } from '../features/admin/CreateOrderPage';
-import { TablesPage } from '../features/tables/TablesPage';
 
-// Kitchen Module (V4.1 - Recetas Vivas)
-import { IngredientManager, RecipesPage, MenuMatrix, RecipeManagerV2 } from '../features/kitchen';
-import { IngredientHistoryPage } from '../features/kitchen/pages/IngredientHistoryPage';
-import { UnifiedSetupPage } from '../features/setup/UnifiedSetupPage';
-import { StaffPage } from '../features/staff/StaffPage';
-import { BranchesPage } from '../features/branches/BranchesPage';
+// Loading Component
+const PageLoader = () => (
+    <div className="flex-1 flex items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-4">
+            <div className="size-10 border-4 border-accent-primary/20 border-t-accent-primary rounded-full animate-spin"></div>
+            <p className="text-xs font-bold text-accent-primary uppercase tracking-widest animate-pulse">Cargando módulo...</p>
+        </div>
+    </div>
+);
+
+// Lazy Loaded Features
+const LoginPage = lazy(() => import('../features/auth/LoginPage').then(m => ({ default: m.LoginPage })));
+const GenesisPage = lazy(() => import('../features/genesis/GenesisPage').then(m => ({ default: m.GenesisPage })));
+const DashboardPage = lazy(() => import('../features/admin/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const InventoryPage = lazy(() => import('../features/admin/InventoryPage').then(m => ({ default: m.InventoryPage })));
+const OrdersPage = lazy(() => import('../features/admin/OrdersPage').then(m => ({ default: m.OrdersPage })));
+const CreateOrderPage = lazy(() => import('../features/admin/CreateOrderPage').then(m => ({ default: m.CreateOrderPage })));
+const TablesPage = lazy(() => import('../features/tables/TablesPage').then(m => ({ default: m.TablesPage })));
+const StaffPage = lazy(() => import('../features/staff/StaffPage').then(m => ({ default: m.StaffPage })));
+const BranchesPage = lazy(() => import('../features/branches/BranchesPage').then(m => ({ default: m.BranchesPage })));
+const UnifiedSetupPage = lazy(() => import('../features/setup/UnifiedSetupPage').then(m => ({ default: m.UnifiedSetupPage })));
+
+// Kitchen Module
+const IngredientManager = lazy(() => import('../features/kitchen').then(m => ({ default: m.IngredientManager })));
+const RecipesPage = lazy(() => import('../features/kitchen').then(m => ({ default: m.RecipesPage })));
+const MenuMatrix = lazy(() => import('../features/kitchen').then(m => ({ default: m.MenuMatrix })));
+const RecipeManagerV2 = lazy(() => import('../features/kitchen').then(m => ({ default: m.RecipeManagerV2 })));
+const IngredientHistoryPage = lazy(() => import('../features/kitchen/pages/IngredientHistoryPage').then(m => ({ default: m.IngredientHistoryPage })));
+
+const SuspenseWrapper = ({ children }: { children: React.ReactNode }) => (
+    <Suspense fallback={<PageLoader />}>
+        {children}
+    </Suspense>
+);
 
 export const router = createBrowserRouter([
     {
@@ -31,12 +54,11 @@ export const router = createBrowserRouter([
             },
             {
                 path: 'login',
-                element: <LoginPage />,
+                element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
             },
-
             {
                 path: 'genesis',
-                element: <GenesisPage />
+                element: <SuspenseWrapper><GenesisPage /></SuspenseWrapper>
             },
             {
                 path: 'admin',
@@ -51,57 +73,55 @@ export const router = createBrowserRouter([
                             },
                             {
                                 path: 'dashboard',
-                                element: <DashboardPage />
+                                element: <SuspenseWrapper><DashboardPage /></SuspenseWrapper>
                             },
                             {
                                 path: 'inventory',
                                 element: <PermissionGuard requiredPermission="inventory.read" />,
                                 children: [
-                                    { index: true, element: <InventoryPage /> }
+                                    { index: true, element: <SuspenseWrapper><InventoryPage /></SuspenseWrapper> }
                                 ]
                             },
                             {
                                 path: 'tables',
                                 element: <PermissionGuard requiredPermission="orders.read" />,
                                 children: [
-                                    { index: true, element: <TablesPage /> }
+                                    { index: true, element: <SuspenseWrapper><TablesPage /></SuspenseWrapper> }
                                 ]
                             },
                             {
                                 path: 'orders',
                                 element: <PermissionGuard requiredPermission="orders.read" />,
                                 children: [
-                                    { index: true, element: <OrdersPage /> },
-                                    { path: 'new', element: <CreateOrderPage /> }
+                                    { index: true, element: <SuspenseWrapper><OrdersPage /></SuspenseWrapper> },
+                                    { path: 'new', element: <SuspenseWrapper><CreateOrderPage /></SuspenseWrapper> }
                                 ]
                             },
                             {
                                 path: 'setup',
                                 element: <PermissionGuard requiredPermission="settings.read" />,
                                 children: [
-                                    { index: true, element: <UnifiedSetupPage /> }
+                                    { index: true, element: <SuspenseWrapper><UnifiedSetupPage /></SuspenseWrapper> }
                                 ]
                             },
                             {
                                 path: 'staff',
                                 element: <PermissionGuard requiredPermission="users.read" />,
                                 children: [
-                                    { index: true, element: <StaffPage /> }
+                                    { index: true, element: <SuspenseWrapper><StaffPage /></SuspenseWrapper> }
                                 ]
                             },
                             {
                                 path: 'branches',
                                 element: <PermissionGuard requiredPermission="branches.read" />,
                                 children: [
-                                    { index: true, element: <BranchesPage /> }
+                                    { index: true, element: <SuspenseWrapper><BranchesPage /></SuspenseWrapper> }
                                 ]
                             }
                         ]
                     }
                 ]
             },
-
-            // Kitchen Routes (V4.1 - Cocina & Menú)
             {
                 path: 'kitchen',
                 element: <ProtectedRoute />,
@@ -115,26 +135,24 @@ export const router = createBrowserRouter([
                             },
                             {
                                 path: 'ingredients',
-                                element: <IngredientManager />
+                                element: <SuspenseWrapper><IngredientManager /></SuspenseWrapper>
                             },
                             {
                                 path: 'ingredients/:id/history',
-                                element: <IngredientHistoryPage />
+                                element: <SuspenseWrapper><IngredientHistoryPage /></SuspenseWrapper>
                             },
                             {
                                 path: 'recipes',
-                                element: <RecipesPage />
+                                element: <SuspenseWrapper><RecipesPage /></SuspenseWrapper>
                             },
                             {
                                 path: 'recipes-v2',
-                                element: <RecipeManagerV2 />
+                                element: <SuspenseWrapper><RecipeManagerV2 /></SuspenseWrapper>
                             },
                             {
                                 path: 'menu-engineering',
-                                element: <MenuMatrix />
+                                element: <SuspenseWrapper><MenuMatrix /></SuspenseWrapper>
                             },
-
-
                         ]
                     }
                 ]

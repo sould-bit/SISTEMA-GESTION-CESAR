@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ModifierModal } from './ModifierModal';
+import { DeliveryInfoForm } from './DeliveryInfoForm';
 import { setupService, Product, Category, ProductModifier } from '../setup/setup.service';
 import { api } from '../../lib/api';
 
@@ -17,7 +18,7 @@ interface OrderItem {
 export const CreateOrderPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { tableId, tableNumber, branchId } = location.state || {};
+    const { tableId, tableNumber, branchId, deliveryType } = location.state || {};
 
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -39,6 +40,16 @@ export const CreateOrderPage = () => {
     const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
     const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
     const [generalComment, setGeneralComment] = useState('');
+
+    // Delivery Info State
+    const [deliveryDetails, setDeliveryDetails] = useState({
+        customer_name: '',
+        customer_phone: '',
+        delivery_address: '',
+        delivery_notes: ''
+    });
+    const [formErrors, setFormErrors] = useState<Partial<Record<string, string>>>({});
+    const [cartStep, setCartStep] = useState<'items' | 'info'>('items');
 
     const toggleProduct = (productId: number) => {
         setExpandedProductIds(prev => {
@@ -192,6 +203,9 @@ export const CreateOrderPage = () => {
                 comment: comment
             }];
         });
+
+        // Auto switch back to items tab if adding from mobile search while in info step
+        if (cartStep === 'info') setCartStep('items');
     };
 
     const handleUpdateQuantity = (index: number, delta: number) => {
@@ -295,20 +309,51 @@ export const CreateOrderPage = () => {
 
     const handleSubmit = async () => {
         if (orderItems.length === 0) return;
+
+        // Validation for Info Step
+        if (cartStep === 'items') {
+            setCartStep('info');
+            return;
+        }
+
+        // Validation for Delivery
+        if (deliveryType === 'delivery') {
+            const errors: any = {};
+            if (!deliveryDetails.customer_name.trim()) errors.customer_name = 'El nombre es obligatorio';
+            if (!deliveryDetails.customer_phone.trim()) errors.customer_phone = 'El teléfono es obligatorio';
+            if (!deliveryDetails.delivery_address.trim()) errors.delivery_address = 'La dirección es obligatoria';
+
+            if (Object.keys(errors).length > 0) {
+                setFormErrors(errors);
+                // Scroll to form or show toast
+                alert('Por favor completa todos los datos de entrega');
+                return;
+            }
+        }
+
         setIsSubmitting(true);
+        setFormErrors({});
 
         try {
             const payload = {
                 branch_id: branchId || 1,
                 table_id: tableId,
+                delivery_type: deliveryType || 'dine_in',
                 items: orderItems.map(item => ({
                     product_id: item.product_id,
                     quantity: item.quantity,
                     modifiers: item.modifiers,
-                    removed_ingredients: item.removed_ingredients, // Should be supported by backend now
-                    notes: item.comment // Passing item comment here
+                    removed_ingredients: item.removed_ingredients,
+                    notes: item.comment
                 })),
-                notes: generalComment  // Passing general order comment
+
+                // Delivery Fields
+                delivery_customer_name: deliveryDetails.customer_name,
+                delivery_customer_phone: deliveryDetails.customer_phone,
+                delivery_address: deliveryDetails.delivery_address,
+                delivery_notes: deliveryDetails.delivery_notes,
+
+                notes: generalComment
             };
 
             await api.post('/orders/', payload);
@@ -328,56 +373,67 @@ export const CreateOrderPage = () => {
     );
 
     return (
-        <div className="h-[calc(100vh-80px)] flex flex-col min-w-0 transition-all duration-300">
-            {/* Header / Table Info */}
-            <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">Nueva Orden</h1>
-                    <div className="flex items-center gap-2">
-                        {tableNumber && (
-                            <span className="bg-accent-primary/10 text-accent-primary px-2 py-0.5 rounded text-sm font-bold border border-accent-primary/20">
-                                Mesa {tableNumber}
+        <div className="h-[calc(100vh-80px)] flex flex-col lg:flex-row gap-4 lg:gap-6 min-w-0 transition-all duration-300">
+            {/* Left Panel: Header + Mobile Tabs + Product List */}
+            <div className={`flex-1 flex flex-col min-w-0 h-full ${activeTab === 'cart' ? 'hidden lg:flex' : 'flex'} lg:pr-[440px] xl:pr-[480px] 2xl:pr-[520px]`}>
+                {/* Header / Table Info */}
+                <div className="flex justify-between items-center mb-4 shrink-0">
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">Nueva Orden</h1>
+                        <div className="flex items-center gap-2">
+                            {deliveryType === 'takeaway' ? (
+                                <span className="bg-accent-secondary/10 text-accent-secondary px-2 py-0.5 rounded text-sm font-bold border border-accent-secondary/20">
+                                    Para Llevar
+                                </span>
+                            ) : deliveryType === 'delivery' ? (
+                                <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-sm font-bold border border-blue-500/20">
+                                    Domicilio
+                                </span>
+                            ) : tableNumber ? (
+                                <span className="bg-accent-primary/10 text-accent-primary px-2 py-0.5 rounded text-sm font-bold border border-accent-primary/20">
+                                    Mesa {tableNumber}
+                                </span>
+                            ) : null}
+                            <span className="text-text-muted text-xs font-medium uppercase tracking-wider">
+                                {deliveryType === 'takeaway' ? 'Pick-up' : deliveryType === 'delivery' ? 'Delivery' : 'Dine-in'}
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => navigate('/admin/tables')}
+                        className="p-2 text-text-muted hover:text-white transition-colors"
+                    >
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                {/* Mobile/Tablet Tab Switcher (Visible only on screens smaller than large tablets/desktop) */}
+                <div className="flex lg:hidden bg-card-dark p-1 rounded-xl border border-border-dark mb-4 shrink-0">
+                    <button
+                        onClick={() => setActiveTab('menu')}
+                        className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'menu' ? 'bg-accent-primary text-bg-dark' : 'text-text-muted'}`}
+                    >
+                        <span className="material-symbols-outlined text-[20px]">restaurant_menu</span>
+                        Menú
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('cart')}
+                        className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 relative ${activeTab === 'cart' ? 'bg-accent-primary text-bg-dark' : 'text-text-muted'}`}
+                    >
+                        <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
+                        Pedido
+                        {orderItems.length > 0 && (
+                            <span className={`absolute -top-1 -right-1 size-5 rounded-full flex items-center justify-center text-[10px] font-bold border ${activeTab === 'cart' ? 'bg-bg-dark text-accent-primary border-bg-dark' : 'bg-accent-primary text-bg-dark border-bg-dark'}`}>
+                                {orderItems.reduce((acc, curr) => acc + curr.quantity, 0)}
                             </span>
                         )}
-                        <span className="text-text-muted text-xs font-medium">Dine-in</span>
-                    </div>
+                    </button>
                 </div>
-                <button
-                    onClick={() => navigate('/admin/tables')}
-                    className="p-2 text-text-muted hover:text-white transition-colors"
-                >
-                    <span className="material-symbols-outlined">close</span>
-                </button>
-            </div>
 
-            {/* Mobile/Tablet Tab Switcher (Visible only on screens smaller than large tablets/desktop) */}
-            <div className="flex lg:hidden bg-card-dark p-1 rounded-xl border border-border-dark mb-4">
-                <button
-                    onClick={() => setActiveTab('menu')}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'menu' ? 'bg-accent-primary text-bg-dark' : 'text-text-muted'}`}
-                >
-                    <span className="material-symbols-outlined text-[20px]">restaurant_menu</span>
-                    Menú
-                </button>
-                <button
-                    onClick={() => setActiveTab('cart')}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 relative ${activeTab === 'cart' ? 'bg-accent-primary text-bg-dark' : 'text-text-muted'}`}
-                >
-                    <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
-                    Pedido
-                    {orderItems.length > 0 && (
-                        <span className={`absolute -top-1 -right-1 size-5 rounded-full flex items-center justify-center text-[10px] font-bold border ${activeTab === 'cart' ? 'bg-bg-dark text-accent-primary border-bg-dark' : 'bg-accent-primary text-bg-dark border-bg-dark'}`}>
-                            {orderItems.reduce((acc, curr) => acc + curr.quantity, 0)}
-                        </span>
-                    )}
-                </button>
-            </div>
-
-            <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0">
                 {/* Product List Section */}
-                <div className={`flex-1 flex flex-col min-w-0 ${activeTab === 'cart' ? 'hidden lg:flex' : 'flex'}`}>
+                <div className="flex-1 flex flex-col min-h-0">
                     {/* Filters (Search + Categories) */}
-                    <div className="space-y-3 mb-4">
+                    <div className="space-y-3 mb-4 shrink-0">
                         <div className="relative group">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-muted group-focus-within:text-accent-primary transition-colors text-[20px]">search</span>
                             <input
@@ -409,14 +465,14 @@ export const CreateOrderPage = () => {
                     </div>
 
                     {/* Menu Grid */}
-                    <div className="flex-1 overflow-y-auto px-2 pb-6">
+                    <div className="flex-1 overflow-y-auto px-1 pb-6 min-h-0">
                         {filteredProducts.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-40 text-text-muted opacity-50">
                                 <span className="material-symbols-outlined text-4xl mb-2">sentiment_dissatisfied</span>
                                 <p className="text-sm">No se encontraron productos</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                                 {filteredProducts.map(product => {
                                     const recipe = getRecipeForProduct(product.id);
                                     // Cart qty logic: Count total items with this product ID regardless of mods
@@ -520,33 +576,53 @@ export const CreateOrderPage = () => {
                         )}
                     </div>
                 </div>
+            </div>
 
-                {/* Summary Section - Always visible on Large Tablet Landscape and Desktop */}
-                <div className={`lg:w-[340px] xl:w-[400px] flex flex-col min-h-0 bg-card-dark lg:rounded-2xl border-x lg:border border-border-dark shadow-2xl relative ${activeTab === 'menu' ? 'hidden lg:flex' : 'flex flex-1'}`}>
-                    <div className="p-4 border-b border-border-dark flex justify-between items-center bg-bg-deep/30">
+            {/* Right Panel: Cart / Summary (Full Height Floating on Desktop) */}
+            <div className={`flex flex-col min-h-0 bg-card-dark border-border-dark shadow-2xl relative ${activeTab === 'menu' ? 'hidden lg:flex' : 'flex flex-1'} lg:fixed lg:top-4 lg:right-4 lg:bottom-4 lg:w-[420px] xl:w-[460px] 2xl:w-[500px] lg:rounded-2xl lg:border lg:z-50`}>
+                <div className="p-4 border-b border-border-dark flex justify-between items-center bg-bg-deep/30 shrink-0">
+                    <div className="flex items-center gap-3">
+                        {cartStep === 'info' && (
+                            <button
+                                onClick={() => setCartStep('items')}
+                                className="p-1.5 hover:bg-white/5 rounded-lg text-accent-primary transition-colors"
+                            >
+                                <span className="material-symbols-outlined">arrow_back</span>
+                            </button>
+                        )}
                         <div>
-                            <h3 className="font-bold text-white text-base">Carrito</h3>
-                            <p className="text-[10px] text-text-muted">Revisa los items antes de confirmar</p>
+                            <h3 className="font-bold text-white text-base">
+                                {cartStep === 'items' ? 'Carrito' : 'Finalizar Pedido'}
+                            </h3>
+                            <p className="text-[10px] text-text-muted">
+                                {cartStep === 'items'
+                                    ? 'Revisa los items antes de confirmar'
+                                    : 'Completa los datos de entrega y comentarios'
+                                }
+                            </p>
                         </div>
-                        <span className="text-xs font-mono text-accent-primary bg-accent-primary/10 px-2 py-1 rounded-lg">
-                            {orderItems.length} items
-                        </span>
                     </div>
+                    <span className="text-xs font-mono text-accent-primary bg-accent-primary/10 px-2 py-1 rounded-lg">
+                        {orderItems.length} items
+                    </span>
+                </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {orderItems.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-text-muted opacity-30 gap-3 py-12">
-                                <span className="material-symbols-outlined text-6xl">shopping_basket</span>
-                                <p className="text-sm font-medium">No hay productos aún</p>
-                            </div>
-                        ) : (
-                            orderItems.map((item, idx) => {
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {orderItems.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-text-muted opacity-30 gap-3 py-12">
+                            <span className="material-symbols-outlined text-6xl">shopping_basket</span>
+                            <p className="text-sm font-medium">No hay productos aún</p>
+                        </div>
+                    ) : cartStep === 'items' ? (
+                        // STEP 1: REVIEW ITEMS
+                        <div className="space-y-4 animate-in fade-in slide-in-from-left-2 duration-300">
+                            {orderItems.map((item, idx) => {
                                 const recipe = getRecipeForProduct(item.product_id);
                                 const removedNames = getRemovedNames(item.removed_ingredients || [], recipe);
                                 const modsTotal = getModifiersTotal(item.modifiers || []);
 
                                 return (
-                                    <div key={`${item.product_id}-${idx}`} className="flex justify-between items-start gap-3 group animate-in slide-in-from-right-2 duration-300 border-b border-border-dark/30 pb-3 last:border-0 last:pb-0">
+                                    <div key={`${item.product_id}-${idx}`} className="flex justify-between items-start gap-3 group border-b border-border-dark/30 pb-3 last:border-0 last:pb-0">
                                         <div
                                             className="flex-1 min-w-0 cursor-pointer hover:bg-white/5 p-2 -m-2 rounded-lg transition-colors group/edit"
                                             onClick={() => handleEditCartItem(idx)}
@@ -605,59 +681,90 @@ export const CreateOrderPage = () => {
                                         </div>
                                     </div>
                                 );
-                            })
-                        )}
-                    </div>
-
-                    {/* Total & Confirm - Stick to bottom */}
-                    <div className="p-4 border-t border-border-dark bg-bg-deep/80 backdrop-blur-md space-y-4">
-                        {/* General Comment Input */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] text-text-muted uppercase tracking-widest font-bold ml-1">Comentario General</label>
-                            <textarea
-                                value={generalComment}
-                                onChange={(e) => setGeneralComment(e.target.value)}
-                                placeholder="Ej: Para llevar, Cubiertos, etc..."
-                                className="w-full bg-bg-deep border border-border-dark rounded-xl p-2.5 text-xs text-white placeholder-text-muted/50 focus:outline-none focus:border-accent-primary transition-colors resize-none h-16"
-                            />
+                            })}
                         </div>
-
-                        <div className="flex justify-between items-center px-1">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Total a pagar</span>
-                                <span className="text-2xl font-black text-white leading-none">{formatPrice(calculateTotal())}</span>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Impuestos incl.</span>
-                                <p className="text-xs text-status-success font-medium">Mesa lista para pedir</p>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleSubmit}
-                            disabled={orderItems.length === 0 || isSubmitting}
-                            className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-2xl relative overflow-hidden group
-                                ${orderItems.length === 0 || isSubmitting
-                                    ? 'bg-border-dark text-text-muted cursor-not-allowed opacity-50'
-                                    : 'bg-accent-primary text-bg-dark hover:brightness-110 active:scale-[0.98] shadow-accent-primary/30'}
-                            `}
-                        >
-                            {isSubmitting ? (
-                                <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                            ) : (
-                                <>
-                                    <span className="material-symbols-outlined group-hover:scale-125 transition-transform">check_circle</span>
-                                    Confirmar Orden
-                                </>
+                    ) : (
+                        // STEP 2: FINALIZE (DELIVERY + COMMENTS)
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                            {/* Delivery Customer Info */}
+                            {deliveryType === 'delivery' && (
+                                <DeliveryInfoForm
+                                    value={deliveryDetails}
+                                    onChange={setDeliveryDetails}
+                                    errors={formErrors}
+                                />
                             )}
 
-                            {/* Pulse effect overlay when enabled */}
-                            {!isSubmitting && orderItems.length > 0 && (
-                                <span className="absolute inset-0 bg-white/10 animate-pulse pointer-events-none"></span>
-                            )}
-                        </button>
-                    </div>
+                            {/* General Comment Input */}
+                            <div className="space-y-2 px-1">
+                                <div className="flex items-center gap-2 text-[10px] text-text-muted uppercase tracking-widest font-bold mb-1">
+                                    <span className="material-symbols-outlined text-[16px]">sticky_note_2</span>
+                                    Comentario General del Pedido
+                                </div>
+                                <textarea
+                                    value={generalComment}
+                                    onChange={(e) => setGeneralComment(e.target.value)}
+                                    placeholder="Ej: Por favor cubiertos, sin servilletas, etc..."
+                                    className="w-full bg-bg-deep border border-border-dark rounded-xl p-3 text-xs text-white placeholder-text-muted/50 focus:outline-none focus:border-accent-primary transition-colors resize-none h-24 shadow-inner"
+                                />
+                            </div>
+
+                            <div className="bg-accent-primary/5 p-4 rounded-xl border border-accent-primary/20">
+                                <h4 className="text-[10px] text-accent-primary uppercase tracking-widest font-black mb-2">Resumen de Cuenta</h4>
+                                <div className="flex justify-between items-center text-white font-bold">
+                                    <span className="text-xs">Subtotal ({orderItems.length} items)</span>
+                                    <span className="text-sm font-mono">{formatPrice(calculateTotal())}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-text-muted mt-1 text-[10px]">
+                                    <span>Propinas / Otros</span>
+                                    <span>A definir</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* Total & Confirm - Stick to bottom */}
+                <div className="p-4 border-t border-border-dark bg-bg-deep/80 backdrop-blur-md space-y-4">
+                    <div className="flex justify-between items-center px-1">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Total a pagar</span>
+                            <span className="text-2xl font-black text-white leading-none">{formatPrice(calculateTotal())}</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Impuestos incl.</span>
+                            <p className="text-xs text-status-success font-medium">
+                                {cartStep === 'items' ? 'Verificando productos...' : 'Listo para enviar'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleSubmit}
+                        disabled={orderItems.length === 0 || isSubmitting}
+                        className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-2xl relative overflow-hidden group
+                            ${orderItems.length === 0 || isSubmitting
+                                ? 'bg-border-dark text-text-muted cursor-not-allowed opacity-50'
+                                : 'bg-accent-primary text-bg-dark hover:brightness-110 active:scale-[0.98] shadow-accent-primary/30'}
+                        `}
+                    >
+                        {isSubmitting ? (
+                            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined group-hover:scale-125 transition-transform">
+                                    {cartStep === 'items' ? 'arrow_forward' : 'check_circle'}
+                                </span>
+                                {cartStep === 'items' ? 'Continuar' : 'Confirmar Orden'}
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {/* Pulse effect overlay when enabled */}
+                {!isSubmitting && orderItems.length > 0 && (
+                    <span className="absolute inset-0 bg-white/10 animate-pulse pointer-events-none"></span>
+                )}
             </div>
 
             {/* Floating Category Menu (Mobile Only) - Bottom Right FAB Style */}
@@ -669,7 +776,8 @@ export const CreateOrderPage = () => {
                         onClick={() => setIsCategoryMenuOpen(false)}
                         style={{ zIndex: -1 }}
                     />
-                )}
+                )
+                }
 
                 {/* Categories List (Expands Upwards) */}
                 <div className={`flex flex-col items-end gap-2 transition-all duration-300 origin-bottom pointer-events-auto pb-1 ${isCategoryMenuOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-90 pointer-events-none'}`}>
@@ -691,40 +799,42 @@ export const CreateOrderPage = () => {
                         ))}
                     </div>
                 </div>
+            </div>
 
-                {/* Main FAB Toggle with Active Category Indicator */}
-                <div className="flex items-center gap-3 pointer-events-auto">
-                    {!isCategoryMenuOpen && selectedCategoryId !== 'all' && (
-                        <div className="bg-accent-primary/90 backdrop-blur-md text-bg-dark font-black text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-lg animate-in slide-in-from-right-8 fade-in duration-300 border border-white/10">
-                            {categories.find(c => c.id === selectedCategoryId)?.name}
-                        </div>
-                    )}
+            {/* Main FAB Toggle with Active Category Indicator */}
+            <div className="flex items-center gap-3 pointer-events-auto">
+                {!isCategoryMenuOpen && selectedCategoryId !== 'all' && (
+                    <div className="bg-accent-primary/90 backdrop-blur-md text-bg-dark font-black text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-lg animate-in slide-in-from-right-8 fade-in duration-300 border border-white/10">
+                        {categories.find(c => c.id === selectedCategoryId)?.name}
+                    </div>
+                )}
 
-                    <button
-                        onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
-                        className={`size-12 rounded-2xl backdrop-blur-md shadow-2xl flex items-center justify-center transition-all active:scale-90 border border-white/10 ${isCategoryMenuOpen ? 'bg-accent-primary text-bg-dark' : 'bg-bg-deep/60 text-accent-primary hover:bg-bg-deep'}`}
-                    >
-                        <span className={`material-symbols-outlined transition-transform duration-300 text-[24px] ${isCategoryMenuOpen ? 'rotate-[-90deg]' : 'rotate-0'}`}>
-                            chevron_left
-                        </span>
-                    </button>
-                </div>
+                <button
+                    onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
+                    className={`size-12 rounded-2xl backdrop-blur-md shadow-2xl flex items-center justify-center transition-all active:scale-90 border border-white/10 ${isCategoryMenuOpen ? 'bg-accent-primary text-bg-dark' : 'bg-bg-deep/60 text-accent-primary hover:bg-bg-deep'}`}
+                >
+                    <span className={`material-symbols-outlined transition-transform duration-300 text-[24px] ${isCategoryMenuOpen ? 'rotate-[-90deg]' : 'rotate-0'}`}>
+                        chevron_left
+                    </span>
+                </button>
             </div>
 
             {/* Modal de Modificadores */}
-            {isModalOpen && selectedProductForMod && (
-                <ModifierModal
-                    product={selectedProductForMod}
-                    recipe={getRecipeForProduct(selectedProductForMod.id)}
-                    modifiers={globalModifiers}
-                    initialRemoved={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].removed_ingredients : []}
-                    initialModifiers={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].modifiers : []}
-                    initialComment={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].comment : ''}
-                    onClose={() => { setIsModalOpen(false); setSelectedProductForMod(null); setEditingCartItemIndex(null); }}
-                    onConfirm={handleConfirmModifiers}
-                />
-            )}
-        </div>
+            {
+                isModalOpen && selectedProductForMod && (
+                    <ModifierModal
+                        product={selectedProductForMod}
+                        recipe={getRecipeForProduct(selectedProductForMod.id)}
+                        modifiers={globalModifiers}
+                        initialRemoved={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].removed_ingredients : []}
+                        initialModifiers={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].modifiers : []}
+                        initialComment={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].comment : ''}
+                        onClose={() => { setIsModalOpen(false); setSelectedProductForMod(null); setEditingCartItemIndex(null); }}
+                        onConfirm={handleConfirmModifiers}
+                    />
+                )
+            }
+        </div >
     );
 };
 

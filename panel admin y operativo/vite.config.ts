@@ -18,4 +18,16 @@ export default defineConfig({
             "@": fileURLToPath(new URL("./src", import.meta.url)),
         },
     },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    'vendor-state': ['@reduxjs/toolkit', 'react-redux', '@tanstack/react-query'],
+                    'vendor-utils': ['axios', 'date-fns', 'zod', 'socket.io-client'],
+                }
+            }
+        },
+        chunkSizeWarningLimit: 1000,
+    }
 })
