@@ -17,6 +17,8 @@ class ProductModifierBase(BaseModel):
     extra_price: Decimal = Decimal("0.00")
     is_active: bool = True
 
+    model_config = ConfigDict(from_attributes=True)
+
 # --- Create Schemas ---
 class ModifierRecipeItemCreate(ModifierRecipeItemBase):
     pass

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSetupData } from './hooks/useSetupData';
 import { useProductForm } from './hooks/useProductForm';
 import { SetupNavigation } from './components/SetupNavigation';
@@ -23,6 +24,18 @@ export const UnifiedSetupPage = () => {
     // --- Selection State ---
     const [selectedCategory, setSelectedCategory] = useState<any>(null);
     const [recipeItems, setRecipeItems] = useState<RecipeItemRow[]>([]);
+
+    // --- URL Params ---
+    const [searchParams] = useSearchParams();
+    const tabParam = searchParams.get('tab');
+    const subTabParam = searchParams.get('subtab');
+
+    // Sync URL with ViewMode
+    useEffect(() => {
+        if (tabParam && ['INSUMOS', 'PRODUCCION', 'CARTA', 'BEBIDAS', 'EXTRAS'].includes(tabParam)) {
+            setViewMode(tabParam as any);
+        }
+    }, [tabParam, setViewMode]);
 
     // --- Form Logic Hook ---
     const {
@@ -97,6 +110,7 @@ export const UnifiedSetupPage = () => {
                         handleFileChange={handleFileChange}
                         handleSave={saveProduct}
                         onCancel={() => setViewMode('HOME')}
+                        initialView={subTabParam === 'INVENTORY' ? 'INVENTORY' : 'HOME'}
                         isSaving={isSaving}
                         products={products
                             .filter(p => selectedCategory ? p.category_id === selectedCategory.id : false)

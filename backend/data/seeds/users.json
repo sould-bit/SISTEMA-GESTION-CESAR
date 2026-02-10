@@ -39,6 +39,26 @@
       "role_code": "delivery",
       "company_code": "fastops",
       "branch_code": "MAIN"
+    },
+    {
+      "username": "waiter_test",
+      "email": "waiter@test.com",
+      "password": "password123",
+      "full_name": "Waiter Test",
+      "is_active": true,
+      "role_code": "waiter",
+      "company_code": "fastops",
+      "branch_code": "MAIN"
+    },
+    {
+      "username": "admin_test",
+      "email": "admin@test.com",
+      "password": "password123",
+      "full_name": "Admin Test",
+      "is_active": true,
+      "role_code": "admin",
+      "company_code": "fastops",
+      "branch_code": "MAIN"
     }
   ]
 }

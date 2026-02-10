@@ -90,3 +90,4 @@ class OrderItemModifier(SQLModel, table=True):
 
     # Relaciones
     # Nota: Definir relación en OrderItem requiere importar este modelo allá.
+    modifier: "ProductModifier" = Relationship()

@@ -1,0 +1,247 @@
+Server initialized for asgi.
+{"timestamp": null, "level": null, "module": "product_service", "message": "\u2705 Redis product cache hook registrado", "taskName": null}
+============================= test session starts ==============================
+platform linux -- Python 3.12.4, pytest-8.3.0, pluggy-1.6.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pytest.ini
+plugins: Faker-33.1.0, anyio-4.12.1, asyncio-0.24.0, cov-7.0.0
+asyncio: mode=Mode.AUTO, default_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_order_cancellation_stock.py::test_order_cancellation_stock_return 
+[STEP 1] Creating order...
+{"timestamp": null, "level": null, "module": "order_service", "message": "DEBUG: create_order params - company_id type: <class 'int'>, user_id type: <class 'int'>", "taskName": "Task-8"}
+{"timestamp": null, "level": null, "module": "order_service", "message": "DEBUG: company_id value: 28, user_id value: 28", "taskName": "Task-8"}
+{"timestamp": null, "level": null, "module": "order_counter_service", "message": "\ud83c\udd95 Creando nuevo contador 'order_dine_in' para sucursal 28", "taskName": "Task-8"}
+{"timestamp": null, "level": null, "module": "order_service", "message": "\ud83d\udd22 N\u00famero de pedido generado: M-00001", "taskName": "Task-8"}
+{"timestamp": null, "level": null, "module": "order_service", "message": "\u2705 Pedido creado: M-00001 (ID: 61)", "taskName": "Task-8"}
+{"timestamp": null, "level": null, "module": "logging_config", "message": "RBAC Action: ORDER_CREATED", "taskName": "Task-8", "action": "ORDER_CREATED", "user_id": 28, "company_id": null, "role_id": null, "permission_code": null, "order_number": "M-00001", "order_id": 61, "total": "15.000000", "branch_id": 28, "items_count": 1}
+{"timestamp": null, "level": null, "module": "print_service", "message": "\u26d4 PrintService Circuit Breaker OPEN. Rejecting Order 61", "taskName": "Task-8"}
+{"timestamp": null, "level": null, "module": "order_service", "message": "\u26a0\ufe0f Error al enviar a impresi\u00f3n: 503: El servicio de impresi\u00f3n no est\u00e1 disponible temporalmente (Circuit Breaker Abierto)", "taskName": "Task-8"}
+emitting event "kitchen:new_order" to role_kitchen_28 [/]
+
+[STEP 1] Order created. Stock: 400.0000 (Expected 400)
+{"timestamp": null, "level": null, "module": "order_state_machine", "message": "\u2705 Estado Orden 61: OrderStatus.PENDING -> OrderStatus.PREPARING", "taskName": "Task-8"}
+{"timestamp": null, "level": null, "module": "logging_config", "message": "RBAC Action: ORDER_STATUS_CHANGED", "taskName": "Task-8", "action": "ORDER_STATUS_CHANGED", "user_id": 28, "company_id": null, "role_id": null, "permission_code": null, "order_id": 61, "order_number": "M-00001", "old_status": "pending", "new_status": "preparing", "branch_id": 28}
+Traceback (most recent call last):
+  File "/app/tests/test_order_cancellation_stock.py", line 131, in test_order_cancellation_stock_return
+    await order_service.update_status(order.id, OrderStatus.CANCELLED, test_company.id, user=test_user)
+  File "/app/app/services/order_service.py", line 529, in update_status
+    await machine.transition(order, new_status, user)
+  File "/app/app/services/order_state_machine.py", line 126, in transition
+    await self._run_transactional_hooks(order, new_status)
+  File "/app/app/services/order_state_machine.py", line 235, in _run_transactional_hooks
+    user_id=user.id if user else None,
+                       ^^^^
+NameError: name 'user' is not defined. Did you mean: 'User'?
+[STEP 2] Status changed to PREPARING. Stock: 400.0000 (Expected 400)
+[STEP 3] Cancelling order...
+FAILED
+
+=================================== FAILURES ===================================
+_____________________ test_order_cancellation_stock_return _____________________
+
+db_session = <sqlalchemy.ext.asyncio.session.AsyncSession object at 0x7c09adccd250>
+test_company = Company(name='Test Corp 198ca10a', legal_name=None, owner_name=None, owner_phone=None, is_active=True, created_at=date... 7, 18, 40, 33, 102607), id=28, slug='test-corp-198ca10a', tax_id=None, owner_email=None, plan='free', updated_at=None)
+test_branch = Branch(name='Test Branch c43358bb', code='TSTC433', phone=None, is_main=False, updated_at=None, company_id=28, id=28, address='Test Address', is_active=True, created_at=datetime.datetime(2026, 2, 7, 18, 40, 33, 272804))
+test_user = User(id=28, company_id=28, branch_id=28, username='user_91852e7a', role='admin', created_at=datetime.datetime(2026, 2,...zijp3KlB2749aMM9H9jietpXf1VkRzN7X/y3XZxJmkvL8WoA8fie', full_name='Test User 91852e7a', is_active=True, updated_at=None)
+
+    @pytest.mark.asyncio
+    async def test_order_cancellation_stock_return(
+        db_session: AsyncSession,
+        test_company: Company,
+        test_branch: Branch,
+        test_user: User
+    ):
+        """
+        Test: Al cancelar un pedido, los insumos deben volver al inventario.
+        Incluso si el pedido estaba 'en preparación'.
+        """
+        # Mock NotificationService to avoid WS issues in tests
+        NotificationService.notify_order_status = AsyncMock()
+        NotificationService.notify_order_created = AsyncMock()
+    
+        session = db_session
+        uid = str(uuid.uuid4())[:8]
+    
+        # Insumo (Ingrediente)
+        ing_meat = Ingredient(
+            name=f"Meat {uid}",
+            sku=f"SKU-M-{uid}",
+            company_id=test_company.id,
+            base_unit="gr",
+            current_cost=Decimal("0.05"),
+            is_active=True
+        )
+        session.add(ing_meat)
+        await session.commit()
+    
+        # Producto con Receta
+        prod_burger = Product(
+            name=f"Burger {uid}",
+            company_id=test_company.id,
+            price=Decimal("15.00"),
+            is_active=True
+        )
+        session.add(prod_burger)
+        await session.commit()
+    
+        # Receta (100gr de carne)
+        recipe = Recipe(
+            company_id=test_company.id,
+            product_id=prod_burger.id,
+            name="Std Burger",
+            is_active=True
+        )
+        session.add(recipe)
+        await session.commit()
+    
+        r_item = RecipeItem(
+            recipe_id=recipe.id,
+            ingredient_id=ing_meat.id,
+            company_id=test_company.id,
+            gross_quantity=Decimal("100.00"),
+            measure_unit="gr",
+            calculated_cost=Decimal("5.00")
+        )
+        session.add(r_item)
+    
+        # Asociar receta al producto
+        prod_burger.active_recipe_id = recipe.id
+        session.add(prod_burger)
+        await session.commit()
+    
+        # 2. Inicializar Inventario (500gr de carne)
+        inv_service = InventoryService(session)
+        await inv_service.update_ingredient_stock(
+            branch_id=test_branch.id,
+            ingredient_id=ing_meat.id,
+            quantity_delta=Decimal("500.00"),
+            transaction_type="IN",
+            user_id=test_user.id,
+            cost_per_unit=Decimal("0.05"),
+            reason="Initial Stock"
+        )
+    
+        # Verificar stock inicial
+        inv_meat = await inv_service.get_ingredient_stock(test_branch.id, ing_meat.id)
+        assert inv_meat.stock == Decimal("500.00")
+    
+        # 3. Crear Pedido (1 Burger -> consume 100gr)
+        print("\n[STEP 1] Creating order...")
+        order_service = OrderService(session)
+        order_data = OrderCreate(
+            branch_id=test_branch.id,
+            items=[OrderItemCreate(product_id=prod_burger.id, quantity=Decimal("1.00"))]
+        )
+    
+        try:
+            order = await order_service.create_order(order_data, test_company.id, user_id=test_user.id)
+        except Exception as e:
+            print(f"Error creating order: {e}")
+            import traceback
+            traceback.print_exc()
+            raise e
+    
+        # Refresh inv_meat to verify deduction
+        inv_meat = await inv_service.get_ingredient_stock(test_branch.id, ing_meat.id)
+        assert inv_meat.stock == Decimal("400.00")
+        print(f"\n[STEP 1] Order created. Stock: {inv_meat.stock} (Expected 400)")
+    
+        # 4. Cambiar a 'en preparación'
+        await order_service.update_status(order.id, OrderStatus.PREPARING, test_company.id, user=test_user)
+    
+        # Verify stock remains 400
+        inv_meat = await inv_service.get_ingredient_stock(test_branch.id, ing_meat.id)
+        assert inv_meat.stock == Decimal("400.00")
+        print(f"[STEP 2] Status changed to PREPARING. Stock: {inv_meat.stock} (Expected 400)")
+    
+        # 5. CANCELAR Pedido
+        print("[STEP 3] Cancelling order...")
+        # Change user role to allow cancellation from PREPARING (requires manager/admin)
+        test_user.role = "admin"
+    
+        try:
+            await order_service.update_status(order.id, OrderStatus.CANCELLED, test_company.id, user=test_user)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+>           raise e
+
+tests/test_order_cancellation_stock.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_order_cancellation_stock.py:131: in test_order_cancellation_stock_return
+    await order_service.update_status(order.id, OrderStatus.CANCELLED, test_company.id, user=test_user)
+app/services/order_service.py:529: in update_status
+    await machine.transition(order, new_status, user)
+app/services/order_state_machine.py:126: in transition
+    await self._run_transactional_hooks(order, new_status)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.order_state_machine.OrderStateMachine object at 0x7c09ad01f440>
+order = Order(company_id=28, branch_id=28, order_number='M-00001', status=<OrderStatus.PREPARING: 'preparing'>, subtotal=Decim...ted_at=datetime.datetime(2026, 2, 7, 18, 40, 34, 472646), updated_at=datetime.datetime(2026, 2, 7, 18, 40, 34, 848720))
+new_status = <OrderStatus.CANCELLED: 'cancelled'>
+
+    async def _run_transactional_hooks(self, order: Order, new_status: OrderStatus):
+        """
+        Ejecuta lógicas críticas que deben ocurrir DENTRO de la transacción DB.
+        Ej: Descontar inventario al confirmar.
+        """
+        if new_status == OrderStatus.CONFIRMED:
+            # Reservar stock, validar saldos, etc.
+            pass
+        elif new_status == OrderStatus.CANCELLED:
+            # Restaurar stock si fue descontado previamente (Confirmed/Preparing/Ready)
+            # Solo si el estado anterior era uno que descontó stock.
+            # Según la lógica actual, CONFIRMED ya descuenta stock al crearse.
+            # Por seguridad, restauramos si viene de cualquier estado activo.
+    
+            from app.services.inventory_service import InventoryService
+            from app.services.recipe_service import RecipeService
+            from app.models.modifier import ProductModifier
+            from sqlalchemy import select
+            from sqlalchemy.orm import selectinload
+            from decimal import Decimal
+            from collections import Counter
+    
+            # Asegurar que tenemos los items y sus productos cargados
+            # El objeto 'order' ya debería tener items cargados por selectinload en transition()
+    
+            inv_service = InventoryService(self.db)
+            recipe_service = RecipeService(self.db)
+    
+            for item in order.items:
+                product = item.product
+                if not product:
+                    continue
+    
+                # 1. Restaurar stock de la receta o producto base
+                recipe = await recipe_service.get_recipe_by_product(product.id, order.company_id)
+    
+                if recipe:
+                    # Restaurar cada ingrediente de la receta
+                    removed_ids = [str(x) for x in (item.removed_ingredients or [])]
+                    for recipe_item in recipe.items:
+                        # Ignorar si el ingrediente fue removido por el usuario
+                        rec_ing_id = str(recipe_item.ingredient_id) if recipe_item.ingredient_id else str(recipe_item.ingredient_product_id)
+                        if rec_ing_id in removed_ids:
+                            continue
+    
+                        qty_to_return = recipe_item.gross_quantity * Decimal(item.quantity)
+    
+                        if recipe_item.ingredient_id:
+                            await inv_service.restore_stock_to_batches(
+                                branch_id=order.branch_id,
+                                ingredient_id=recipe_item.ingredient_id,
+                                quantity=qty_to_return,
+>                               user_id=user.id if user else None,
+                                reason=f"Retorno por Cancelación (Orden {order.order_number})"
+E                               NameError: name 'user' is not defined
+
+app/services/order_state_machine.py:235: NameError
+------------------------------ Captured log call -------------------------------
+INFO     socketio.server:async_server.py:177 emitting event "kitchen:new_order" to role_kitchen_28 [/]
+=========================== short test summary info ============================
+FAILED tests/test_order_cancellation_stock.py::test_order_cancellation_stock_return
+============================== 1 failed in 3.43s ===============================

@@ -35,11 +35,18 @@ from app.database import get_session
 from app.main import app
 from app.models import Company, Category, User, Product, Branch, Role
 from app.utils.security import get_password_hash, create_access_token
+from app.core import redis as app_redis
+from unittest.mock import AsyncMock, MagicMock
 from decimal import Decimal
 import uuid
 
 # Use environment variable or fallback to Docker DB
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://fastops_user:fastops_password@db:5432/cesar_db")
+
+# Connection mapping for local development (resolvendo aliases de Docker)
+if "db" in DATABASE_URL and os.name == 'nt': # If targeting Docker DB from Windows host
+    DATABASE_URL = DATABASE_URL.replace("@db:", "@localhost:")
+
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
@@ -105,6 +112,24 @@ def db_session_factory():
     """
     return TestingSessionLocal
 
+
+@pytest.fixture(scope="function", autouse=True)
+async def mock_redis():
+    """Mocks Redis client to avoid connection errors during tests."""
+    mock_client = AsyncMock()
+    mock_client.ping.return_value = True
+    mock_client.get.return_value = None
+    mock_client.set.return_value = True
+    mock_client.setex.return_value = True
+    mock_client.delete.return_value = 1
+    
+    # Mocking the from_url/get_redis_client
+    original_get_redis = app_redis.get_redis_client
+    app_redis.get_redis_client = AsyncMock(return_value=mock_client)
+    
+    yield mock_client
+    
+    app_redis.get_redis_client = original_get_redis
 
 @pytest.fixture(scope="function")
 async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:

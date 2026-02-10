@@ -93,11 +93,18 @@ class Order(SQLModel, table=True):
     
     # Mesas
     table_id: Optional[int] = Field(default=None, foreign_key="tables.id", index=True)
+
+    # Auditoría (V9.1)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
     
     # Snapshot de Datos de Entrega
     delivery_address: Optional[str] = Field(default=None, description="Dirección snapshot al momento del pedido")
     delivery_notes: Optional[str] = Field(default=None, max_length=500, description="Notas de entrega")
     delivery_fee: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(10, 2)))
+    
+    # Nuevos campos V5.1: Datos de cliente snapshot para domicilio
+    delivery_customer_name: Optional[str] = Field(default=None, max_length=100)
+    delivery_customer_phone: Optional[str] = Field(default=None, max_length=20)
     
     # Asignación de Domiciliario
     delivery_person_id: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
@@ -111,7 +118,14 @@ class Order(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
 
-    # Relaciones
+    # Flujo de Cancelación (V9.2)
+    cancellation_status: Optional[str] = Field(default=None, description="pending, approved, denied")
+    cancellation_reason: Optional[str] = Field(default=None, max_length=255)
+    cancellation_requested_at: Optional[datetime] = Field(default=None)
+    cancellation_processed_at: Optional[datetime] = Field(default=None)
+    cancellation_requested_by_id: Optional[int] = Field(default=None, foreign_key="users.id")
+    cancellation_denied_reason: Optional[str] = Field(default=None, max_length=255, description="Why the cancellation was denied")
+
     # Relaciones
     items: List[OrderItem] = Relationship(back_populates="order", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     payments: List["Payment"] = Relationship(back_populates="order")
@@ -119,3 +133,7 @@ class Order(SQLModel, table=True):
     branch: "Branch" = Relationship()
     customer: Optional["Customer"] = Relationship(back_populates="orders")
     # table: Optional["Table"] = Relationship(back_populates="orders")
+    created_by: Optional["User"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[Order.created_by_id]"}
+    )
+

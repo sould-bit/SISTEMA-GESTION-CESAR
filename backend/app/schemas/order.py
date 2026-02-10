@@ -2,9 +2,10 @@
 from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from app.models.order import Order, OrderStatus
 from app.models.payment import PaymentMethod, PaymentStatus
+from app.schemas.modifier import ProductModifierBase
 
 # --- Order Item Schemas ---
 
@@ -18,6 +19,23 @@ class OrderItemCreate(BaseModel):
     modifiers: Optional[List[int]] = []
     removed_ingredients: Optional[List[str]] = []
 
+class OrderItemUpdate(BaseModel):
+    quantity: Optional[Decimal] = Field(None, gt=0, description="Nueva cantidad")
+    notes: Optional[str] = None
+    modifiers: Optional[List[int]] = None # IDs de modificadores
+    removed_ingredients: Optional[List[str]] = None
+
+# Define minimal read schema for nested usage
+class OrderItemModifierRead(BaseModel):
+    id: int
+    modifier_id: int
+    quantity: int
+    unit_price: Decimal
+    # Nested info from ProductModifier
+    modifier: Optional[ProductModifierBase] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 class OrderItemRead(BaseModel):
     id: int
     product_id: int
@@ -27,9 +45,10 @@ class OrderItemRead(BaseModel):
     subtotal: Decimal
     notes: Optional[str] = None
     removed_ingredients: List[str] = []
+    modifiers: List[OrderItemModifierRead] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 # --- Payment Schemas ---
 
@@ -45,8 +64,7 @@ class PaymentRead(BaseModel):
     status: PaymentStatus
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Order Schemas ---
 
@@ -59,14 +77,15 @@ class OrderCreate(BaseModel):
     payments: Optional[List[PaymentCreate]] = None
 
     # CRM Fields (V5.0)
-    customer_id: Optional[int] = None
-    delivery_type: str = "dine_in" # dine_in, takeaway, delivery
-    delivery_address: Optional[str] = None
     # CRM Fields (V5.0)
     customer_id: Optional[int] = None
     delivery_type: str = "dine_in" # dine_in, takeaway, delivery
     delivery_address: Optional[str] = None
     delivery_notes: Optional[str] = None
+
+    # Nuevos campos V5.1: Datos de cliente para domicilio
+    delivery_customer_name: Optional[str] = None
+    delivery_customer_phone: Optional[str] = None
 
     # Mesas (V7.0)
     table_id: Optional[int] = None
@@ -102,8 +121,28 @@ class OrderRead(BaseModel):
     delivery_notes: Optional[str] = None
     delivery_fee: Decimal = Decimal("0.00")
     
+    delivery_customer_name: Optional[str] = None
+    delivery_customer_phone: Optional[str] = None
+    
+    table_id: Optional[int] = None
+    created_by_name: Optional[str] = None
+    
+    # Cancellation fields (V8.0)
+    cancellation_status: Optional[str] = None  # pending, approved, denied
+    cancellation_reason: Optional[str] = None
+    cancellation_requested_at: Optional[datetime] = None
+    cancellation_denied_reason: Optional[str] = None  # Why cancellation was denied
+    
     items: List[OrderItemRead] = []
     payments: List[PaymentRead] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderCancelRequest(BaseModel):
+    reason: str = Field(min_length=5, max_length=255)
+
+class OrderCancelProcess(BaseModel):
+    approved: bool
+    notes: Optional[str] = None
+

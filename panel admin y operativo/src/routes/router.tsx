@@ -35,6 +35,7 @@ const RecipesPage = lazy(() => import('../features/kitchen').then(m => ({ defaul
 const MenuMatrix = lazy(() => import('../features/kitchen').then(m => ({ default: m.MenuMatrix })));
 const RecipeManagerV2 = lazy(() => import('../features/kitchen').then(m => ({ default: m.RecipeManagerV2 })));
 const IngredientHistoryPage = lazy(() => import('../features/kitchen/pages/IngredientHistoryPage').then(m => ({ default: m.IngredientHistoryPage })));
+const KDSPage = lazy(() => import('../features/kitchen/pages/KDSPage').then(m => ({ default: m.KDSPage })));
 
 const SuspenseWrapper = ({ children }: { children: React.ReactNode }) => (
     <Suspense fallback={<PageLoader />}>
@@ -152,6 +153,10 @@ export const router = createBrowserRouter([
                             {
                                 path: 'menu-engineering',
                                 element: <SuspenseWrapper><MenuMatrix /></SuspenseWrapper>
+                            },
+                            {
+                                path: 'display',
+                                element: <SuspenseWrapper><KDSPage /></SuspenseWrapper>
                             },
                         ]
                     }

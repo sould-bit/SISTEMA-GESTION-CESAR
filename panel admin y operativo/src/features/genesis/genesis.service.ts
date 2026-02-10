@@ -41,15 +41,20 @@ export const submitGenesis = async (
             throw new Error('No access token received from registration');
         }
 
-        // 3. Set Auth Header & Get Full User
-        // We need to set the header manually for the immediate next requests
-        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        // 3. Store token in Redux FIRST so the Axios request interceptor can find it
+        // The interceptor reads from store.getState().auth.token, NOT from api.defaults
+        console.log('🔑 Storing access token in Redux store...');
+        dispatch(setCredentials({
+            token: access_token,
+            user: null as unknown as User // Temporary: will be updated with full profile
+        }));
 
+        // 4. Now fetch full user profile (interceptor will attach the token automatically)
         console.log('👤 Fetching commander profile...');
         const userResponse = await api.get<User>('/auth/me');
         const user = userResponse.data;
 
-        // 4. Update Redux State
+        // 5. Update Redux with full user profile
         dispatch(setCredentials({
             token: access_token,
             user: user

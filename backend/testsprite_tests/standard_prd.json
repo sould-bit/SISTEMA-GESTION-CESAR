@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "project": "SmartPOS Backend",
+    "date": "2026-02-04",
+    "prepared_by": "AI-generated PRD"
+  },
+  "product_overview": "SmartPOS Backend is a robust multi-tenant point of sale system backend designed to handle order management, inventory control, cash management, and secure user authentication with audit logging for seamless retail operations.",
+  "core_goals": [
+    "Provide a secure multi-tenant user authentication system with role-based access control and smart login features.",
+    "Manage complete order lifecycle with flexible delivery options and a reliable state machine for order status transitions.",
+    "Automatically control inventory stock using FIFO method with recipe and modifier support to ensure accurate stock levels.",
+    "Enable accurate cash management through register opening, closing, and real-time difference calculations.",
+    "Implement comprehensive security and audit logging for tracking RBAC actions and critical system events."
+  ],
+  "key_features": [
+    "Multi-tenant user authentication with email conflict resolution and refresh tokens.",
+    "Role-based access control (RBAC) embedded in JWT for permission enforcement.",
+    "Complete order management lifecycle including dine-in, takeaway, and delivery options.",
+    "Order state machine handling all order status transitions reliably.",
+    "Inventory stock control using FIFO and automatic deduction on sales.",
+    "Recipe-based and modifier-based inventory deduction logic.",
+    "Cash register management including opening, closing, expected and real totals, with auto difference calculation.",
+    "Audit logging of RBAC permission changes, login failures, cash discrepancies, and other security events."
+  ],
+  "user_flow_summary": [
+    "User logs in using multi-tenant smart login system with email conflict resolution.",
+    "User performs actions that require permissions enforced via JWT RBAC tokens.",
+    "User creates and manages orders selecting delivery types (dine-in, takeaway, delivery).",
+    "System processes order through state machine transitions until delivery completion.",
+    "Inventory stock levels automatically updated on order completion using FIFO rules and recipe deductions.",
+    "Cash registers are opened and closed with tracked expected vs real totals; system automatically calculates any differences.",
+    "All critical actions and security events are logged for audit and compliance purposes."
+  ],
+  "validation_criteria": [
+    "Authentication must handle multiple tenants with secure refresh token workflow and resolve email conflicts without errors.",
+    "RBAC permissions must correctly control access and be verifiable in JWT payload.",
+    "Order lifecycle must support all delivery types with correct state transitions and no order data loss.",
+    "Inventory deductions must accurately reflect sales transactions using FIFO and recipe logic.",
+    "Cash closures must correctly calculate differences between expected and actual totals.",
+    "Audit logs must reliably capture all RBAC actions, login failures, and significant cash discrepancies, accessible for review."
+  ],
+  "code_summary": {
+    "tech_stack": [
+      "Python",
+      "FastAPI",
+      "PostgreSQL",
+      "SQLModel",
+      "Redis",
+      "JWT"
+    ],
+    "features": [
+      {
+        "name": "User Authentication & Smart Login",
+        "description": "Multi-tenant login system with email conflict resolution, RBAC-based permissions in JWT, and refresh tokens.",
+        "files": [
+          "app/services/auth_service.py",
+          "app/models/user.py",
+          "app/schemas/auth.py"
+        ]
+      },
+      {
+        "name": "Order Management & State Machine",
+        "description": "Complete order lifecycle from creation to delivery, using a state machine for transitions. Supports multiple delivery types (dine-in, takeaway, delivery).",
+        "files": [
+          "app/models/order.py",
+          "app/routers/order.py",
+          "app/services/order_service.py",
+          "app/schemas/order.py"
+        ]
+      },
+      {
+        "name": "Inventory stock control (FIFO)",
+        "description": "Automatic stock deduction for ingredients and products during sales. Supports recipe-based deduction and modifiers.",
+        "files": [
+          "app/services/inventory_service.py",
+          "app/services/order_service.py",
+          "app/models/inventory.py"
+        ]
+      },
+      {
+        "name": "Cash Management & Closures",
+        "description": "Register opening/closing with expected vs real total tracking and automatic difference calculation.",
+        "files": [
+          "app/services/cash_service.py",
+          "app/models/cash_closure.py",
+          "app/schemas/cash.py"
+        ]
+      },
+      {
+        "name": "Security & Audit Logging",
+        "description": "Comprehensive audit of RBAC actions and security events (login failures, significant cash differences).",
+        "files": [
+          "app/services/audit_service.py",
+          "app/core/logging_config.py",
+          "app/models/audit_log.py"
+        ]
+      }
+    ]
+  }
+}

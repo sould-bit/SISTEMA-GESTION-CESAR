@@ -19,6 +19,7 @@ interface BeverageFormProps {
     onDelete?: () => void;
     onCancelEdit?: () => void;
     allIngredients?: Ingredient[]; // Passed from parent for WAC calculation
+    initialView?: 'HOME' | 'INVENTORY' | 'CATALOG';
 }
 
 export const BeverageForm = ({
@@ -34,12 +35,13 @@ export const BeverageForm = ({
     onSelectProduct,
     onDelete,
     onCancelEdit,
-    allIngredients = []
+    allIngredients = [],
+    initialView = 'HOME'
 }: BeverageFormProps) => {
 
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [showQuickPurchase, setShowQuickPurchase] = useState(false);
-    const [view, setView] = useState<'HOME' | 'INVENTORY' | 'CATALOG'>('HOME');
+    const [view, setView] = useState<'HOME' | 'INVENTORY' | 'CATALOG'>(initialView);
     const [inventoryFilter, setInventoryFilter] = useState('');
     const [localSelectedProduct, setLocalSelectedProduct] = useState<Ingredient | null>(null);
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);

@@ -12,7 +12,9 @@ from app.models.cash_closure import CashClosure, CashClosureStatus
 from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.user import User
 
-logger = logging.getLogger(__name__)
+from app.core.logging_config import get_rbac_logger, log_rbac_action, log_security_event
+
+logger = get_rbac_logger("app.cash")
 
 class CashService:
     def __init__(self, db: AsyncSession):
@@ -49,6 +51,17 @@ class CashService:
         self.db.add(closure)
         await self.db.commit()
         await self.db.refresh(closure)
+
+        # LOG: Apertura de Caja
+        log_rbac_action(
+            action="CASH_OPENED",
+            user_id=user.id,
+            details={
+                "branch_id": closure.branch_id,
+                "initial_cash": str(initial_cash),
+                "closure_id": closure.id
+            }
+        )
         return closure
 
     async def calculate_current_totals(self, closure: CashClosure) -> Dict[str, Decimal]:
@@ -147,5 +160,30 @@ class CashService:
         self.db.add(closure)
         await self.db.commit()
         await self.db.refresh(closure)
+
+        # LOG: Cierre de Caja
+        log_rbac_action(
+            action="CASH_CLOSED",
+            user_id=closure.user_id,
+            details={
+                "branch_id": closure.branch_id,
+                "closure_id": closure.id,
+                "difference": str(closure.difference),
+                "real_total": str(closure.real_total),
+                "expected_total": str(closure.expected_total)
+            }
+        )
+
+        # Alert if significant difference (> 0.01)
+        if abs(closure.difference) > Decimal("0.01"):
+            log_security_event(
+                event="CASH_DIFFERENCE_DETECTED",
+                user_id=closure.user_id,
+                details={
+                    "closure_id": closure.id,
+                    "difference": str(closure.difference),
+                    "notes": notes
+                }
+            )
         
         return closure

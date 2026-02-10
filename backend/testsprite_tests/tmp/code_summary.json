@@ -1,0 +1,58 @@
+{
+    "tech_stack": [
+        "Python",
+        "FastAPI",
+        "PostgreSQL",
+        "SQLModel",
+        "Redis",
+        "JWT"
+    ],
+    "features": [
+        {
+            "name": "User Authentication & Smart Login",
+            "description": "Multi-tenant login system with email conflict resolution, RBAC-based permissions in JWT, and refresh tokens.",
+            "files": [
+                "app/services/auth_service.py",
+                "app/models/user.py",
+                "app/schemas/auth.py"
+            ]
+        },
+        {
+            "name": "Order Management & State Machine",
+            "description": "Complete order lifecycle from creation to delivery, using a state machine for transitions. Supports multiple delivery types (dine-in, takeaway, delivery).",
+            "files": [
+                "app/models/order.py",
+                "app/routers/order.py",
+                "app/services/order_service.py",
+                "app/schemas/order.py"
+            ]
+        },
+        {
+            "name": "Inventory stock control (FIFO)",
+            "description": "Automatic stock deduction for ingredients and products during sales. Supports recipe-based deduction and modifiers.",
+            "files": [
+                "app/services/inventory_service.py",
+                "app/services/order_service.py",
+                "app/models/inventory.py"
+            ]
+        },
+        {
+            "name": "Cash Management & Closures",
+            "description": "Register opening/closing with expected vs real total tracking and automatic difference calculation.",
+            "files": [
+                "app/services/cash_service.py",
+                "app/models/cash_closure.py",
+                "app/schemas/cash.py"
+            ]
+        },
+        {
+            "name": "Security & Audit Logging",
+            "description": "Comprehensive audit of RBAC actions and security events (login failures, significant cash differences).",
+            "files": [
+                "app/services/audit_service.py",
+                "app/core/logging_config.py",
+                "app/models/audit_log.py"
+            ]
+        }
+    ]
+}

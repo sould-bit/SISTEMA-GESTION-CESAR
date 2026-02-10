@@ -25,4 +25,4 @@ EXPOSE 8000
 #comando para ejecutar la app 
 
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:combined_asgi_app", "--host", "0.0.0.0", "--port", "8000"]

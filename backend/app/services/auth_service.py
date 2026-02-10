@@ -29,9 +29,9 @@ from app.config import settings
 from app.services.audit_service import AuditService
 from app.models.audit_log import AuditAction
 
-import logging
+from app.core.logging_config import get_rbac_logger, log_rbac_action, log_security_event
 
-logger = logging.getLogger(__name__)
+logger = get_rbac_logger("app.auth")
 
 
 class AuthService:
@@ -91,7 +91,10 @@ class AuthService:
 
             # 3. Análisis de resultados
             if not valid_users:
-                logger.warning(f"🔒 Login fallido (credenciales/inactivo): {login_data.email}")
+                log_security_event(
+                    event="LOGIN_FAILED_INVALID_CREDENTIALS",
+                    details={"email": login_data.email}
+                )
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Email o contraseña incorrectos",
@@ -131,7 +134,10 @@ class AuthService:
                             role=u.user_role.name if u.user_role else "Usuario"
                         ))
                     
-                    logger.info(f"🤔 Usuario multi-tenant requiere selección: {login_data.email}")
+                    log_rbac_action(
+                        action="AUTH_SELECTOR_REQUIRED",
+                        details={"email": login_data.email, "count": len(valid_users)}
+                    )
                     return LoginResponse(
                         requires_selection=True,
                         options=options

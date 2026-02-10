@@ -1,0 +1,32 @@
+[
+  {
+    "id": "TC001",
+    "title": "user_authentication_with_email_conflict_resolution",
+    "description": "Test the multi-tenant user authentication system to ensure it correctly handles login attempts with email conflicts, resolving them without errors and issuing valid refresh tokens."
+  },
+  {
+    "id": "TC002",
+    "title": "rbac_permission_enforcement_in_jwt",
+    "description": "Verify that role-based access control permissions are correctly embedded in JWT tokens and enforced during API requests, restricting access based on user roles."
+  },
+  {
+    "id": "TC003",
+    "title": "order_lifecycle_with_multiple_delivery_types",
+    "description": "Validate the complete order lifecycle management including creation, state transitions, and completion for all delivery types: dine-in, takeaway, and delivery."
+  },
+  {
+    "id": "TC004",
+    "title": "inventory_stock_deduction_using_fifo_and_recipe_logic",
+    "description": "Ensure that inventory stock levels are automatically and accurately deducted using FIFO method, including recipe-based and modifier-based deductions during sales."
+  },
+  {
+    "id": "TC005",
+    "title": "cash_register_opening_and_closing_with_difference_calculation",
+    "description": "Test cash register management APIs to verify correct handling of register opening and closing, including accurate calculation of differences between expected and real totals."
+  },
+  {
+    "id": "TC006",
+    "title": "audit_logging_of_rbac_and_security_events",
+    "description": "Check that all critical RBAC permission changes, login failures, and significant cash discrepancies are logged properly and can be retrieved for audit purposes."
+  }
+]

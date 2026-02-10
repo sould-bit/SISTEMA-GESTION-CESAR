@@ -1,0 +1,19 @@
+{
+    "tables": [
+        {
+            "table_number": 1,
+            "seat_count": 4,
+            "status": "occupied"
+        },
+        {
+            "table_number": 2,
+            "seat_count": 6,
+            "status": "available"
+        },
+        {
+            "table_number": 3,
+            "seat_count": 2,
+            "status": "available"
+        }
+    ]
+}

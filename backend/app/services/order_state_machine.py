@@ -9,8 +9,17 @@ from app.models.order import Order, OrderStatus
 from app.models.order_audit import OrderAudit
 from app.models.user import User
 from app.services.notification_service import NotificationService
+from app.core.order_permissions import get_required_permission
+from app.core.logging_config import log_security_event
+
+# Evitar importaciones circulares: Importar servicios dentro de los métodos o con type checking
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.services.inventory_service import InventoryService
+    from app.services.recipe_service import RecipeService
 
 logger = logging.getLogger(__name__)
+
 
 class OrderStateMachine:
     """
@@ -20,27 +29,12 @@ class OrderStateMachine:
 
     # Definición Estricta del Grafo de Estados
     VALID_TRANSITIONS: dict[OrderStatus, Set[OrderStatus]] = {
-        OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+        OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PREPARING},
         OrderStatus.CONFIRMED: {OrderStatus.PREPARING, OrderStatus.CANCELLED},
         OrderStatus.PREPARING: {OrderStatus.READY, OrderStatus.CANCELLED},
         OrderStatus.READY: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
         OrderStatus.DELIVERED: set(),  # Estado terminal
         OrderStatus.CANCELLED: set(),  # Estado terminal (No reabrir)
-    }
-
-    # Definición de RBAC (Opción A: Seguridad Integrada)
-    # Define qué roles pueden ejecutar qué transiciones.
-    # Si la lista de roles es None o vacía, permitimos a todos (o restringimos todo, según política).
-    # Aquí: None = Permitido para roles básicos (waiter/cashier/manager/admin)
-    #       Lista explícita = Solo esos roles
-    RBAC_RULES: dict[tuple[OrderStatus, OrderStatus], Set[str]] = {
-        # Cancelar algo confirmado es delicado -> Solo Jefes
-        (OrderStatus.CONFIRMED, OrderStatus.CANCELLED): {"manager", "admin"},
-        (OrderStatus.PREPARING, OrderStatus.CANCELLED): {"manager", "admin"}, 
-        # Entregar es tarea de meseros y repartidores (y jefes por supuesto)
-        (OrderStatus.READY, OrderStatus.DELIVERED): {"waiter", "cashier", "manager", "admin"},
-        # Cancelación simple (Pending -> Cancelled)
-        (OrderStatus.PENDING, OrderStatus.CANCELLED): {"waiter", "cashier", "manager", "admin"},
     }
 
     def __init__(self, db: AsyncSession):
@@ -87,37 +81,39 @@ class OrderStateMachine:
                 detail=error_msg
             )
 
-        # 3. Seguridad (RBAC) - Opción A
+        # 3. Seguridad: Permisos (Permission-based RBAC)
+        # Configurable desde Staff > Roles y Permisos, no roles hardcodeados.
         if user:
-            # Buscar regla específica para esta transición
-            required_roles = self.RBAC_RULES.get((old_status, new_status))
-            
-            # Si hay regla, validar. Si no hay regla específica, asumimos política por defecto (ej: permitir standard)
-            # Para este caso, si no está definida, asumimos que es una operación estándar permitida para staff.
-            # Pero para ser estrictos, si quisiéramos bloquear todo lo no definido:
-            # if not required_roles: required_roles = {...default...}
-            
-            if required_roles:
-                # Acceso robusto al rol:
-                role_name = "guest"
-                
-                # Caso 1: User.role es un objeto ORM (Role model)
-                if hasattr(user, "role") and user.role and not isinstance(user.role, str):
-                     role_name = getattr(user.role, "code", getattr(user.role, "name", "guest")).lower()
-                
-                # Caso 2: User.role es un string (Mocking o estructura simple)
-                elif hasattr(user, "role") and isinstance(user.role, str):
-                    role_name = user.role.lower()
-
-                if role_name not in required_roles:
-                     logger.warning(f"🔒 Acceso Denegado: Usuario '{user.username}' ({role_name}) intentó {old_status}->{new_status}")
-                     raise HTTPException(
+            required_perm = get_required_permission(old_status, new_status)
+            if required_perm:
+                from app.services.permission_service import PermissionService
+                perm_service = PermissionService(self.db)
+                has_perm = await perm_service.check_permission(
+                    user_id=user.id,
+                    permission_code=required_perm,
+                    company_id=user.company_id
+                )
+                if not has_perm:
+                    log_security_event(
+                        event="ORDER_STATUS_DENIED",
+                        user_id=user.id,
+                        company_id=user.company_id,
+                        details={
+                            "order_id": order.id,
+                            "old_status": str(old_status),
+                            "new_status": str(new_status),
+                            "required_permission": required_perm,
+                        },
+                        level="WARNING"
+                    )
+                    logger.warning(f"🔒 Acceso Denegado: Usuario '{user.username}' sin permiso '{required_perm}' para {old_status}->{new_status}")
+                    raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"No tiene permisos para cambiar el estado a {new_status}"
-                     )
+                        detail=f"No tiene permiso para cambiar el estado a {new_status} (requiere '{required_perm}')"
+                    )
 
         # 4. Hooks Transaccionales (Hooks Pre-Commit)
-        await self._run_transactional_hooks(order, new_status)
+        await self._run_transactional_hooks(order, new_status, user)
 
         try:
             # 5. Ejecución con Bloqueo Optimista
@@ -174,7 +170,7 @@ class OrderStateMachine:
                 detail="Error interno al actualizar estado del pedido"
             )
 
-    async def _run_transactional_hooks(self, order: Order, new_status: OrderStatus):
+    async def _run_transactional_hooks(self, order: Order, new_status: OrderStatus, user: Optional[User] = None):
         """
         Ejecuta lógicas críticas que deben ocurrir DENTRO de la transacción DB.
         Ej: Descontar inventario al confirmar.
@@ -183,8 +179,105 @@ class OrderStateMachine:
             # Reservar stock, validar saldos, etc.
             pass
         elif new_status == OrderStatus.CANCELLED:
-            # Liberar reservas si aplica
-            pass
+            # Restaurar stock si fue descontado previamente (Confirmed/Preparing/Ready)
+            # Solo si el estado anterior era uno que descontó stock.
+            # Según la lógica actual, CONFIRMED ya descuenta stock al crearse.
+            # Por seguridad, restauramos si viene de cualquier estado activo.
+            
+            from app.services.inventory_service import InventoryService
+            from app.services.recipe_service import RecipeService
+            from app.models.modifier import ProductModifier
+            from sqlalchemy import select
+            from sqlalchemy.orm import selectinload
+            from decimal import Decimal
+            from collections import Counter
+
+            # Asegurar que tenemos los items y sus productos cargados
+            # El objeto 'order' ya debería tener items cargados por selectinload en transition()
+            
+            inv_service = InventoryService(self.db)
+            recipe_service = RecipeService(self.db)
+            
+            for item in order.items:
+                product = item.product
+                if not product:
+                    continue
+                
+                # 1. Restaurar stock de la receta o producto base
+                recipe = await recipe_service.get_recipe_by_product(product.id, order.company_id)
+                
+                if recipe:
+                    # Restaurar cada ingrediente de la receta
+                    removed_ids = [str(x) for x in (item.removed_ingredients or [])]
+                    for recipe_item in recipe.items:
+                        # Ignorar si el ingrediente fue removido por el usuario
+                        rec_ing_id = str(recipe_item.ingredient_id) if recipe_item.ingredient_id else str(recipe_item.ingredient_product_id)
+                        if rec_ing_id in removed_ids:
+                            continue
+                            
+                        qty_to_return = recipe_item.gross_quantity * Decimal(item.quantity)
+                        
+                        if recipe_item.ingredient_id:
+                            await inv_service.restore_stock_to_batches(
+                                branch_id=order.branch_id,
+                                ingredient_id=recipe_item.ingredient_id,
+                                quantity=qty_to_return,
+                                user_id=user.id if user else None,
+                                reason=f"Retorno por Cancelación (Orden {order.order_number})"
+                            )
+                        elif recipe_item.ingredient_product_id:
+                            # Si la receta usa otro producto como ingrediente
+                             await inv_service.update_stock(
+                                branch_id=order.branch_id,
+                                product_id=recipe_item.ingredient_product_id,
+                                quantity_delta=qty_to_return,
+                                transaction_type="IN",
+                                user_id=user.id if user else None,
+                                reference_id=f"ORDER-{order.order_number}",
+                                reason=f"Retorno por Cancelación (Orden {order.order_number})"
+                            )
+                else:
+                    # Si no tiene receta, devolver el producto directamente
+                    await inv_service.update_stock(
+                        branch_id=order.branch_id,
+                        product_id=product.id,
+                        quantity_delta=Decimal(item.quantity),
+                        transaction_type="IN",
+                        user_id=user.id if user else None,
+                        reference_id=f"ORDER-{order.order_number}",
+                        reason=f"Retorno por Cancelación (Orden {order.order_number})"
+                    )
+
+                # 2. Restaurar stock de los modificadores
+                if item.modifiers:
+                    for item_mod in item.modifiers:
+                        mod_obj = item_mod.modifier # Cargado por selectinload
+                        if not mod_obj: continue
+                        
+                        # Cada modificador puede tener sus propios recipe_items
+                        total_mod_qty = Decimal(item_mod.quantity)
+                        
+                        for mod_recipe_item in mod_obj.recipe_items:
+                            qty_needed_mod = mod_recipe_item.quantity * total_mod_qty
+                            
+                            if mod_recipe_item.ingredient_id:
+                                await inv_service.restore_stock_to_batches(
+                                    branch_id=order.branch_id,
+                                    ingredient_id=mod_recipe_item.ingredient_id,
+                                    quantity=qty_needed_mod,
+                                    user_id=user.id if user else None,
+                                    reason=f"Retorno Modificador {mod_obj.name} (Orden {order.order_number})"
+                                )
+                            elif mod_recipe_item.ingredient_product_id:
+                                await inv_service.update_stock(
+                                    branch_id=order.branch_id,
+                                    product_id=mod_recipe_item.ingredient_product_id,
+                                    quantity_delta=qty_needed_mod,
+                                    transaction_type="IN",
+                                    user_id=user.id if user else None,
+                                    reference_id=f"ORDER-{order.order_number}",
+                                    reason=f"Retorno Modificador {mod_obj.name} (Orden {order.order_number})"
+                                )
 
     async def _run_post_commit_hooks(self, order: Order, new_status: OrderStatus):
         """

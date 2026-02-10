@@ -18,6 +18,7 @@ Examples:
 
 import subprocess
 import sys
+import os
 import argparse
 import time
 from pathlib import Path
@@ -26,16 +27,17 @@ from typing import Optional, List
 class Manager:
     def __init__(self):
         self.project_root = Path(__file__).parent.absolute()
-        self.backend_container = "backend_FastOps"
-        self.db_container = "container_DB_FastOps" 
+        self.backend_container = os.getenv("BACKEND_CONTAINER", "backend_FastOps")
+        self.db_container = os.getenv("DB_CONTAINER", "container_DB_FastOps") 
 
-    def _run_local(self, cmd: str) -> bool:
+    def _run_local(self, cmd: str, cwd: str = None) -> bool:
         """Runs a command on the local host machine."""
         print(f"📍 Executing local: {cmd}")
+        work_dir = cwd if cwd else self.project_root
         try:
             subprocess.run(
                 cmd,
-                cwd=self.project_root,
+                cwd=work_dir,
                 shell=True,
                 check=True,
                 env=None # Inherit env vars
@@ -99,18 +101,24 @@ class Manager:
     # ==========================================
     # Database Management
     # ==========================================
-    def db_migrate(self, message: str):
+    def db_migrate(self, message: str, local: bool = False):
         """Create a new migration revision"""
-        self._run_in_backend(f'alembic revision --autogenerate -m "{message}"')
+        cmd = f'python -m alembic revision --autogenerate -m "{message}"'
+        if local: self._run_local(cmd, cwd=os.path.join(self.project_root, 'backend'))
+        else: self._run_in_backend(cmd)
 
-    def db_upgrade(self):
+    def db_upgrade(self, local: bool = False):
         """Apply migrations"""
         print("🗃️  Applying migrations...")
-        self._run_in_backend("alembic upgrade head")
+        cmd = "python -m alembic upgrade head"
+        if local: self._run_local(cmd, cwd=os.path.join(self.project_root, 'backend'))
+        else: self._run_in_backend(cmd)
 
-    def db_downgrade(self, revision: str = "-1"):
+    def db_downgrade(self, revision: str = "-1", local: bool = False):
         """Revert migrations"""
-        self._run_in_backend(f"alembic downgrade {revision}")
+        cmd = f"python -m alembic downgrade {revision}"
+        if local: self._run_local(cmd, cwd=os.path.join(self.project_root, 'backend'))
+        else: self._run_in_backend(cmd)
 
     def db_reset(self):
         """Destructive: Wipe DB, Re-create, Seed"""
@@ -128,16 +136,23 @@ class Manager:
         self.db_seed()
         print("✅ Database reset complete")
 
-    def db_seed(self):
+    def db_seed(self, local: bool = False, genesis: bool = False):
         """Run master seed"""
         print("🌱 Seeding data...")
-        self._run_in_backend("python scripts/seed/master_seed.py")
+        cmd = "python scripts/seed/master_seed.py"
+        if genesis:
+            cmd += " --genesis"
+        
+        if local: self._run_local(cmd)
+        else: self._run_in_backend(cmd)
 
 
-    def admin_create(self):
+    def admin_create(self, local: bool = False):
         """Create admin user"""
         print("👤 Creating admin user...")
-        self._run_in_backend("python scripts/admin/create_admin.py")
+        cmd = "python scripts/admin/create_admin.py"
+        if local: self._run_local(cmd)
+        else: self._run_in_backend(cmd)
 
     # ==========================================
     # Testing
@@ -183,6 +198,7 @@ def main():
 
     # DB Group
     db_parser = subparsers.add_parser("db", help="Database commands")
+    db_parser.add_argument("--local", action="store_true", help="Run command on local host instead of Docker")
     db_subs = db_parser.add_subparsers(dest="db_command")
     
     mig_p = db_subs.add_parser("migrate", help="Create migration")
@@ -194,10 +210,13 @@ def main():
     down_p.add_argument("revision", nargs="?", default="-1", help="Revision (default -1)")
     
     db_subs.add_parser("reset", help="Reset DB (Destructive)")
-    db_subs.add_parser("seed", help="Run master seed")
+    seed_p = db_subs.add_parser("seed", help="Run master seed")
+    seed_p.add_argument("--genesis", action="store_true", help="Genesis Mode: System config only")
+    seed_p.add_argument("--local", action="store_true", help="Run command on local host")
 
     # Admin Group
     admin_parser = subparsers.add_parser("admin", help="Admin commands")
+    admin_parser.add_argument("--local", action="store_true", help="Run command on local host instead of Docker")
     admin_subs = admin_parser.add_subparsers(dest="admin_command")
     admin_subs.add_parser("create", help="Create default admin user")
 
@@ -231,22 +250,25 @@ def main():
         mgr.shell()
     
     elif args.command == "db":
+        local_mode = getattr(args, 'local', False)
         if args.db_command == "migrate":
-            mgr.db_migrate(args.message)
+            mgr.db_migrate(args.message, local=local_mode)
         elif args.db_command == "upgrade":
-            mgr.db_upgrade()
+            mgr.db_upgrade(local=local_mode)
         elif args.db_command == "downgrade":
-            mgr.db_downgrade(args.revision)
+            mgr.db_downgrade(args.revision, local=local_mode)
         elif args.db_command == "reset":
-            mgr.db_reset()
+            mgr.db_reset() # This is destructive and interactive, keep as is
         elif args.db_command == "seed":
-            mgr.db_seed()
+            genesis_mode = getattr(args, 'genesis', False)
+            mgr.db_seed(local=local_mode, genesis=genesis_mode)
         else:
             db_parser.print_help()
 
     elif args.command == "admin":
+        local_mode = getattr(args, 'local', False)
         if args.admin_command == "create":
-            mgr.admin_create()
+            mgr.admin_create(local=local_mode)
         else:
             admin_parser.print_help()
 

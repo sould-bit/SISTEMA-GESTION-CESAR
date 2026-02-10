@@ -31,6 +31,14 @@
       "description": "Gestión de entregas y pedidos",
       "is_system": true,
       "is_active": true
+    },
+    {
+      "name": "Mesero",
+      "code": "waiter",
+      "hierarchy_level": 25,
+      "description": "Atención a mesas y pedidos",
+      "is_system": true,
+      "is_active": true
     }
   ]
 }

@@ -179,7 +179,7 @@ SYSTEM_ROLES = [
         "permissions": [
             "dashboard.view", "settings.read",
             "products.read", "categories.manage",
-            "orders.create", "orders.read", "orders.update", "orders.manage_all",
+            "orders.create", "orders.read", "orders.update", "orders.cancel", "orders.manage_all",
             "inventory.read", "inventory.adjust",
             "cash.view_balance", "payments.process",
             "reports.sales", "reports.inventory", "reports.financial",
@@ -194,7 +194,7 @@ SYSTEM_ROLES = [
         "permissions": [
             "dashboard.view",
             "products.read",
-            "orders.create", "orders.read", "orders.update",
+            "orders.create", "orders.read", "orders.update", "orders.cancel",
             "cash.open", "cash.close", "cash.view_balance",
             "payments.process"
         ]

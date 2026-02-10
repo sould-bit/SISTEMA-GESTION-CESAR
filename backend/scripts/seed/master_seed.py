@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.database import get_session
 from app.models import (
     Company, User, Role, Permission, PermissionCategory,
-    RolePermission, Category, Product, Branch
+    RolePermission, Category, Product, Branch, Table, Order, OrderItem, Inventory
 )
 from app.services.auth_service import AuthService
 from app.services.role_service import RoleService
@@ -457,19 +457,178 @@ class MasterSeeder:
                 print(f"ℹ️  Inventario ya existe: {product.name}")
         
         await self.session.commit()
+    
+    async def seed_tables(self, company: Company, branches: Dict[str, "Branch"]):
+        """Carga mesas"""
+        try:
+            data = await self.load_json("tables.json")
+        except FileNotFoundError:
+            print("ℹ️  No se encontró tables.json, saltando...")
+            return
 
-    async def run(self, dry_run: bool = False, reset: bool = False):
+        # Usar la primera sucursal
+        branch = list(branches.values())[0] if branches else None
+        if not branch: return
+
+        tables = {}
+        for table_data in data["tables"]:
+            table_data["branch_id"] = branch.id
+            
+            result = await self.session.execute(
+                select(Table).filter(
+                    Table.table_number == table_data["table_number"],
+                    Table.branch_id == branch.id
+                )
+            )
+            table = result.scalar_one_or_none()
+            if not table:
+                table = Table(**table_data)
+                self.session.add(table)
+                print(f"✅ Mesa creada: {table.table_number}")
+            tables[table.table_number] = table
+        
+        await self.session.commit()
+        return tables
+
+    async def seed_demo_orders(self, company: Company, branches: Dict[str, "Branch"], users: List[User], tables: Dict[int, Table], products: List[Product]):
+        """Crea pedidos de prueba para E2E"""
+        if not tables or not products:
+            print("ℹ️  Saltando pedidos demo (sin mesas o productos)")
+            return
+
+        branch = list(branches.values())[0]
+        user = users[0] if users else None
+        
+        # Mesa 1 con pedido pendiente
+        table1 = tables.get(1)
+        if table1:
+            order1 = Order(
+                company_id=company.id,
+                branch_id=branch.id,
+                order_number="ORDER-001",
+                status="confirmed",
+                table_id=table1.id,
+                created_by_id=user.id if user else None,
+                total=50000,
+                subtotal=45000,
+                tax_total=5000
+            )
+            self.session.add(order1)
+            await self.session.flush()
+            
+            # Item para el pedido
+            item1 = OrderItem(
+                order_id=order1.id,
+                product_id=products[0].id,
+                quantity=1,
+                unit_price=50000,
+                subtotal=50000
+            )
+            self.session.add(item1)
+            table1.status = "occupied"
+            self.session.add(table1)
+            print(f"✅ Pedido demo creado para Mesa 1: {order1.order_number}")
+
+        await self.session.commit()
+
+    async def run(self, dry_run: bool = False, reset: bool = False, genesis_mode: bool = False):
         """Ejecuta el seeding completo"""
         print("🌱 Iniciando Master Seed...")
         print(f"📁 Directorio de datos: {self.data_dir}")
         print(f"🏢 Compañía: {self.company_code}")
         print(f"🔍 Dry run: {dry_run}")
         print(f"🔄 Reset: {reset}")
+        print(f"🧬 Genesis Mode: {genesis_mode}")
         print("-" * 50)
 
         if reset:
             print("🗑️  Reset activado - limpiando datos existentes...")
             await self.clean_database()
+
+        try:
+            """los datos configuracionales como categorias , permisos roles , y datos para funcion del sistema por defecto """
+            
+            # 1. Compañías (Template o Negocio)
+            if genesis_mode:
+                print("⚙️  Modo Genesis: Usando 'System Template' company...")
+                company = await self.get_or_create_company({
+                    "name": "System Template", 
+                    "slug": "system_template",
+                    "plan": "system",
+                    "is_active": False
+                })
+            else:
+                print("🏢 Creando compañías de negocio...")
+                company = await self.seed_companies()
+
+            # 2. Categorías de permisos
+            print("📂 Creando categorías de permisos...")
+            categories = await self.seed_categories(company)
+
+            # 3. Permisos
+            print("🔐 Creando permisos...")
+            permissions = await self.seed_permissions(company, categories)
+
+            # 4. Roles
+            print("👥 Creando roles...")
+            roles = await self.seed_roles(company)
+
+            # 5. Sucursales
+            print("🏪 Creando sucursales...")
+            branches = await self.seed_branches(company)
+
+            # 6. Usuarios
+            print("👤 Creando usuarios...")
+            await self.seed_users(company, roles, branches)
+
+            # 6. Asignaciones rol-permiso
+            print("🔗 Asignando permisos a roles...")
+            await self.seed_role_permissions(roles, permissions)
+
+            if genesis_mode:
+                print("🛑 Modo Genesis finalizado. Datos de negocio NO cargados.")
+                print("   (El sistema está listo para pruebas de Registro/Onboarding)")
+                return
+
+            # 7. Categorías de productos
+            print("📂 Creando categorías de productos...")
+            prod_categories = await self.seed_product_categories(company)
+
+            # 8. Productos
+            print("🍎 Creando productos...")
+            await self.seed_products(company, prod_categories)
+            
+            # Obtener productos creados
+            result = await self.session.execute(select(Product).filter(Product.company_id == company.id))
+            products = result.scalars().all()
+
+            # 9. Inventario inicial
+            print("📦 Creando inventario inicial...")
+            await self.seed_inventory(company, branches)
+
+            # 10. Mesas
+            print("🪑 Creando mesas...")
+            tables = await self.seed_tables(company, branches)
+
+            # 11. Pedidos Demo
+            print("📝 Creando pedidos demo...")
+            # Obtener usuarios para asignar
+            result = await self.session.execute(select(User).filter(User.company_id == company.id))
+            users_list = result.scalars().all()
+            await self.seed_demo_orders(company, branches, users_list, tables, products)
+
+            if not dry_run:
+                await self.session.commit()
+                print("✅ Master Seed completado exitosamente!")
+            else:
+                print("🔍 Dry run completado - no se guardaron cambios")
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"❌ Error durante el seeding: {e}")
+            await self.session.rollback()
+            raise
 
     async def clean_database(self):
         """Elimina todos los datos de las tablas principales"""
@@ -491,9 +650,6 @@ class MasterSeeder:
             "customers", "customer_addresses", "delivery_shifts"
         ]
         
-        # Disable triggers temporarily to avoid conflicts during truncate? 
-        # Actually TRUNCATE CASCADE handles most constraints, simply listing standard tables.
-        
         print("⚠️  Limpiando tablas...")
         for table in tables:
             try:
@@ -507,75 +663,20 @@ class MasterSeeder:
         await self.session.commit()
         print("✨ Base de datos limpia")
 
-        try:
-            """los datos configuracionales como categorias , permisos roles , y datos para funcion del sistema por defecto """
-            # 1. Compañías
-            #para produccion no nesesitamos cargar datos de compañiaas ya que son datos de usuario y prueba no configuracionales del sistema por default 
-            #print("🏢 Creando compañías...")
-            #company = await self.seed_companies()
-
-            # 2. Categorías de permisos
-            print("📂 Creando categorías de permisos...")
-            categories = await self.seed_categories(company)
-
-            # 3. Permisos
-            print("🔐 Creando permisos...")
-            permissions = await self.seed_permissions(company, categories)
-
-            # 4. Roles
-            print("👥 Creando roles...")
-            roles = await self.seed_roles(company)
-
-            # 5. Sucursales
-            #print("🏪 Creando sucursales...")
-            #branches = await self.seed_branches(company)
-
-            # 6. Usuarios
-            #print("👤 Creando usuarios...")
-            #await self.seed_users(company, roles, branches)
-
-            # 6. Asignaciones rol-permiso
-            print("🔗 Asignando permisos a roles...")
-            await self.seed_role_permissions(roles, permissions)
-
-            # 7. Categorías de productos
-            print("📂 Creando categorías de productos...")
-            prod_categories = await self.seed_product_categories(company)
-
-            # 8. Productos
-            #print("🍎 Creando productos...")
-            #await self.seed_products(company, prod_categories)
-
-            # 9. Inventario inicial
-            #print("📦 Creando inventario inicial...")
-            #await self.seed_inventory(company, branches)
-
-            if not dry_run:
-                await self.session.commit()
-                print("✅ Master Seed completado exitosamente!")
-            else:
-                print("🔍 Dry run completado - no se guardaron cambios")
-
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"❌ Error durante el seeding: {e}")
-            await self.session.rollback()
-            raise
-
 
 async def main():
     """Función principal"""
     parser = argparse.ArgumentParser(description="Master Seed Script")
     parser.add_argument("--dry-run", action="store_true", help="Solo mostrar qué se haría")
     parser.add_argument("--reset", action="store_true", help="Limpiar datos existentes")
+    parser.add_argument("--genesis", action="store_true", help="Modo Genesis: Solo cargar config de sistema")
     parser.add_argument("--company", default="fastops", help="Código de compañía")
 
     args = parser.parse_args()
 
     async for session in get_session():
         seeder = MasterSeeder(session, args.company)
-        await seeder.run(dry_run=args.dry_run, reset=args.reset)
+        await seeder.run(dry_run=args.dry_run, reset=args.reset, genesis_mode=args.genesis)
         break
 
 

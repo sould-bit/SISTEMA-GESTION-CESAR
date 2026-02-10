@@ -174,3 +174,7 @@ async def test_database(session = Depends(get_session)):
         return {"status": "ok", "message": "Conexión a BD exitosa"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# Socket.IO ASGI wrapper - combines FastAPI with Socket.IO
+# This enables WebSocket connections on the same port as the HTTP API
+combined_asgi_app = socketio.ASGIApp(sio, app)

@@ -430,4 +430,39 @@ print(payload)
 
 ---
 
+## 8. Permisos para Pedidos (Permission-Based RBAC)
+
+### 8.1 Concepto
+
+En lugar de verificar **roles** (isAdmin, isCashier, etc.) en el código, verificamos **permisos** configurados en Staff > Roles y Permisos. Esto permite:
+- **Modularidad:** Un solo módulo (`order_permissions.py`) define qué permiso requiere cada transición.
+- **Escalabilidad:** Cambiar quién puede aceptar pedidos sin tocar código, solo asignando `orders.update` al rol deseado.
+- **Logs de monitoreo:** `log_security_event` registra denegaciones con order_id, usuario y permiso requerido.
+
+### 8.2 Permisos usados
+
+| Permiso | Acción |
+|---------|--------|
+| `orders.update` | Aceptar pedidos, enviar a cocina, marcar listo, entregar |
+| `orders.cancel` | Cancelar pedidos directamente |
+| `orders.manage_all` | Aprobar/rechazar solicitudes de cancelación |
+| `cash.close` | Registrar pagos / cobrar mesa |
+
+### 8.3 Backend
+
+- **`app/core/order_permissions.py`:** Mapeo `(old_status, new_status) → permiso requerido`.
+- **`OrderStateMachine.transition()`:** Usa `PermissionService.check_permission()` en lugar de roles.
+- **Logs:** `log_security_event("ORDER_STATUS_DENIED", ...)` cuando se deniega el cambio.
+
+### 8.4 Frontend
+
+- **`useOrderPermissions` hook:** Centraliza `canAcceptOrder`, `canMarkReady`, `canDeliver`, etc. basado en `user.permissions`.
+- **Componentes actualizados:** OrderDetailsModal, OrderCard, TableCard, OrderListItem usan el hook en lugar de `isAdmin || isCashier`.
+
+### 8.5 Configuración
+
+En `backend/data/seeds/role_permissions.json`, el rol **waiter** ya tiene `orders.update`, por lo que los meseros pueden aceptar pedidos si así se desea. Para quitarles esa capacidad, basta con remover `orders.update` del rol en Staff > Roles y Permisos.
+
+---
+
 _Este documento se actualizará a medida que avancemos._

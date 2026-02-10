@@ -12,7 +12,11 @@ from app.models.recipe import Recipe
 from app.models.recipe_item import RecipeItem
 from app.models.ingredient import Ingredient
 from app.models.ingredient_batch import IngredientBatch
+from app.models.category import Category
 from app.services.unit_conversion_service import UnitConversionService
+from app.core.logging_config import get_rbac_logger, log_rbac_action, log_security_event
+
+logger = get_rbac_logger("app.inventory")
 
 class InventoryService:
     def __init__(self, db: AsyncSession):
@@ -71,9 +75,22 @@ class InventoryService:
         
         # 3. Validación: No permitir stock negativo (opcional, por ahora soft-check)
         if new_balance < 0 and transaction_type in ["SALE", "OUT"]:
+            # Obtener datos del producto para error detallado
+            stmt_prod = select(Product, Category).join(Category, isouter=True).where(Product.id == product_id)
+            res_prod = await self.db.execute(stmt_prod)
+            row_prod = res_prod.first()
+            
+            prod_name = row_prod.Product.name if row_prod else f"Item {product_id}"
+            cat_name = row_prod.Category.name.upper() if (row_prod and row_prod.Category) else ""
+            
+            # Inferir tipo para redirección en frontend
+            inferred_type = "PRODUCT"
+            if any(k in cat_name for k in ["BEBIDA", "REFRESCO", "CERVEZA", "ALCOHOL", "LICOR", "GENERAL", "VENTA"]):
+                inferred_type = "MERCHANDISE"
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Stock insuficiente. Disponible: {inventory.stock}, Solicitado: {abs(quantity_delta)}"
+                detail=f"Stock insuficiente {prod_name}. Disponible: {inventory.stock}. Tipo: {inferred_type}"
             ) 
 
         # 4. Actualizar Inventario
@@ -94,6 +111,19 @@ class InventoryService:
         
         await self.db.commit()
         await self.db.refresh(inventory)
+
+        # LOG: Trazabilidad de Negocio
+        log_rbac_action(
+            action=f"STOCK_UPDATE_{transaction_type}",
+            user_id=user_id,
+            details={
+                "branch_id": branch_id,
+                "product_id": product_id,
+                "delta": str(quantity_delta),
+                "new_balance": str(new_balance),
+                "reference": reference_id
+            }
+        )
         
         return inventory
 
@@ -104,7 +134,15 @@ class InventoryService:
             Inventory.stock <= Inventory.min_stock
         )
         result = await self.db.execute(statement)
-        return result.scalars().all()
+        alerts = result.scalars().all()
+        
+        if alerts:
+            logger.warning(
+                f"⚠️ Alerta de stock bajo detectada en sucursal {branch_id}",
+                extra={"branch_id": branch_id, "alert_count": len(alerts)}
+            )
+            
+        return alerts
 
     # =========================================================================
     # INGREDIENT INVENTORY (Level C)
@@ -165,14 +203,16 @@ class InventoryService:
 
         # Validación básica de negativo
         if new_balance < 0 and transaction_type in ["SALE", "OUT", "PRODUCTION_OUT"]:
-             # Permitir stock negativo temporalmente si es necesario
-            stmt_name = select(Ingredient.name).where(Ingredient.id == ingredient_id)
-            res_name = await self.db.execute(stmt_name)
-            ing_name = res_name.scalar_one_or_none() or str(ingredient_id)
+             # Obtener nombre y tipo del ingrediente para mensaje de error detallado
+            stmt_ing_info = select(Ingredient.name, Ingredient.ingredient_type).where(Ingredient.id == ingredient_id)
+            res_ing_info = await self.db.execute(stmt_ing_info)
+            ing_row = res_ing_info.first()
+            ing_name = ing_row.name if ing_row else str(ingredient_id)
+            ing_type = ing_row.ingredient_type if ing_row else "RAW"
             
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insumo insuficiente {ing_name}. Disponible: {inventory.stock}"
+                detail=f"Insumo insuficiente {ing_name}. Disponible: {inventory.stock}. Tipo: {ing_type}"
             )
 
         # ---------------------------------------------------------
@@ -230,6 +270,21 @@ class InventoryService:
         )
         self.db.add(txn)
         await self.db.commit()
+
+        # LOG: Trazabilidad (Solo para ajustes manuales o eventos críticos)
+        if transaction_type in ["ADJUST", "ADJ", "WASTE", "REVERT_ADJ"]:
+            log_rbac_action(
+                action=f"INGREDIENT_STOCK_{transaction_type}",
+                user_id=user_id,
+                details={
+                    "branch_id": branch_id,
+                    "ingredient_id": str(ingredient_id),
+                    "delta": str(actual_delta),
+                    "new_balance": str(new_balance),
+                    "reference": reference_id,
+                    "reason": reason
+                }
+            )
         
         # Return batch_consumptions only if FIFO consumption occurred
         consumed_batches = batch_consumptions if 'batch_consumptions' in locals() else []
@@ -383,6 +438,18 @@ class InventoryService:
             reference_id=str(txn.id),
             reason=reason.strip() if (reason and reason.strip()) else f"Reversión de ajuste {str(txn.id)[:8]}",
             cost_per_unit=cost
+        )
+        
+        # LOG: Trazabilidad de Reversión
+        log_rbac_action(
+            action="TRANSACTION_REVERTED",
+            user_id=user_id,
+            details={
+                "original_txn": str(transaction_id),
+                "new_txn": str(new_txn.id),
+                "ingredient_id": str(ingredient.id),
+                "reason": reason
+            }
         )
         
         return new_inv, new_txn

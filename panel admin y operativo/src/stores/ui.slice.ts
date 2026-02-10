@@ -5,12 +5,14 @@ export interface UiState {
     accessDenied: boolean;
     isAccessDeniedBlocking: boolean;
     sidebarOpen: boolean;
+    sidebarCollapsed: boolean;
 }
 
 const initialState: UiState = {
     accessDenied: false,
     isAccessDeniedBlocking: false,
     sidebarOpen: false,
+    sidebarCollapsed: true,
 };
 
 const uiSlice = createSlice({
@@ -27,8 +29,14 @@ const uiSlice = createSlice({
         setSidebarOpen: (state, action: PayloadAction<boolean>) => {
             state.sidebarOpen = action.payload;
         },
+        toggleSidebarCollapsed: (state) => {
+            state.sidebarCollapsed = !state.sidebarCollapsed;
+        },
+        setSidebarCollapsed: (state, action: { payload: boolean }) => {
+            state.sidebarCollapsed = action.payload;
+        },
     },
 });
 
-export const { setAccessDenied, toggleSidebar, setSidebarOpen } = uiSlice.actions;
+export const { setAccessDenied, toggleSidebar, setSidebarOpen, toggleSidebarCollapsed, setSidebarCollapsed } = uiSlice.actions;
 export default uiSlice.reducer;

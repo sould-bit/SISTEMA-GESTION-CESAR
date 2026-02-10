@@ -280,6 +280,66 @@ export const kitchenService = {
         return response.data;
     },
 
+    // ─────────────────────────────────────────
+    // BUSINESS LOGIC - Orchestration
+    // ─────────────────────────────────────────
+
+    /**
+     * Creates an ingredient and optionally initializes its stock in a single flow.
+     * Centralizes the calculation of unit cost from total paid.
+     */
+    async createIngredientWithStock(
+        ingredientData: IngredientCreate,
+        initialQuantity?: number,
+        totalCostPaid?: number
+    ): Promise<Ingredient> {
+        // 1. Calculate unit cost if total paid is provided
+        let unitCost = ingredientData.current_cost || 0;
+        if (initialQuantity && initialQuantity > 0 && totalCostPaid && totalCostPaid > 0) {
+            unitCost = totalCostPaid / initialQuantity;
+        }
+
+        // 2. Prepare payload
+        const payload = {
+            ...ingredientData,
+            current_cost: unitCost,
+            // Ensure empty SKU is handled
+            sku: ingredientData.sku?.trim() || undefined,
+        };
+
+        // 3. Create core ingredient
+        const newIngredient = await this.createIngredient(payload as IngredientCreate);
+
+        // 4. Initialize stock if needed
+        if (initialQuantity && initialQuantity > 0 && newIngredient?.id) {
+            await this.updateIngredientStock(
+                newIngredient.id,
+                initialQuantity,
+                'IN',
+                'Stock inicial al crear insumo',
+                unitCost,
+                undefined
+            );
+        }
+
+        return newIngredient;
+    },
+
+    /**
+     * Registers a stock purchase, automatically calculating unit cost.
+     */
+    async addStockPurchase(id: string, quantity: number, totalCost: number, supplier?: string) {
+        const unitCost = quantity > 0 ? totalCost / quantity : 0;
+        return this.updateIngredientStock(
+            id,
+            quantity,
+            'IN',
+            'Compra registrada',
+            unitCost,
+            supplier
+        );
+    },
+
     async getIngredientBatches(id: string, activeOnly: boolean = true): Promise<IngredientBatch[]> {
         const params = { active_only: activeOnly };
         const { data } = await api.get<IngredientBatch[]>(`/ingredients/${id}/batches`, { params });

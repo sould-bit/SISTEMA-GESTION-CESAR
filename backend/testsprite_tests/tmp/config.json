@@ -1,0 +1,19 @@
+{
+  "status": "codebase",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:8000",
+  "executionArgs": {
+    "projectName": "SISTEMA-GESTION-CESAR",
+    "projectPath": "c:\\Users\\jp151\\lab\\el_rincon\\SISTEMA-GESTION-CESAR\\backend",
+    "testIds": [
+      "TC004"
+    ],
+    "additionalInstruction": "Execute test case TC004 (FIFO inventory logic). The backend is running in a Docker container mapped to http://localhost:8000. Ensure the test correctly verifies the FIFO consumption of ingredient batches. Use the existing structure in tests/test_ingredient_batches.py as a reference but let TestSprite generate its own validation code if needed.",
+    "envs": {
+      "API_KEY": "sk-user-g7JwKIiV2-l80jTgEi0K-Qcfo5zBTDHYOxooLFL8qhTcAQcTpSrTMkhecyxX8oRe9T5gm99S6qndsdWGjgnjvM3vmKannp4CxvKyNyb4kinG-dzgrtekPoY1lxOFQgM8F5o"
+    }
+  },
+  "serverPort": 56693,
+  "proxy": "http://1a3ba84f-cc36-4b57-bec1-e137e50fba46:ipzR9P0b81sG7mdhnhEXIsVYu2cQarbU@tun.testsprite.com:8080"
+}

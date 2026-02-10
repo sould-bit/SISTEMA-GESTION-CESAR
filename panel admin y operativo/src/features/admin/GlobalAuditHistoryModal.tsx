@@ -5,16 +5,17 @@ interface GlobalAuditHistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
     onRevertSuccess?: () => void;
+    initialFilter?: 'all' | 'pos' | 'neg' | 'revert' | 'audit';
 }
 
-export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: GlobalAuditHistoryModalProps) => {
+export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess, initialFilter = 'all' }: GlobalAuditHistoryModalProps) => {
     const [history, setHistory] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isReverting, setIsReverting] = useState<string | null>(null);
 
     // Filtros
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterType, setFilterType] = useState<'all' | 'pos' | 'neg' | 'revert'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'pos' | 'neg' | 'revert' | 'audit'>(initialFilter);
 
     const [revertConfirm, setRevertConfirm] = useState<{ id: string, name: string } | null>(null);
     const [revertReason, setRevertReason] = useState('');
@@ -63,11 +64,14 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
                 typeStr.includes('ROLLBACK') ||
                 typeStr.includes('DELETION');
 
+            const isAudit = ['ADJUST', 'ADJ'].includes(typeStr);
+
             const matchesType =
                 filterType === 'all' ||
                 (filterType === 'pos' && qty > 0) ||
                 (filterType === 'neg' && qty < 0) ||
-                (filterType === 'revert' && isReversion);
+                (filterType === 'revert' && isReversion) ||
+                (filterType === 'audit' && isAudit);
 
             return matchesSearch && matchesType;
         });
@@ -172,6 +176,7 @@ export const GlobalAuditHistoryModal = ({ isOpen, onClose, onRevertSuccess }: Gl
                         <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/10 shrink-0">
                             {[
                                 { id: 'all', label: 'Todos', icon: 'list' },
+                                { id: 'audit', label: 'Auditorías', icon: 'gavel' },
                                 { id: 'pos', label: 'Ingresos', icon: 'add_circle' },
                                 { id: 'neg', label: 'Salidas', icon: 'remove_circle' },
                                 { id: 'revert', label: 'Reversiones', icon: 'history' }

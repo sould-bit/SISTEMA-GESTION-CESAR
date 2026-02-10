@@ -43,6 +43,15 @@
         "orders.read",
         "orders.update"
       ]
+    },
+    {
+      "role_code": "waiter",
+      "permission_codes": [
+        "products.read",
+        "orders.read",
+        "orders.create",
+        "orders.update"
+      ]
     }
   ]
 }
