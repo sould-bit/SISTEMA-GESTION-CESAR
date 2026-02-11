@@ -1,71 +1,122 @@
-
-import { useAppDispatch } from '../../stores/store';
+import { useAppDispatch, useAppSelector } from '../../stores/store';
 import { setAccessDenied } from '../../stores/ui.slice';
 import { useNavigate } from 'react-router-dom';
 
-interface ValidationProps {
-    isBlocking?: boolean;
-}
-
-export const AccessDenied = ({ isBlocking = false }: ValidationProps) => {
+/**
+ * Modal global que se muestra cuando se deniega el acceso a una acción o sección.
+ * Proporciona feedback específico sobre qué permiso falta y qué acción se intentó.
+ */
+export const AccessDenied = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
+    const {
+        accessDenied,
+        isAccessDeniedBlocking,
+        requiredPermission,
+        requiredPermissionCode,
+        actionName
+    } = useAppSelector(state => state.ui);
 
-    const handleDismiss = () => {
-        dispatch(setAccessDenied(false));
-    };
+    if (!accessDenied) return null;
 
-    const handleGoHome = () => {
-        dispatch(setAccessDenied(false));
-        navigate('/admin/dashboard');
+    const handleClose = () => {
+        dispatch(setAccessDenied({ isOpen: false }));
+        // Si era bloqueante y cerramos, forzamos salida al dashboard para evitar reaperturas infinitas
+        if (isAccessDeniedBlocking) {
+            navigate('/admin/dashboard');
+        }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-deep/90 backdrop-blur-sm animate-fade-in">
-            <div className="bg-card-dark border border-border-dark p-8 rounded-2xl shadow-2xl max-w-md w-full text-center relative overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+            {/* Backdrop con desenfoque suave */}
+            <div
+                className="fixed inset-0 bg-bg-deep/90 backdrop-blur-md transition-opacity animate-in fade-in duration-500"
+                onClick={!isAccessDeniedBlocking ? handleClose : undefined}
+            />
 
-                {/* Background Decoration */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-orange-500"></div>
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 rounded-full blur-2xl"></div>
+            {/* Modal Container */}
+            <div className="relative bg-card-dark border border-border-dark rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300">
 
-                {/* Icon */}
-                <div className="mx-auto size-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-                    <span className="material-symbols-outlined text-4xl text-red-500">
-                        lock_person
-                    </span>
+                {/* Header Alerta Premium */}
+                <div className="bg-gradient-to-br from-status-alert/15 to-transparent p-8 border-b border-border-dark flex items-center gap-6">
+                    <div className="size-16 rounded-2xl bg-status-alert/10 flex items-center justify-center border border-status-alert/20 shadow-inner">
+                        <span className="material-symbols-outlined text-status-alert text-4xl animate-pulse">lock_person</span>
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-black text-white tracking-tight leading-none">Acceso Restringido</h2>
+                        <p className="text-status-alert text-xs font-bold uppercase tracking-[0.2em] mt-2 opacity-80">Protocolo de Seguridad Activo</p>
+                    </div>
                 </div>
 
-                {/* Content */}
-                <h2 className="text-2xl font-bold text-white mb-2">
-                    Acceso Restringido
-                </h2>
-                <p className="text-text-muted mb-8 text-sm leading-relaxed">
-                    No tienes los permisos necesarios para acceder a esta sección.
-                    Si crees que es un error, contacta al administrador del sistema.
-                </p>
+                {/* Body */}
+                <div className="p-8">
+                    <p className="text-text-muted text-sm leading-relaxed mb-8">
+                        Tu perfil actual no cuenta con las autorizaciones necesarias para ejecutar esta operación.
+                        Para mantener la integridad del sistema, esta acción ha sido bloqueada.
+                    </p>
 
-                {/* Actions */}
-                <div className="flex flex-col gap-3">
+                    <div className="space-y-4">
+                        {/* Acción intentada */}
+                        <div className="bg-bg-deep/50 rounded-2xl p-5 border border-border-dark">
+                            <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-2 block">Operación Intentada</span>
+                            <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-text-muted text-xl">near_me</span>
+                                <p className="text-base text-gray-100 font-semibold tracking-tight">
+                                    {actionName || "Operación no definida"}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Permiso técnico */}
+                        {(requiredPermission || requiredPermissionCode) && (
+                            <div className="bg-status-alert/5 rounded-2xl p-5 border border-status-alert/10 relative overflow-hidden group">
+                                <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-2 block">Recurso Requerido</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-status-alert text-xl">key</span>
+                                    <p className="text-base text-status-alert font-bold">
+                                        {requiredPermission || "Permiso Administrativo"}
+                                    </p>
+                                </div>
+                                {requiredPermissionCode && (
+                                    <div className="mt-3 flex items-center gap-2">
+                                        <span className="text-[10px] font-mono text-gray-500 bg-black/40 px-2 py-0.5 rounded uppercase letter-spacing-widest">
+                                            ID Técnico: {requiredPermissionCode}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Guía de resolución */}
+                    <div className="mt-8 flex items-start gap-4 p-5 rounded-2xl bg-accent-primary/5 border border-accent-primary/10">
+                        <div className="mt-1 flex items-center justify-center size-8 rounded-full bg-accent-primary/20">
+                            <span className="material-symbols-outlined text-accent-primary text-xl">help</span>
+                        </div>
+                        <div className="space-y-1">
+                            <h4 className="text-sm font-bold text-white">¿Cómo solucionar esto?</h4>
+                            <p className="text-xs text-text-muted leading-relaxed">
+                                Solicita a tu supervisor o administrador que asigne el código <span className="text-accent-primary font-mono bg-accent-primary/10 px-1 rounded">{requiredPermissionCode || 'específico'}</span> a tu rol.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="bg-bg-deep/50 p-6 flex flex-col sm:flex-row gap-3 border-t border-border-dark">
                     <button
-                        onClick={handleGoHome}
-                        className="w-full py-3 px-4 bg-white text-bg-deep font-bold rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+                        onClick={() => navigate('/admin/dashboard')}
+                        className="flex-1 py-4 px-6 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl transition-all uppercase tracking-widest border border-border-dark"
                     >
-                        <span className="material-symbols-outlined text-xl">home</span>
-                        Volver al Inicio
+                        Panel Principal
                     </button>
-
-                    {!isBlocking && (
-                        <button
-                            onClick={handleDismiss}
-                            className="w-full py-3 px-4 bg-transparent border border-border-dark text-text-muted font-medium rounded-xl hover:bg-white/5 transition-colors text-sm"
-                        >
-                            Cerrar mensaje
-                        </button>
-                    )}
-                </div>
-
-                <div className="mt-6 text-xs text-gray-600 font-mono">
-                    E_ACCESS_DENIED_403
+                    <button
+                        onClick={handleClose}
+                        className="flex-1 py-4 px-6 bg-gradient-to-br from-status-alert to-orange-600 hover:scale-[1.02] text-white text-xs font-black rounded-xl transition-all shadow-xl shadow-status-alert/20 uppercase tracking-widest"
+                    >
+                        {isAccessDeniedBlocking ? 'Cerrar Sección' : 'Cerrar Notificación'}
+                    </button>
                 </div>
             </div>
         </div>

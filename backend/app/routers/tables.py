@@ -5,11 +5,46 @@ from app.database import get_session
 from app.models.table import Table, TableStatus
 from app.dependencies import get_current_user, verify_current_user_company
 from app.models.user import User
+from app.schemas.tables import TableCreate
+
+import logging
+logger = logging.getLogger(__name__)
+logger.info("Modulo de tablas cargado correctamente")
 
 router = APIRouter(
     prefix="/tables",
     tags=["tables"]
 )
+
+@router.post("/", response_model=Table)
+async def create_table(
+    table_in: TableCreate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Crea una mesa individual.
+    """
+    target_branch_id = table_in.branch_id
+    
+    # Basic authorization check
+    if current_user.role_id != 1 and target_branch_id != current_user.branch_id:
+         raise HTTPException(status_code=403, detail="Not authorized for this branch")
+
+    # Check duplicate
+    stmt = select(Table).where(
+        Table.branch_id == target_branch_id,
+        Table.table_number == table_in.table_number
+    )
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+         raise HTTPException(status_code=400, detail="Table number already exists in this branch")
+
+    new_table = Table.model_validate(table_in)
+    session.add(new_table)
+    await session.commit()
+    await session.refresh(new_table)
+    return new_table
 
 @router.post("/setup", response_model=List[Table])
 async def setup_tables(

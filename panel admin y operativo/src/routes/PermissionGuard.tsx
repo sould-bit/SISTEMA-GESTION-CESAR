@@ -2,6 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../stores/store';
 import { setAccessDenied } from '../stores/ui.slice';
 import { useEffect } from 'react';
+import { getPermissionLabel } from '../utils/permissions';
 
 interface Props {
     requiredPermission?: string;
@@ -25,7 +26,6 @@ export const PermissionGuard = ({ requiredPermission, allowedRoles }: Props) => 
 
     // 2. Check Required Permission
     if (requiredPermission) {
-        // If user has no permissions array or doesn't have the specific permission
         if (!user.permissions?.includes(requiredPermission)) {
             isAllowed = false;
         }
@@ -42,25 +42,24 @@ export const PermissionGuard = ({ requiredPermission, allowedRoles }: Props) => 
     // Handle Access Denied via Redux (Side Effect)
     useEffect(() => {
         if (!isAllowed) {
-            dispatch(setAccessDenied({ isOpen: true, isBlocking: true }));
+            dispatch(setAccessDenied({
+                isOpen: true,
+                isBlocking: true,
+                requiredPermission: getPermissionLabel(requiredPermission),
+                requiredPermissionCode: requiredPermission,
+                actionName: "Acceso a sección protegida"
+            }));
         } else {
-            // Ensure we clear the state if we are allowed (e.g. navigation change)
-            // But be careful not to clear it if it was set by API error?
-            // Actually, if we are in a Guarded Route and we are allowed, we shouldn't implicitly clear it 
-            // unless we want to "reset" the view. 
-            // Ideally, navigation clears it.
             dispatch(setAccessDenied({ isOpen: false }));
         }
 
-        // Cleanup on unmount seems risky if we navigate away? 
         return () => {
             dispatch(setAccessDenied({ isOpen: false }));
         };
     }, [isAllowed, dispatch, requiredPermission]);
 
     if (!isAllowed) {
-        // Render nothing, MainLayout will handle the overlay via Redux
-        return null;
+        return null; // El overlay se maneja globalmente
     }
 
     return <Outlet />;

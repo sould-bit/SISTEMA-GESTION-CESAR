@@ -16,6 +16,7 @@ export interface ConfirmModalProps {
     cancelText?: string;
     onConfirm?: (value?: string) => void | Promise<void>;
     variant?: 'confirm' | 'alert' | 'danger';
+    promptPlaceholder?: string;
 }
 
 const APP_NAME = 'FastOps Manager';
@@ -29,13 +30,16 @@ export const ConfirmModal = ({
     cancelText = 'Cancelar',
     onConfirm,
     variant = 'confirm',
+    promptPlaceholder,
 }: ConfirmModalProps) => {
+    const [inputValue, setInputValue] = useState('');
     const isAlert = variant === 'alert' || !onConfirm;
     const isDanger = variant === 'danger';
 
     const handleConfirm = async () => {
-        if (onConfirm) await onConfirm();
+        if (onConfirm) await onConfirm(inputValue);
         onClose();
+        setInputValue(''); // Reset after close
     };
 
     const confirmBtnClass = isDanger
@@ -44,7 +48,7 @@ export const ConfirmModal = ({
 
     return (
         <Transition show={isOpen} as={Fragment}>
-            <Dialog as="div" className="relative z-[60]" onClose={onClose}>
+            <Dialog as="div" className="relative z-[60]" onClose={() => { onClose(); setInputValue(''); }}>
                 <Transition.Child
                     as={Fragment}
                     enter="ease-out duration-200"
@@ -71,13 +75,26 @@ export const ConfirmModal = ({
                             <Dialog.Title as="h3" className="text-lg font-bold text-white mb-1" id="confirm-modal-title">
                                 {title}
                             </Dialog.Title>
-                            <p className="text-text-muted text-sm leading-relaxed mb-6">{message}</p>
+                            <p className="text-text-muted text-sm leading-relaxed mb-4">{message}</p>
+
+                            {promptPlaceholder && (
+                                <div className="mb-4">
+                                    <textarea
+                                        className="w-full bg-bg-deep border border-border-dark rounded-lg p-3 text-sm text-white placeholder-text-muted focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all resize-none"
+                                        rows={3}
+                                        placeholder={promptPlaceholder}
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                            )}
 
                             <div className="flex gap-3 justify-end">
                                 {!isAlert && (
                                     <button
                                         type="button"
-                                        onClick={onClose}
+                                        onClick={() => { onClose(); setInputValue(''); }}
                                         className="px-4 py-2 text-sm font-medium text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                                     >
                                         {cancelText}
@@ -86,7 +103,7 @@ export const ConfirmModal = ({
                                 <button
                                     type="button"
                                     onClick={handleConfirm}
-                                    disabled={false}
+                                    disabled={promptPlaceholder ? inputValue.trim().length < 5 : false}
                                     className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors disabled:opacity-50 ${confirmBtnClass}`}
                                 >
                                     {confirmText}

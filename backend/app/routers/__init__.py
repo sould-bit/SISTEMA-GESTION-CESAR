@@ -1,2 +1,27 @@
-# Importar todos los routers para que estén disponibles
-from . import auth, category, rbac, product, recipe, order, inventory, payment, cash, reports
+from . import (
+    auth,
+    category,
+    rbac,
+    product,
+    recipe,
+    order,
+    inventory,
+    payment,
+    cash,
+    reports,
+    customers,
+    storefront,
+    delivery,
+    audit,
+    tickets,
+    uploads,
+    modifiers,
+    ingredients,
+    menu_engineering,
+    kitchen_production,
+    inventory_count,
+    intelligence,
+    users,
+    branches,
+    tables
+)

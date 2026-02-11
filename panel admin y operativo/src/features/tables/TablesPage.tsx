@@ -74,7 +74,6 @@ export const TablesPage = () => {
             await fetchTables();
         } catch (error) {
             console.error("Error setting up tables", error);
-            alert("Error al configurar mesas");
         }
     };
 
@@ -98,7 +97,6 @@ export const TablesPage = () => {
             await statusMutation.mutateAsync({ id: orderId, status: 'preparing' });
         } catch (error) {
             console.error('Error accepting order:', error);
-            alert('Error al aceptar el pedido');
         }
     };
 
@@ -117,7 +115,6 @@ export const TablesPage = () => {
                 setIsDetailsOpen(true);
             } catch (error) {
                 console.error("Error fetching active order", error);
-                alert("No se pudo cargar el pedido activo de esta mesa");
             } finally {
                 setFetchingOrder(false);
             }

@@ -28,7 +28,7 @@ const STEPS: { status: OrderStatus; label: string }[] = [
 import { useOrderPermissions } from '../../../hooks/useOrderPermissions';
 
 export const OrderListItem = ({ order, onViewDetail, onStatusChange, onOpenPayment }: OrderListItemProps) => {
-    const { canAcceptOrder, canMarkReady, canDeliver } = useOrderPermissions();
+    const { canAcceptOrder, canMarkReady, canDeliver, canOpenPayment } = useOrderPermissions();
 
     const minutesWaiting = differenceInMinutes(new Date(), new Date(order.created_at));
     const isHighPriority = minutesWaiting > 15 && order.status !== 'delivered' && order.status !== 'cancelled';
@@ -132,7 +132,7 @@ export const OrderListItem = ({ order, onViewDetail, onStatusChange, onOpenPayme
                     </div>
 
                     <div className="flex gap-2">
-                        {order.status === 'delivered' && !isPaid && (isAdmin || isCashier) ? (
+                        {order.status === 'delivered' && !isPaid && canOpenPayment ? (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();

@@ -37,8 +37,12 @@ def get_required_permission(old_status: OrderStatus, new_status: OrderStatus) ->
     """
     transition = (old_status, new_status)
 
-    # Cancelaciones: orders.cancel
+    # Cancelaciones: 
     if new_status == OrderStatus.CANCELLED:
+        # Permitir cancelar pedidos PENDING solo con orders.update (meseros lo tienen)
+        if old_status == OrderStatus.PENDING:
+            return PERMISSION_ORDER_UPDATE
+        # Otros estados requieren permiso explícito de cancelación
         return PERMISSION_ORDER_CANCEL
 
     # Flujo de preparación y entrega: orders.update

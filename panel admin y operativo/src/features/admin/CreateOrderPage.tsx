@@ -949,7 +949,7 @@ export const CreateOrderPage = () => {
             </div>
 
             {/* Floating Quick Action / Category Menu Container (Mobile Only) */}
-            <div className={`lg:hidden fixed right-5 z-50 flex flex-col items-end gap-4 pointer-events-none bottom-[max(2.5rem,calc(2.5rem+env(safe-area-inset-bottom)))]`}>
+            <div className={`lg:hidden fixed right-4 z-50 flex flex-col items-end gap-3 pointer-events-none bottom-[max(1rem,calc(1rem+env(safe-area-inset-bottom)))]`}>
                 {/* Backdrop for click-outside */}
                 {isCategoryMenuOpen && (
                     <div
@@ -1001,7 +1001,7 @@ export const CreateOrderPage = () => {
                 </div>
 
                 {/* Categories List (Expands Upwards) */}
-                <div className={`flex flex-col items-end gap-2 transition-all duration-300 origin-bottom pointer-events-auto ${isCategoryMenuOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-90 pointer-events-none'}`}>
+                <div className={`flex flex-col items-end gap-2 transition-all duration-300 origin-bottom pointer-events-auto ${isCategoryMenuOpen ? 'opacity-100 translate-y-0 scale-100 max-h-[60vh]' : 'opacity-0 translate-y-10 scale-90 pointer-events-none max-h-0 overflow-hidden'}`}>
                     <div className="max-h-[50vh] overflow-y-auto flex flex-col items-end gap-2 p-1 no-scrollbar pr-1">
                         <button
                             onClick={() => { setSelectedCategoryId('all'); setIsCategoryMenuOpen(false); }}

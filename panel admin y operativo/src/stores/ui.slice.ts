@@ -1,4 +1,3 @@
-
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface UiState {
@@ -6,6 +5,9 @@ export interface UiState {
     isAccessDeniedBlocking: boolean;
     sidebarOpen: boolean;
     sidebarCollapsed: boolean;
+    requiredPermission?: string;     // Nombre amigable del permiso (ej. "Actualizar pedidos")
+    requiredPermissionCode?: string; // Código técnico (ej. "orders.update")
+    actionName?: string;             // Acción que se intentó (ej. "Aceptar y preparar pedido")
 }
 
 const initialState: UiState = {
@@ -19,9 +21,18 @@ const uiSlice = createSlice({
     name: 'ui',
     initialState,
     reducers: {
-        setAccessDenied: (state, action: PayloadAction<{ isOpen: boolean; isBlocking?: boolean }>) => {
+        setAccessDenied: (state, action: PayloadAction<{
+            isOpen: boolean;
+            isBlocking?: boolean;
+            requiredPermission?: string;
+            requiredPermissionCode?: string;
+            actionName?: string;
+        }>) => {
             state.accessDenied = action.payload.isOpen;
             state.isAccessDeniedBlocking = action.payload.isBlocking || false;
+            state.requiredPermission = action.payload.requiredPermission;
+            state.requiredPermissionCode = action.payload.requiredPermissionCode;
+            state.actionName = action.payload.actionName;
         },
         toggleSidebar: (state) => {
             state.sidebarOpen = !state.sidebarOpen;

@@ -1,5 +1,6 @@
 import { Table } from './tables.service';
 import { TableOrderInfo } from './useTableOrders';
+import { useOrderPermissions } from '../../hooks/useOrderPermissions';
 
 interface TableCardProps {
     table: Table;
@@ -16,7 +17,6 @@ interface TableCardProps {
  * - Pending: Yellow pulse animation, "Nuevo Pedido" badge
  * - Preparing: Red solid, waiter name displayed
  */
-import { useOrderPermissions } from '../../hooks/useOrderPermissions';
 
 export const TableCard = ({ table, orderInfo, onClick, onAcceptOrder }: TableCardProps) => {
     const { canAcceptOrder } = useOrderPermissions();
@@ -81,7 +81,7 @@ export const TableCard = ({ table, orderInfo, onClick, onAcceptOrder }: TableCar
             className={`
                 relative aspect-square rounded-2xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 p-3
                 ${getCardStyles()}
-                ${isPending && onAcceptOrder && (isAdmin || isCashier) ? 'mb-4' : ''}
+                ${isPending && onAcceptOrder && canAcceptOrder ? 'mb-4' : ''}
             `}
         >
             {/* Header row: Price + Indicator */}

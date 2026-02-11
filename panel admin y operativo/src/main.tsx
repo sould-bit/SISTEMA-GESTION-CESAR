@@ -8,6 +8,7 @@ import { store } from './stores/store'
 import { router } from './routes/router'
 import { SocketProvider } from './components/SocketProvider'
 import { NotificationToast } from './components/NotificationToast'
+import { SessionInitializer } from './components/auth/SessionInitializer'
 import { PWAInstallPrompt } from './components/PWAInstallPrompt'
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
@@ -26,6 +27,7 @@ createRoot(document.getElementById('root')!).render(
         <Provider store={store}>
             <QueryClientProvider client={queryClient}>
                 <SocketProvider>
+                    <SessionInitializer />
                     <NotificationToast />
                     <PWAInstallPrompt />
                     <RouterProvider router={router} />

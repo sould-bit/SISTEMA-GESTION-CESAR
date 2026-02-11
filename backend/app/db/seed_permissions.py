@@ -101,7 +101,7 @@ SYSTEM_PERMISSIONS = [
     # === PEDIDOS ===
     {"category": "orders", "resource": "orders", "action": "create", "name": "Crear Pedidos"},
     {"category": "orders", "resource": "orders", "action": "read", "name": "Ver Pedidos"},
-    {"category": "orders", "resource": "orders", "action": "update", "name": "Modificar Pedidos"},
+    {"category": "orders", "resource": "orders", "action": "update", "name": "Gestionar Estados (Aceptar/Entregar)"},
     {"category": "orders", "resource": "orders", "action": "cancel", "name": "Cancelar Pedidos"},
     {"category": "orders", "resource": "orders", "action": "manage_all", "name": "Gestionar Todos los Pedidos"},
     {"category": "orders", "resource": "kitchen", "action": "view", "name": "Ver Pedidos de Cocina"},
@@ -246,20 +246,35 @@ async def seed_permission_categories(session: AsyncSession, company_id: int) -> 
     category_map = {}
     
     for cat_data in SYSTEM_CATEGORIES:
-        category = PermissionCategory(
-            id=uuid4(),
-            company_id=company_id,
-            code=cat_data["code"],
-            name=cat_data["name"],
-            description=cat_data["description"],
-            icon=cat_data.get("icon"),
-            color=cat_data.get("color"),
-            is_system=True,
-            is_active=True
+        stmt = select(PermissionCategory).where(
+            PermissionCategory.company_id == company_id,
+            PermissionCategory.code == cat_data["code"]
         )
-        session.add(category)
-        category_map[cat_data["code"]] = category.id
-        print(f"  ✅ {cat_data['name']} ({cat_data['code']})")
+        result = await session.execute(stmt)
+        existing_cat = result.scalar_one_or_none()
+
+        if existing_cat:
+            existing_cat.name = cat_data["name"]
+            existing_cat.description = cat_data["description"]
+            existing_cat.icon = cat_data.get("icon")
+            existing_cat.color = cat_data.get("color")
+            category_map[cat_data["code"]] = existing_cat.id
+            print(f"  🔄 {cat_data['name']} ({cat_data['code']}) (Actualizado)")
+        else:
+            category = PermissionCategory(
+                id=uuid4(),
+                company_id=company_id,
+                code=cat_data["code"],
+                name=cat_data["name"],
+                description=cat_data["description"],
+                icon=cat_data.get("icon"),
+                color=cat_data.get("color"),
+                is_system=True,
+                is_active=True
+            )
+            session.add(category)
+            category_map[cat_data["code"]] = category.id
+            print(f"  ✅ {cat_data['name']} ({cat_data['code']}) (Creado)")
     
     await session.commit()
     return category_map
@@ -282,21 +297,40 @@ async def seed_permissions(
         category_id = category_map[perm_data["category"]]
         code = f"{perm_data['resource']}.{perm_data['action']}"
         
-        permission = Permission(
-            id=uuid4(),
-            company_id=company_id,
-            category_id=category_id,
-            code=code,
-            name=perm_data["name"],
-            description=f"Permiso para {perm_data['name'].lower()}",
-            resource=perm_data["resource"],
-            action=perm_data["action"],
-            is_system=True,
-            is_active=True
+        # Check if permission exists
+        stmt = select(Permission).where(
+            Permission.company_id == company_id,
+            Permission.code == code
         )
-        session.add(permission)
-        permission_map[code] = permission.id
-        print(f"  ✅ {code} - {perm_data['name']}")
+        result = await session.execute(stmt)
+        existing_perm = result.scalar_one_or_none()
+        
+        if existing_perm:
+            # Update existing
+            existing_perm.name = perm_data["name"]
+            existing_perm.description = f"Permiso para {perm_data['name'].lower()}"
+            existing_perm.category_id = category_id
+            existing_perm.resource = perm_data["resource"]
+            existing_perm.action = perm_data["action"]
+            permission_map[code] = existing_perm.id
+            print(f"  🔄 {code} - {perm_data['name']} (Actualizado)")
+        else:
+            # Create new
+            permission = Permission(
+                id=uuid4(),
+                company_id=company_id,
+                category_id=category_id,
+                code=code,
+                name=perm_data["name"],
+                description=f"Permiso para {perm_data['name'].lower()}",
+                resource=perm_data["resource"],
+                action=perm_data["action"],
+                is_system=True,
+                is_active=True
+            )
+            session.add(permission)
+            permission_map[code] = permission.id
+            print(f"  ✅ {code} - {perm_data['name']} (Creado)")
     
     await session.commit()
     return permission_map
@@ -316,42 +350,74 @@ async def seed_roles(
     role_map = {}
     
     for role_data in SYSTEM_ROLES:
-        role = Role(
-            id=uuid4(),
-            company_id=company_id,
-            code=role_data["code"],
-            name=role_data["name"],
-            description=role_data["description"],
-            hierarchy_level=role_data["hierarchy_level"],
-            is_system=True,
-            is_active=True
+        stmt = select(Role).where(
+            Role.company_id == company_id,
+            Role.code == role_data["code"]
         )
-        session.add(role)
-        role_map[role_data["code"]] = role.id
-        print(f"  ✅ {role_data['name']} (nivel {role_data['hierarchy_level']})")
+        result = await session.execute(stmt)
+        existing_role = result.scalar_one_or_none()
+
+        role_id = None
         
-        # Asignar permisos al rol
+        if existing_role:
+            existing_role.name = role_data["name"]
+            existing_role.description = role_data["description"]
+            existing_role.hierarchy_level = role_data["hierarchy_level"]
+            role_id = existing_role.id
+            role_map[role_data["code"]] = role_id
+            print(f"  🔄 {role_data['name']} ({role_data['code']}) (Actualizado)")
+        else:
+            role = Role(
+                id=uuid4(),
+                company_id=company_id,
+                code=role_data["code"],
+                name=role_data["name"],
+                description=role_data["description"],
+                hierarchy_level=role_data["hierarchy_level"],
+                is_system=True,
+                is_active=True
+            )
+            session.add(role)
+            role_id = role.id
+            role_map[role_data["code"]] = role_id
+            print(f"  ✅ {role_data['name']} ({role_data['code']}) (Creado)")
+        
+        # Asignar permisos al rol (Sync permissions)
         if role_data["permissions"] == "ALL":
-            # Super admin tiene todos los permisos
             permissions_to_assign = list(permission_map.values())
         else:
-            # Otros roles tienen permisos específicos
             permissions_to_assign = [
                 permission_map[perm_code]
                 for perm_code in role_data["permissions"]
                 if perm_code in permission_map
             ]
+            
+        # Clear existing role permissions first if simplistic approach, or merge?
+        # Ideally we want to ensure role has exactly these permissions if it's a system role.
+        # But user might have added custom permissions? 
+        # Since these are SYSTEM_ROLES, we probably want to enforce system permissions.
+        # But removing user-added permissions might be aggressive.
         
+        # Let's just ensure the system permissions are added.
+        # We need to know which ones are already assigned.
+        
+        stmt_rp = select(RolePermission.permission_id).where(RolePermission.role_id == role_id)
+        result_rp = await session.execute(stmt_rp)
+        current_perm_ids = set(result_rp.scalars().all())
+        
+        count_added = 0
         for perm_id in permissions_to_assign:
-            role_permission = RolePermission(
-                id=uuid4(),
-                role_id=role.id,
-                permission_id=perm_id,
-                granted_by=None  # Sistema
-            )
-            session.add(role_permission)
+            if perm_id not in current_perm_ids:
+                role_permission = RolePermission(
+                    id=uuid4(),
+                    role_id=role_id,
+                    permission_id=perm_id,
+                    granted_by=None
+                )
+                session.add(role_permission)
+                count_added += 1
         
-        print(f"    → {len(permissions_to_assign)} permisos asignados")
+        print(f"    → {count_added} nuevos permisos asignados (Total sistema: {len(permissions_to_assign)})")
     
     await session.commit()
     return role_map
