@@ -1,72 +1,143 @@
-import { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { useAppSelector } from '../../stores/store';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ModifierModal } from './ModifierModal';
 import { DeliveryInfoForm } from './DeliveryInfoForm';
-import { setupService, Product, Category, ProductModifier } from '../setup/setup.service';
-import { api } from '../../lib/api';
-import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { Product } from '../setup/setup.service';
+import { DeliveryDetails } from './createOrder.machine';
+import { useMachine } from '@xstate/react';
+import { createOrderMachine } from './createOrder.machine';
+import { inspector } from '../../lib/inspector';
 
-interface OrderItem {
-    product_id: number;
-    product_name: string;
-    quantity: number;
-    unit_price: number;
-    modifiers?: number[]; // IDs of extra modifiers
-    removed_ingredients?: string[]; // IDs of removed ingredients
-    comment?: string;
-}
 
 export const CreateOrderPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { tableId, tableNumber, branchId, deliveryType, orderId } = location.state || {};
-    const isMobile = useMediaQuery('(max-width: 1024px)');
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [recipes, setRecipes] = useState<any[]>([]);
-    const [globalModifiers, setGlobalModifiers] = useState<ProductModifier[]>([]); // All available modifiers
-    const [isLoading, setIsLoading] = useState(true);
-    const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-    const [existingItems, setExistingItems] = useState<any[]>([]);
-    const [orderStatus, setOrderStatus] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { user } = useAppSelector(state => state.auth);
 
-    // Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedProductForMod, setSelectedProductForMod] = useState<Product | null>(null);
+    const [state, send] = useMachine(createOrderMachine, {
+        input: {
+            tableId,
+            tableNumber,
+            branchId,
+            deliveryType: deliveryType || 'dine_in',
+            existingOrderId: orderId,
+            permissions: user?.permissions || []
+        },
+        inspect: inspector?.inspect
+    });
 
-    // UI State
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
+    const {
+        products,
+        categories,
+        recipes,
+        globalModifiers,
+        orderItems,
+        deliveryDetails,
+        searchTerm,
+        selectedCategoryId,
+        selectedProductForMod,
+        editingCartItemIndex,
+        generalComment,
+        existingItems,
+        stockError
+    } = state.context;
+
+    const isLoading = state.matches('loading');
+    const isSubmitting = state.matches('submitting');
+    const isModalOpen = state.matches('customizing');
+    const cartStep = state.matches('ordering.menu') ? 'items'
+        : state.matches('ordering.reviewing') ? 'items'
+            : state.matches('ordering.info') ? 'info' : 'items';
+
+    // Local UI states only (not domain/business logic)
     const [activeTab, setActiveTab] = useState<'menu' | 'cart'>('menu');
     const [expandedProductIds, setExpandedProductIds] = useState<Set<number>>(new Set());
-    const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
-    const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
-    const [generalComment, setGeneralComment] = useState('');
-
-    // Delivery Info State
-    const [deliveryDetails, setDeliveryDetails] = useState({
-        customer_name: '',
-        customer_phone: '',
-        delivery_address: '',
-        delivery_notes: ''
-    });
     const [formErrors, setFormErrors] = useState<Partial<Record<string, string>>>({});
-    const [cartStep, setCartStep] = useState<'items' | 'info'>('items');
+    const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
 
-    // Stock Error Modal State
-    const [stockError, setStockError] = useState<{ isOpen: boolean; message: string; ingredient?: string; ingredientType?: string } | null>(null);
+    // Handlers
+    const handleAddToCart = (product: Product) => send({ type: 'ADD_ITEM', product });
+    const handleUpdateQuantity = (index: number, delta: number) => send({ type: 'UPDATE_QUANTITY', index, delta });
+    const handleRemoveItem = (index: number) => send({ type: 'REMOVE_ITEM', index });
+
+    const handleUpdateExistingQuantity = (itemId: number, quantity: number) =>
+        send({ type: 'UPDATE_EXISTING_QUANTITY', itemId, quantity });
+    const handleRemoveExistingItem = (itemId: number) =>
+        send({ type: 'REMOVE_EXISTING_ITEM', itemId });
+
+    const handleModifierConfirm = (removed: string[], mods: number[], comment?: string) =>
+        send({ type: 'CONFIRM_MODS', removed, mods, comment });
+    const handleModifierClose = () => send({ type: 'CLOSE_MODAL' });
+
+    const handleEditCartItem = (index: number) => {
+        const item = orderItems[index];
+        const product = products.find(p => p.id === item.product_id);
+        if (product) send({ type: 'OPEN_MODAL', product, index });
+    };
+
+    const handleProductClick = (product: Product) => {
+        send({ type: 'OPEN_MODAL', product });
+    };
+
+    const handleAddProduct = (product: Product) => send({ type: 'ADD_ITEM', product });
+    const handleRemoveOneProduct = (productId: number) => {
+        const index = [...orderItems].reverse().findIndex(item => item.product_id === productId);
+        if (index !== -1) {
+            const actualIndex = orderItems.length - 1 - index;
+            send({ type: 'UPDATE_QUANTITY', index: actualIndex, delta: -1 });
+        }
+    };
+
+    const handleUpdateDeliveryInfo = (details: Partial<DeliveryDetails>) =>
+        send({ type: 'SET_DELIVERY_INFO', details });
+
+    const handleUpdateGeneralComment = (comment: string) =>
+        send({ type: 'SET_GENERAL_COMMENT', comment });
+
+    const handleClearStockError = () => send({ type: 'CLEAR_STOCK_ERROR' });
+
+    const handleSubmit = () => {
+        if (cartStep === 'items') {
+            send({ type: 'NEXT_STEP' });
+        } else {
+            if (deliveryType !== 'dine_in') {
+                const errors: Partial<Record<string, string>> = {};
+                if (!deliveryDetails.customer_name) errors.customer_name = 'El nombre es obligatorio';
+                if (!deliveryDetails.customer_phone) errors.customer_phone = 'El teléfono es obligatorio';
+                if (deliveryType === 'delivery' && !deliveryDetails.delivery_address) {
+                    errors.delivery_address = 'La dirección es obligatoria';
+                }
+
+                if (Object.keys(errors).length > 0) {
+                    setFormErrors(errors);
+                    return;
+                }
+            }
+            setFormErrors({});
+            send({ type: 'SUBMIT' });
+        }
+    };
+
+    const setSearchTerm = (term: string) => send({ type: 'SET_SEARCH', term });
+    const setSelectedCategoryId = (id: number | 'all') => send({ type: 'SELECT_CATEGORY', categoryId: id });
+    const setCartStep = (step: 'items' | 'info') => {
+        if (step === 'items') send({ type: 'PREV_STEP' });
+        else send({ type: 'NEXT_STEP' });
+    };
+
 
     const toggleProduct = (productId: number) => {
-        setExpandedProductIds(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(productId)) {
-                newSet.delete(productId);
+        setExpandedProductIds((prev: Set<number>) => {
+            const next = new Set(prev);
+            if (next.has(productId)) {
+                next.delete(productId);
             } else {
-                newSet.add(productId);
+                next.add(productId);
             }
-            return newSet;
+            return next;
         });
     };
 
@@ -98,221 +169,29 @@ export const CreateOrderPage = () => {
                 // Only handle short press if we didn't click a button (to avoid double actions)
                 const target = e?.target as HTMLElement;
                 if (!target?.closest('button')) {
-                    handleAddProduct(product);
+                    handleAddToCart(product);
                 }
             }
         }
-    };
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        try {
-            const [productsData, recipesData, categoriesData, modifiersData] = await Promise.all([
-                setupService.getProducts(),
-                setupService.getRecipes(),
-                setupService.getCategories(),
-                setupService.getModifiers()
-            ]);
-
-            // Filter: Hide ingredients (Materia Prima) and only active products
-            const menuProducts = productsData.filter(p =>
-                p.is_active &&
-                p.category_name?.toLowerCase() !== 'materia prima'
-            );
-
-            setProducts(menuProducts);
-            setRecipes(recipesData);
-            setCategories(categoriesData.filter(c => c.name.toLowerCase() !== 'materia prima'));
-            setGlobalModifiers(modifiersData.filter(m => m.is_active));
-
-            // Load existing order if editing
-            if (orderId) {
-                const orderRes = await api.get(`/orders/${orderId}`);
-                setExistingItems(orderRes.data.items || []);
-                setOrderStatus(orderRes.data.status);
-                if (orderRes.data.notes) setGeneralComment(orderRes.data.notes);
-                if (orderRes.data.customer_notes) setDeliveryDetails(prev => ({ ...prev, delivery_notes: orderRes.data.customer_notes }));
-            }
-        } catch (error) {
-            console.error('Error loading data:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    }
 
     const getRecipeForProduct = (productId: number) => {
         return recipes.find(r => r.product_id === productId);
     };
 
-    // New Flow: Tap -> Open Modal
-    const handleProductClick = (product: Product) => {
-        setSelectedProductForMod(product);
-        setIsModalOpen(true);
-    };
+    const filteredProducts = products.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = selectedCategoryId === 'all' || Number(p.category_id) === Number(selectedCategoryId);
+        return matchesSearch && matchesCategory;
+    });
 
-    const handleConfirmModifiers = (removedIngredients: string[], selectedModIds: number[], comment?: string) => {
-        if (!selectedProductForMod) return;
-
-        if (editingCartItemIndex !== null) {
-            // Update existing cart item
-            setOrderItems(prev => {
-                const newItems = [...prev];
-                // Keep the quantity, just update config
-                newItems[editingCartItemIndex] = {
-                    ...newItems[editingCartItemIndex],
-                    removed_ingredients: removedIngredients,
-                    modifiers: selectedModIds,
-                    comment: comment
-                };
-                return newItems;
-            });
-            setEditingCartItemIndex(null);
-        } else {
-            // Add new item
-            handleAddProduct(selectedProductForMod, removedIngredients, selectedModIds, comment);
-        }
-
-        setIsModalOpen(false);
-        setSelectedProductForMod(null);
-    };
-
-    const handleEditCartItem = (index: number) => {
-        const item = orderItems[index];
-        const product = products.find(p => p.id === item.product_id);
-        if (product) {
-            setSelectedProductForMod(product);
-            setEditingCartItemIndex(index);
-            setIsModalOpen(true);
-        }
-    };
-
-
-    const handleAddProduct = (product: Product, removed: string[] = [], mods: number[] = [], comment?: string) => {
-        setOrderItems(prev => {
-            // Check for EXACT match (same product + same removed + same modifiers + same comment)
-            // Use JSON stringify for simple array comparison (order might matter, assuming standardized sort if crucial)
-            // For now, simple length check + every match
-            const existingIndex = prev.findIndex(item =>
-                item.product_id === product.id &&
-                JSON.stringify(item.removed_ingredients?.sort()) === JSON.stringify(removed.sort()) &&
-                JSON.stringify(item.modifiers?.sort()) === JSON.stringify(mods.sort()) &&
-                (item.comment || '') === (comment || '')
-            );
-
-            if (existingIndex >= 0) {
-                const newItems = [...prev];
-                // Immutable update
-                newItems[existingIndex] = {
-                    ...newItems[existingIndex],
-                    quantity: newItems[existingIndex].quantity + 1
-                };
-                return newItems;
-            }
-
-            return [...prev, {
-                product_id: product.id,
-                product_name: product.name,
-                quantity: 1,
-                unit_price: product.price,
-                removed_ingredients: removed,
-                modifiers: mods,
-                comment: comment
-            }];
-        });
-
-        // Auto switch back to items tab if adding from mobile search while in info step
-        if (cartStep === 'info') setCartStep('items');
-    };
-
-    const handleUpdateQuantity = (index: number, delta: number) => {
-        setOrderItems(prev => {
-            return prev.map((item, idx) => {
-                if (idx === index) {
-                    const newQty = item.quantity + delta;
-                    return { ...item, quantity: newQty };
-                }
-                return item;
-            }).filter(item => item.quantity > 0);
-        });
-    };
-
-    const handleRemoveItem = (index: number) => {
-        setOrderItems(prev => prev.filter((_, idx) => idx !== index));
-    };
-
-    const handleUpdateExistingQuantity = async (itemId: number, newQty: number) => {
-        if (newQty <= 0) {
-            handleRemoveExistingItem(itemId);
-            return;
-        }
-        try {
-            await api.patch(`/orders/${orderId}/items/${itemId}`, { quantity: newQty });
-            // Refresh existing items from server
-            const orderRes = await api.get(`/orders/${orderId}`);
-            setExistingItems(orderRes.data.items || []);
-        } catch (error) {
-            console.error('Error updating existing item:', error);
-        }
-    };
-
-    const handleRemoveExistingItem = async (itemId: number) => {
-        if (!window.confirm('¿Eliminar este producto del pedido?')) return;
-        try {
-            await api.delete(`/orders/${orderId}/items/${itemId}`);
-            // Refresh existing items from server
-            const orderRes = await api.get(`/orders/${orderId}`);
-            setExistingItems(orderRes.data.items || []);
-        } catch (error) {
-            console.error('Error removing existing item:', error);
-        }
-    };
-
-    const handleRemoveOneProduct = (productId: number) => {
-        setOrderItems(prev => {
-            const arr = [...prev];
-            // Find the last added item with this product ID (stack-like removal usually expected for 'quick remove', or just any)
-            // Or better: Find any item with this product ID.
-            // Since we have multiple variations (mods), this is ambiguous.
-            // PROPOSAL: If we are on the card, we might not know which specific variation to remove if there are multiple.
-            // Compatibility fix for findLastIndex
-            let index = -1;
-            for (let i = arr.length - 1; i >= 0; i--) {
-                if (arr[i].product_id === productId) {
-                    index = i;
-                    break;
-                }
-            }
-
-            if (index !== -1) {
-                if (arr[index].quantity > 1) {
-                    arr[index].quantity -= 1;
-                } else {
-                    arr.splice(index, 1);
-                }
-            }
-            return arr;
-        });
-    };
-
+    // Total calculation
     const calculateTotal = () => {
-        const newItemsTotal = orderItems.reduce((sum, item) => {
-            let itemTotal = Number(item.unit_price);
-
-            // Add modifiers cost
-            if (item.modifiers && item.modifiers.length > 0) {
-                item.modifiers.forEach(modId => {
-                    const mod = globalModifiers.find(m => Number(m.id) === Number(modId));
-                    if (mod) itemTotal += Number(mod.extra_price);
-                });
-            }
-
-            return sum + (item.quantity * itemTotal);
+        const newItemsTotal = orderItems.reduce((acc, item) => {
+            const modsPrice = getModifiersTotal(item.modifiers || []);
+            return acc + (item.unit_price + modsPrice) * item.quantity;
         }, 0);
-
-        const existingTotal = existingItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+        const existingTotal = existingItems.reduce((acc, item) => acc + (Number(item.quantity) * Number(item.unit_price || 0)), 0);
         return newItemsTotal + existingTotal;
     };
 
@@ -325,11 +204,10 @@ export const CreateOrderPage = () => {
         }).format(price);
     };
 
-    const getModifierName = (modId: number) => {
-        return globalModifiers.find(m => Number(m.id) === Number(modId))?.name || 'Extra Desconocido';
+    const getModifierName = (modId: number | string) => {
+        return globalModifiers.find(m => String(m.id) === String(modId))?.name || 'Extra Desconocido';
     };
 
-    // Helper to get modifier total for display
     const getModifiersTotal = (modIds: number[]) => {
         return modIds.reduce((acc, modId) => {
             const mod = globalModifiers.find(m => Number(m.id) === Number(modId));
@@ -337,129 +215,34 @@ export const CreateOrderPage = () => {
         }, 0);
     };
 
-    // Helper to get removed names for display
     const getRemovedNames = (removedIds: string[], recipe: any) => {
         if (!recipe || !recipe.items) return [];
         return removedIds.map(id => {
-            // Find in recipe items
             const item = recipe.items.find((i: any) =>
                 String(i.ingredient_id) === String(id) ||
                 String(i.ingredient_product_id) === String(id)
             );
-            return item ? item.ingredient_name : 'Ingrediente';
+            return item ? item.ingredient_name : 'Desconocido';
         });
     };
 
-    const filteredProducts = products.filter(p => {
-        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = selectedCategoryId === 'all' || p.category_id === selectedCategoryId;
-        return matchesSearch && matchesCategory;
-    });
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-bg-dark flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <span className="material-symbols-outlined text-accent-primary animate-spin text-4xl">progress_activity</span>
+                    <p className="text-text-muted animate-pulse font-medium">Cargando menú...</p>
+                </div>
+            </div>
+        );
+    }
 
-    const handleSubmit = async () => {
-        if (orderItems.length === 0) return;
-
-        // Validation for Info Step
-        if (cartStep === 'items') {
-            setCartStep('info');
-            return;
-        }
-
-        // Validation for Delivery
-        if (deliveryType === 'delivery') {
-            const errors: any = {};
-            if (!deliveryDetails.customer_name.trim()) errors.customer_name = 'El nombre es obligatorio';
-            if (!deliveryDetails.customer_phone.trim()) errors.customer_phone = 'El teléfono es obligatorio';
-            if (!deliveryDetails.delivery_address.trim()) errors.delivery_address = 'La dirección es obligatoria';
-
-            if (Object.keys(errors).length > 0) {
-                setFormErrors(errors);
-                // Scroll to form or show toast
-                alert('Por favor completa todos los datos de entrega');
-                return;
-            }
-        }
-
-        setIsSubmitting(true);
-        setFormErrors({});
-
-        try {
-            const items = orderItems.map(item => ({
-                product_id: item.product_id,
-                quantity: item.quantity,
-                modifiers: item.modifiers,
-                removed_ingredients: item.removed_ingredients,
-                notes: item.comment
-            }));
-
-            if (orderId) {
-                // Append items to existing order
-                await api.post(`/orders/${orderId}/items`, items);
-                navigate('/admin/tables');
-            } else {
-                // Create new order
-                const payload = {
-                    branch_id: branchId || 1,
-                    table_id: tableId,
-                    delivery_type: deliveryType || 'dine_in',
-                    items,
-
-                    // Delivery Fields
-                    delivery_customer_name: deliveryDetails.customer_name,
-                    delivery_customer_phone: deliveryDetails.customer_phone,
-                    delivery_address: deliveryDetails.delivery_address,
-                    delivery_notes: deliveryDetails.delivery_notes,
-
-                    notes: generalComment
-                };
-
-                await api.post('/orders/', payload);
-                navigate('/admin/orders');
-            }
-        } catch (error: any) {
-            console.error('Error creating order:', error);
-
-            // Check if it's a stock/inventory error (400 with specific message)
-            const errorDetail = error?.response?.data?.detail || '';
-            const isStockError = error?.response?.status === 400 &&
-                (errorDetail.includes('Stock insuficiente') ||
-                    errorDetail.includes('Insumo insuficiente') ||
-                    errorDetail.includes('insuficiente'));
-
-            if (isStockError) {
-                // Extract ingredient/product name from error message
-                // Patterns: "Insumo insuficiente {name}. Disponible: X. Tipo: {type}"
-                const match = errorDetail.match(/insuficiente\s+(.+)\.\s*Disponible/i);
-                const ingredientName = match ? match[1].trim() : undefined;
-
-                // Extract Type (Handle "IngredientType.PROCESSED" or just "PROCESSED")
-                const matchType = errorDetail.match(/Tipo:\s*(?:IngredientType\.)?(\w+)/i);
-                const ingredientType = matchType ? matchType[1].trim() : 'RAW';
-
-                setStockError({
-                    isOpen: true,
-                    message: errorDetail,
-                    ingredient: ingredientName,
-                    ingredientType
-                });
-            } else {
-                alert('Error al crear el pedido: ' + (errorDetail || 'Error desconocido'));
-            }
-            setIsSubmitting(false);
-        }
-    };
-
-    if (isLoading) return (
-        <div className="h-full flex flex-col items-center justify-center gap-4">
-            <div className="size-12 border-4 border-accent-primary/20 border-t-accent-primary rounded-full animate-spin"></div>
-            <p className="text-text-muted font-medium">Cargando menú...</p>
-        </div>
-    );
+    // UI variables
+    const orderStatus = state.context.existingOrderStatus;
 
     return (
-        <div className="h-[calc(100dvh-80px)] min-h-0 flex flex-col lg:flex-row gap-4 lg:gap-6 min-w-0 transition-all duration-300 pt-[max(1rem,env(safe-area-inset-top))] lg:pt-0">
-            {/* Left Panel: Header + Mobile Tabs + Product List */}
-            <div className={`flex-1 flex flex-col min-w-0 h-full ${activeTab === 'cart' ? 'hidden lg:flex' : 'flex'} lg:pr-[400px] xl:pr-[440px] 2xl:pr-[480px]`}>
+        <>
+            <div className="flex flex-col h-screen bg-bg-dark text-white overflow-hidden p-4 lg:pr-[400px] xl:pr-[440px] 2xl:pr-[480px]">
                 {/* Header / Table Info */}
                 <div className="flex justify-between items-center mb-4 shrink-0">
                     <div>
@@ -674,10 +457,10 @@ export const CreateOrderPage = () => {
                         )}
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Right Panel: Cart / Summary (Full Height Floating on Desktop) */}
-            <div className={`flex flex-col min-h-0 bg-card-dark border-border-dark shadow-2xl relative ${activeTab === 'menu' ? 'hidden lg:flex' : 'flex flex-1'} lg:fixed lg:top-4 lg:right-4 lg:bottom-4 lg:w-[380px] xl:w-[420px] 2xl:w-[460px] lg:rounded-2xl lg:border lg:z-50`}>
+            < div className={`flex flex-col min-h-0 bg-card-dark border-border-dark shadow-2xl relative ${activeTab === 'menu' ? 'hidden lg:flex' : 'flex flex-1'} lg:fixed lg:top-4 lg:right-4 lg:bottom-4 lg:w-[380px] xl:w-[420px] 2xl:w-[460px] lg:rounded-2xl lg:border lg:z-50`}>
                 <div className="p-4 pt-[max(1rem,env(safe-area-inset-top))] lg:pt-4 border-b border-border-dark flex justify-between items-center bg-bg-deep/30 shrink-0">
                     <div className="flex items-center gap-3">
                         {cartStep === 'info' && (
@@ -871,7 +654,7 @@ export const CreateOrderPage = () => {
                             {deliveryType === 'delivery' && (
                                 <DeliveryInfoForm
                                     value={deliveryDetails}
-                                    onChange={setDeliveryDetails}
+                                    onChange={handleUpdateDeliveryInfo}
                                     errors={formErrors}
                                 />
                             )}
@@ -884,7 +667,7 @@ export const CreateOrderPage = () => {
                                 </div>
                                 <textarea
                                     value={generalComment}
-                                    onChange={(e) => setGeneralComment(e.target.value)}
+                                    onChange={(e) => handleUpdateGeneralComment(e.target.value)}
                                     placeholder="Ej: Por favor cubiertos, sin servilletas, etc..."
                                     className="w-full bg-bg-deep border border-border-dark rounded-xl p-3 text-xs text-white placeholder-text-muted/50 focus:outline-none focus:border-accent-primary transition-colors resize-none h-24 shadow-inner"
                                 />
@@ -943,21 +726,25 @@ export const CreateOrderPage = () => {
                 </div>
 
                 {/* Pulse effect overlay when enabled */}
-                {!isSubmitting && orderItems.length > 0 && (
-                    <span className="absolute inset-0 bg-white/10 animate-pulse pointer-events-none"></span>
-                )}
-            </div>
+                {
+                    !isSubmitting && orderItems.length > 0 && (
+                        <span className="absolute inset-0 bg-white/10 animate-pulse pointer-events-none"></span>
+                    )
+                }
+            </div >
 
             {/* Floating Quick Action / Category Menu Container (Mobile Only) */}
-            <div className={`lg:hidden fixed right-4 z-50 flex flex-col items-end gap-3 pointer-events-none bottom-[max(1rem,calc(1rem+env(safe-area-inset-bottom)))]`}>
+            < div className={`lg:hidden fixed right-4 z-50 flex flex-col items-end gap-3 pointer-events-none bottom-[max(1rem,calc(1rem+env(safe-area-inset-bottom)))]`}>
                 {/* Backdrop for click-outside */}
-                {isCategoryMenuOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto"
-                        onClick={() => setIsCategoryMenuOpen(false)}
-                        style={{ zIndex: -1 }}
-                    />
-                )}
+                {
+                    isCategoryMenuOpen && (
+                        <div
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto"
+                            onClick={() => setIsCategoryMenuOpen(false)}
+                            style={{ zIndex: -1 }}
+                        />
+                    )
+                }
 
                 {/* Primary Navigation / Tab Switcher FAB */}
                 <div className="flex flex-col items-end gap-3 pointer-events-auto">
@@ -1038,7 +825,7 @@ export const CreateOrderPage = () => {
                         </span>
                     </button>
                 </div>
-            </div>
+            </div >
 
             {/* Modal de Modificadores */}
             {
@@ -1050,14 +837,14 @@ export const CreateOrderPage = () => {
                         initialRemoved={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].removed_ingredients : []}
                         initialModifiers={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].modifiers : []}
                         initialComment={editingCartItemIndex !== null ? orderItems[editingCartItemIndex].comment : ''}
-                        onClose={() => { setIsModalOpen(false); setSelectedProductForMod(null); setEditingCartItemIndex(null); }}
-                        onConfirm={handleConfirmModifiers}
+                        onClose={handleModifierClose}
+                        onConfirm={handleModifierConfirm}
                     />
                 )
             }
 
             {/* Modal de Error de Stock */}
-            {stockError?.isOpen && (
+            {stockError && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-bg-card border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
                         {/* Header */}
@@ -1091,7 +878,7 @@ export const CreateOrderPage = () => {
                                 </div>
                             )}
 
-                            <p className="text-text-muted text-sm">
+                            <p className="text-text-muted text-sm leading-relaxed">
                                 Para continuar, debes registrar una compra de este insumo o ajustar el inventario.
                             </p>
                         </div>
@@ -1099,19 +886,19 @@ export const CreateOrderPage = () => {
                         {/* Footer */}
                         <div className="px-6 pb-6 flex flex-col sm:flex-row gap-3">
                             <button
-                                onClick={() => setStockError(null)}
+                                onClick={handleClearStockError}
                                 className="flex-1 px-4 py-3 rounded-xl text-text-secondary font-medium bg-bg-elevated hover:bg-bg-elevated/80 transition-colors"
                             >
                                 Cerrar
                             </button>
                             <button
                                 onClick={() => {
-                                    setStockError(null);
-                                    if (stockError?.ingredientType === 'MERCHANDISE') {
+                                    handleClearStockError();
+                                    if (stockError.ingredientType === 'MERCHANDISE') {
                                         navigate('/admin/setup?tab=BEBIDAS&subtab=INVENTORY');
-                                    } else if (stockError?.ingredientType === 'PROCESSED') {
+                                    } else if (stockError.ingredientType === 'PROCESSED') {
                                         navigate('/kitchen/ingredients?tab=PROCESSED');
-                                    } else if (stockError?.ingredientType === 'PRODUCT') {
+                                    } else if (stockError.ingredientType === 'PRODUCT') {
                                         navigate('/admin/inventory');
                                     } else {
                                         navigate('/kitchen/ingredients?tab=RAW');
@@ -1120,16 +907,16 @@ export const CreateOrderPage = () => {
                                 className="flex-1 px-4 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg"
                             >
                                 <span className="material-symbols-outlined text-[20px]">inventory_2</span>
-                                {stockError?.ingredientType === 'MERCHANDISE' ? 'Ir a Venta Directa' :
-                                    stockError?.ingredientType === 'PROCESSED' ? 'Ir a Producción' :
-                                        stockError?.ingredientType === 'PRODUCT' ? 'Ir a Inventario General' :
+                                {stockError.ingredientType === 'MERCHANDISE' ? 'Ir a Venta Directa' :
+                                    stockError.ingredientType === 'PROCESSED' ? 'Ir a Producción' :
+                                        stockError.ingredientType === 'PRODUCT' ? 'Ir a Inventario General' :
                                             'Ir a Insumos'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-        </div >
+        </>
     );
 };
 

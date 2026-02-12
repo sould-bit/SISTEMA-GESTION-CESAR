@@ -13,9 +13,10 @@ Este documento define la matriz de interacción, permisos y flujos de estado par
 
 ---
 
-## 🔄 Matriz de Transiciones de Estado
+El ciclo de vida del pedido (`Order.status`) se rige por la siguiente máquina de estados. 
 
-El ciclo de vida del pedido (`Order.status`) se rige por la siguiente máquina de estados:
+> **Implementación Frontend:** Se utiliza una máquina de estados de **XState** (`order.machine.ts`) para gestionar estas transiciones en la UI, asegurando que solo se permitan acciones válidas según el estado actual y los permisos del usuario. Ver skill: `xstate_model_driven_dev`.
+
 
 | Estado Actual | Transición (Acción) | Nuevo Estado | Roles Autorizados | API / Método Backend |
 | :--- | :--- | :--- | :--- | :--- |

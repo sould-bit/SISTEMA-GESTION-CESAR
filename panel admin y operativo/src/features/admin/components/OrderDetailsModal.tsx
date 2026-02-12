@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Order, OrderStatus } from '../types';
 import { format } from 'date-fns';
@@ -8,6 +8,8 @@ import { useAppSelector } from '../../../stores/store';
 import { useOrderPermissions } from '../../../hooks/useOrderPermissions';
 import { api } from '../../../lib/api';
 import { ConfirmModal } from '../../../components/ConfirmModal';
+import { useMachine } from '@xstate/react';
+import { orderWorkflowMachine } from '../orderWorkflow.machine';
 
 interface OrderDetailsModalProps {
     isOpen: boolean;
@@ -20,17 +22,23 @@ interface OrderDetailsModalProps {
 }
 
 export const OrderDetailsModal = ({ isOpen, onClose, order, onStatusChange, onOpenPayment, onAddItems, onOrderUpdated }: OrderDetailsModalProps) => {
-    const token = useAppSelector((state) => state.auth.token);
+    const { user, token } = useAppSelector((state) => state.auth);
+    const permissions = user?.permissions ?? [];
 
     const {
-        canAcceptOrder,
-        canMarkReady,
-        canDeliver,
         canCancel,
         canProcessCancellation,
         canRequestCancellation,
         canOpenPayment,
     } = useOrderPermissions();
+
+    const [wfState, send] = useMachine(orderWorkflowMachine, {
+        input: {
+            orderId: order?.id || 0,
+            status: order?.status || 'pending',
+            permissions: permissions
+        }
+    });
 
     const [isCancelling, setIsCancelling] = useState(false);
     const [cancellationReason, setCancellationReason] = useState('');
@@ -39,6 +47,13 @@ export const OrderDetailsModal = ({ isOpen, onClose, order, onStatusChange, onOp
     const [denialReason, setDenialReason] = useState('');
     const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
     const [alertModal, setAlertModal] = useState<{ message: string } | null>(null);
+
+    // Sync machine completion with UI refresh
+    useEffect(() => {
+        if (wfState.matches('idle') && onOrderUpdated) {
+            onOrderUpdated();
+        }
+    }, [wfState.value, onOrderUpdated]);
 
     const handleRequestCancellation = async () => {
         if (cancellationReason.trim().length < 5) {
@@ -64,7 +79,7 @@ export const OrderDetailsModal = ({ isOpen, onClose, order, onStatusChange, onOp
 
     if (!order) return null;
 
-    const totalPaid = order.payments?.reduce((acc, p) => acc + (p.status === 'completed' ? Number(p.amount) : 0), 0) || 0;
+    const totalPaid = order.payments?.reduce((acc: number, p: any) => acc + (p.status === 'completed' ? Number(p.amount) : 0), 0) || 0;
     const balance = order.total - totalPaid;
 
     const handlePrintKitchen = async () => {
@@ -451,31 +466,34 @@ export const OrderDetailsModal = ({ isOpen, onClose, order, onStatusChange, onOp
                                             </button>
                                         )}
 
-                                        {/* Workflow Status Buttons */}
-                                        {order.status === 'pending' && (canAcceptOrder) && (
+                                        {/* Workflow Status Buttons controlled by XState */}
+                                        {wfState.can({ type: 'ACCEPT' }) && (
                                             <button
-                                                onClick={() => onStatusChange(order.id, 'preparing')}
-                                                className="px-6 py-2 bg-status-warning text-bg-deep text-sm font-bold rounded-lg transition-colors flex items-center gap-2 hover:brightness-110 shadow-lg shadow-status-warning/20"
+                                                onClick={() => send({ type: 'ACCEPT' })}
+                                                disabled={wfState.matches('updating')}
+                                                className="px-6 py-2 bg-status-warning text-bg-deep text-sm font-bold rounded-lg transition-colors flex items-center gap-2 hover:brightness-110 shadow-lg shadow-status-warning/20 disabled:opacity-50"
                                             >
                                                 <span className="material-symbols-outlined text-sm font-bold">restaurant</span>
                                                 Aceptar y Preparar
                                             </button>
                                         )}
 
-                                        {order.status === 'preparing' && canMarkReady && (
+                                        {wfState.can({ type: 'MARK_READY' }) && (
                                             <button
-                                                onClick={() => onStatusChange(order.id, 'ready')}
-                                                className="px-6 py-2 bg-status-success text-bg-deep text-sm font-bold rounded-lg transition-colors flex items-center gap-2 hover:brightness-110 shadow-lg shadow-status-success/20"
+                                                onClick={() => send({ type: 'MARK_READY' })}
+                                                disabled={wfState.matches('updating')}
+                                                className="px-6 py-2 bg-status-success text-bg-deep text-sm font-bold rounded-lg transition-colors flex items-center gap-2 hover:brightness-110 shadow-lg shadow-status-success/20 disabled:opacity-50"
                                             >
                                                 <span className="material-symbols-outlined text-sm font-bold">notifications_active</span>
                                                 Ya está Listo
                                             </button>
                                         )}
 
-                                        {order.status === 'ready' && (canDeliver) && (
+                                        {wfState.can({ type: 'DELIVER' }) && (
                                             <button
-                                                onClick={() => onStatusChange(order.id, 'delivered')}
-                                                className="px-6 py-2 bg-accent-primary text-bg-deep text-sm font-bold rounded-lg transition-colors flex items-center gap-2 hover:brightness-110 shadow-lg shadow-accent-primary/20"
+                                                onClick={() => send({ type: 'DELIVER' })}
+                                                disabled={wfState.matches('updating')}
+                                                className="px-6 py-2 bg-accent-primary text-bg-deep text-sm font-bold rounded-lg transition-colors flex items-center gap-2 hover:brightness-110 shadow-lg shadow-accent-primary/20 disabled:opacity-50"
                                             >
                                                 <span className="material-symbols-outlined text-sm font-bold">local_shipping</span>
                                                 Despachar / Entregar

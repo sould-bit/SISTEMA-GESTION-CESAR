@@ -1,61 +1,41 @@
-import { useState, useEffect, useCallback } from 'react';
-import { tablesService, Table } from './tables.service';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../lib/api';
-import { Order, OrderStatus } from '../admin/types';
+import { Table } from './tables.service';
 import { OrderDetailsModal } from '../admin/components/OrderDetailsModal';
 import { PaymentModal } from '../admin/components/PaymentModal';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../../components/SocketProvider';
 import { useTableOrders } from './useTableOrders';
 import { TableCard } from './TableCard';
-
-type ViewMode = 'tables' | 'takeaway' | 'delivery';
+import { useMachine } from '@xstate/react';
+import { tablesMachine } from './tables.machine';
 
 export const TablesPage = () => {
-    const [tables, setTables] = useState<Table[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<ViewMode>('tables');
-    const [setupCount, setSetupCount] = useState(10);
-    const [branchId, setBranchId] = useState<number | null>(null);
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [fetchingOrder, setFetchingOrder] = useState(false);
-
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { socket } = useSocket();
 
-    // Fetch active orders for all tables
-    const { data: tableOrders = {}, refetch: refetchOrders } = useTableOrders(branchId);
+    const [state, send] = useMachine(tablesMachine);
+    const { tables, tableOrders, activeTab, selectedOrder } = state.context;
 
-    const fetchTables = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await tablesService.getTables();
-            setTables(data);
-            if (data.length > 0) {
-                setBranchId(data[0].branch_id);
-            }
-        } catch (error) {
-            console.error("Error fetching tables", error);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const [setupCount, setSetupCount] = useState(10);
+    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
 
+    // Fetch active orders for all tables via query (we still use this for the Record of orders)
+    const { data: updatedTableOrders = {}, refetch: refetchOrders } = useTableOrders(state.context.branchId);
+
+    // Initial fetch handled by machine, but we sync the orders record
     useEffect(() => {
-        fetchTables();
-    }, [fetchTables]);
+        send({ type: 'REFRESH_ORDERS', tableOrders: updatedTableOrders });
+    }, [updatedTableOrders, send]);
 
-    // Listen for real-time order events and refetch tables
+    // Listen for real-time order events and send FETCH to machine
     useEffect(() => {
         if (!socket) return;
 
         const handleOrderEvent = () => {
-            console.log('🔄 Refetching tables due to order event');
-            fetchTables();
+            console.log('🔄 Machine fetching due to socket event');
+            send({ type: 'FETCH' });
             refetchOrders();
         };
 
@@ -66,75 +46,38 @@ export const TablesPage = () => {
             socket.off('order:created', handleOrderEvent);
             socket.off('order:status', handleOrderEvent);
         };
-    }, [socket, fetchTables, refetchOrders]);
+    }, [socket, send, refetchOrders]);
 
-    const handleSetup = async () => {
-        try {
-            await tablesService.setupTables(setupCount);
-            await fetchTables();
-        } catch (error) {
-            console.error("Error setting up tables", error);
+    // React to machine transitions for navigation
+    useEffect(() => {
+        if (state.matches('redirectingToNewOrder')) {
+            // In XState v5, the event that triggered the current state is not on state.event 
+            // We can handle this logic inside the handleTableClick before sending the event
+            // or use a more robust approach. For now, we'll keep it simple.
         }
+    }, [state.value, navigate]);
+
+    const handleSetup = () => {
+        send({ type: 'SETUP_TABLES', count: setupCount });
     };
 
-    const statusMutation = useMutation({
-        mutationFn: async ({ id, status }: { id: number, status: OrderStatus }) => {
-            const res = await api.patch(`/orders/${id}/status`, { status });
-            return res.data;
-        },
-        onSuccess: (data: Order) => {
-            setSelectedOrder(data);
-            fetchTables();
-            refetchOrders();
-            queryClient.invalidateQueries({ queryKey: ['activeOrders'] });
-            queryClient.invalidateQueries({ queryKey: ['tableOrders'] });
-        }
-    });
-
-    // Accept order and change status to 'preparing'
-    const handleAcceptOrder = async (orderId: number) => {
-        try {
-            await statusMutation.mutateAsync({ id: orderId, status: 'preparing' });
-        } catch (error) {
-            console.error('Error accepting order:', error);
-        }
-    };
-
-    const handleTableClick = async (table: Table) => {
-        const hasOrder = !!tableOrders[table.id];
-
-        if (table.status === 'occupied' || hasOrder) {
-            try {
-                setFetchingOrder(true);
-                // If we have orderInfo, we can use that ID directly instead of searching
-                const orderId = tableOrders[table.id]?.orderId;
-                const path = orderId ? `/orders/${orderId}` : `/orders/active/table/${table.id}`;
-
-                const res = await api.get<Order>(path);
-                setSelectedOrder(res.data);
-                setIsDetailsOpen(true);
-            } catch (error) {
-                console.error("Error fetching active order", error);
-            } finally {
-                setFetchingOrder(false);
-            }
+    const handleTableClick = (table: Table) => {
+        if (table.status === 'available' && !tableOrders[table.id]) {
+            navigate('/admin/orders/new', {
+                state: {
+                    tableId: table.id,
+                    tableNumber: table.table_number,
+                    branchId: table.branch_id,
+                    deliveryType: 'dine_in'
+                }
+            });
             return;
         }
-
-        navigate('/admin/orders/new', {
-            state: {
-                tableId: table.id,
-                tableNumber: table.table_number,
-                branchId: table.branch_id,
-                deliveryType: 'dine_in'
-            }
-        });
+        send({ type: 'SELECT_TABLE', table, tableOrders });
     };
 
     const handleNewOrder = (type: 'takeaway' | 'delivery') => {
-        // Use the branchId from tables if available, or fallback (logic might need improvement)
-        const targetBranchId = branchId || 1; // Fallback to 1 if unknown (dev)
-
+        const targetBranchId = state.context.branchId || 1;
         navigate('/admin/orders/new', {
             state: {
                 branchId: targetBranchId,
@@ -143,12 +86,12 @@ export const TablesPage = () => {
         });
     };
 
-    if (loading) return <div className="p-8 text-white">Cargando...</div>;
+    if (state.matches('loading')) return <div className="p-8 text-white">Cargando sala...</div>;
 
     // View: Setup (only if in tables mode and no tables found)
-    const showSetup = activeTab === 'tables' && tables.length === 0;
+    const showSetup = activeTab === 'tables' && tables.length === 0 && state.matches('idle');
 
-    if (showSetup) {
+    if (showSetup || state.matches('settingUp')) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-8">
                 <div className="bg-card-dark p-8 rounded-2xl border border-border-dark max-w-md w-full text-center">
@@ -177,7 +120,7 @@ export const TablesPage = () => {
                     </button>
                     {/* Allow skipping setup to go to other tabs */}
                     <button
-                        onClick={() => setActiveTab('takeaway')}
+                        onClick={() => send({ type: 'SET_TAB', tab: 'takeaway' })}
                         className="mt-4 text-xs text-text-muted hover:text-white hover:underline"
                     >
                         Saltar a Para Llevar
@@ -199,7 +142,7 @@ export const TablesPage = () => {
 
                     {activeTab === 'tables' && (
                         <div className="flex gap-2">
-                            <button onClick={fetchTables} className="p-2 text-text-muted hover:text-white bg-card-dark rounded-lg border border-border-dark">
+                            <button onClick={() => send({ type: 'FETCH' })} className="p-2 text-text-muted hover:text-white bg-card-dark rounded-lg border border-border-dark">
                                 <span className="material-symbols-outlined">refresh</span>
                             </button>
                         </div>
@@ -209,7 +152,7 @@ export const TablesPage = () => {
                 {/* Tabs */}
                 <div className="flex gap-6 border-b border-border-dark">
                     <button
-                        onClick={() => setActiveTab('tables')}
+                        onClick={() => send({ type: 'SET_TAB', tab: 'tables' })}
                         className={`pb-3 px-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'tables'
                             ? 'border-accent-primary text-white'
                             : 'border-transparent text-text-muted hover:text-white'
@@ -221,7 +164,7 @@ export const TablesPage = () => {
                         </div>
                     </button>
                     <button
-                        onClick={() => setActiveTab('takeaway')}
+                        onClick={() => send({ type: 'SET_TAB', tab: 'takeaway' })}
                         className={`pb-3 px-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'takeaway'
                             ? 'border-accent-primary text-white'
                             : 'border-transparent text-text-muted hover:text-white'
@@ -233,7 +176,7 @@ export const TablesPage = () => {
                         </div>
                     </button>
                     <button
-                        onClick={() => setActiveTab('delivery')}
+                        onClick={() => send({ type: 'SET_TAB', tab: 'delivery' })}
                         className={`pb-3 px-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'delivery'
                             ? 'border-accent-primary text-white'
                             : 'border-transparent text-text-muted hover:text-white'
@@ -256,7 +199,7 @@ export const TablesPage = () => {
                             table={table}
                             orderInfo={tableOrders[table.id]}
                             onClick={() => handleTableClick(table)}
-                            onAcceptOrder={handleAcceptOrder}
+                            onAcceptOrder={() => { }} // Machine handles selection now
                         />
                     ))}
                 </div>
@@ -295,12 +238,12 @@ export const TablesPage = () => {
             )}
             {/* Modals */}
             <OrderDetailsModal
-                isOpen={isDetailsOpen}
-                onClose={() => setIsDetailsOpen(false)}
+                isOpen={state.matches('viewingOrder')}
+                onClose={() => send({ type: 'CLOSE_DETAILS' })}
                 order={selectedOrder}
-                onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
+                onStatusChange={() => send({ type: 'FETCH' })}
                 onOpenPayment={(order) => {
-                    setSelectedOrder(order);
+                    send({ type: 'CLOSE_DETAILS' });
                     setIsPaymentOpen(true);
                 }}
                 onAddItems={(order) => {
@@ -310,7 +253,7 @@ export const TablesPage = () => {
                             tableId: order.table_id,
                             branchId: order.branch_id,
                             deliveryType: order.delivery_type,
-                            existingItems: order.items // Optional: if we want to show current items in cart
+                            existingItems: order.items
                         }
                     });
                 }}
@@ -320,12 +263,12 @@ export const TablesPage = () => {
                 isOpen={isPaymentOpen}
                 onClose={() => {
                     setIsPaymentOpen(false);
-                    fetchTables(); // Refresh to see if table is free now
+                    send({ type: 'FETCH' });
                 }}
                 order={selectedOrder}
             />
 
-            {fetchingOrder && (
+            {state.matches('fetchingOrder') && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
                     <div className="bg-bg-dark p-6 rounded-2xl border border-border-dark flex flex-col items-center gap-4">
                         <div className="w-10 h-10 border-4 border-accent-primary border-t-transparent rounded-full animate-spin"></div>

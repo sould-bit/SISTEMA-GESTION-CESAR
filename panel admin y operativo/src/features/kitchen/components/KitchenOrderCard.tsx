@@ -1,12 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, CheckCircle, AlertTriangle, XCircle, Play, Info } from 'lucide-react';
+import { Clock, CheckCircle, AlertTriangle, XCircle, Play, Info, Loader2 } from 'lucide-react';
 import { Order } from '../../admin/types';
 import { useSocket } from '../../../components/SocketProvider';
 import { api } from '../../../lib/api';
 import { useOrderPermissions } from '../../../hooks/useOrderPermissions';
 import { ConfirmModal } from '../../../components/ConfirmModal';
+import { useMachine } from '@xstate/react';
+import { orderMachine } from '../order.machine';
+import { inspector } from '../../../lib/inspector';
 
 interface KitchenOrderCardProps {
     order: Order;
@@ -17,15 +20,28 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
     const { isConnected: _ } = useSocket();
     const { canAcceptOrder, canMarkReady } = useOrderPermissions();
 
+    const [state, send] = useMachine(orderMachine, {
+        input: { order },
+        inspect: inspector?.inspect
+    });
+
+    // Keep machine in sync with prop updates (from sockets)
+    useEffect(() => {
+        send({ type: 'UPDATE_ORDER', order });
+    }, [order, send]);
+
+    const currentOrder = state.context.order;
+    const isUpdating = state.matches('updating');
+
     const timeElapsed = useMemo(() => {
         try {
-            return formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: es });
+            return formatDistanceToNow(new Date(currentOrder.created_at), { addSuffix: true, locale: es });
         } catch (e) {
             return 'Hace un momento';
         }
-    }, [order.created_at]);
+    }, [currentOrder.created_at]);
 
-    const isCancellationPending = order.cancellation_status === 'pending';
+    const isCancellationPending = currentOrder.cancellation_status === 'pending';
 
     // Status Colors
     const statusColor = {
@@ -35,16 +51,7 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
         ready: 'border-green-500/50 bg-green-500/5 hover:border-green-400',
         delivered: 'border-gray-500/50 bg-gray-500/5 opacity-50',
         cancelled: 'border-red-500/50 bg-red-500/5 opacity-50'
-    }[order.status] || 'border-gray-500/50';
-
-    const handleStatusUpdate = async (newStatus: string) => {
-        try {
-            await api.patch(`/orders/${order.id}/status`, { status: newStatus });
-        } catch (error) {
-            console.error('Failed to update status:', error);
-            // In a real app, I'd show a toast here
-        }
-    };
+    }[currentOrder.status] || 'border-gray-500/50';
 
     const handleCancellationProcess = (approved: boolean) => {
         if (approved) {
@@ -52,7 +59,7 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
                 type: 'approve',
                 onConfirm: async () => {
                     try {
-                        await api.post(`/orders/${order.id}/cancel-process`, { approved: true, notes: 'Aprobado desde KDS' });
+                        await api.post(`/orders/${currentOrder.id}/cancel-process`, { approved: true, notes: 'Aprobado desde KDS' });
                     } catch (error) {
                         console.error('Failed to process cancellation:', error);
                     }
@@ -64,7 +71,7 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
                 onConfirm: async (value) => {
                     const notes = value?.trim() || 'Sin motivo especificado';
                     try {
-                        await api.post(`/orders/${order.id}/cancel-process`, { approved: false, notes });
+                        await api.post(`/orders/${currentOrder.id}/cancel-process`, { approved: false, notes });
                     } catch (error) {
                         console.error('Failed to process cancellation:', error);
                     }
@@ -82,15 +89,15 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
                     <div className="mb-3 flex items-start justify-between">
                         <div>
                             <div className="flex items-center gap-2">
-                                <span className="text-2xl font-bold text-white">#{order.order_number.slice(-4)}</span>
-                                {order.table_id && (
+                                <span className="text-2xl font-bold text-white">#{currentOrder.order_number.slice(-4)}</span>
+                                {currentOrder.table_id && (
                                     <span className="rounded bg-accent-primary/20 px-2 py-0.5 text-xs font-bold text-accent-primary">
-                                        Mesa {order.table_id}
+                                        Mesa {currentOrder.table_id}
                                     </span>
                                 )}
-                                {order.delivery_type !== 'dine_in' && (
+                                {currentOrder.delivery_type !== 'dine_in' && (
                                     <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-bold text-blue-400 capitalize">
-                                        {order.delivery_type.replace('_', ' ')}
+                                        {currentOrder.delivery_type.replace('_', ' ')}
                                     </span>
                                 )}
                             </div>
@@ -102,25 +109,25 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
 
                         {/* Status Badge */}
                         <div className="text-right">
-                            <span className={`text-xs font-bold uppercase tracking-wider ${order.status === 'ready' ? 'text-green-400' :
-                                order.status === 'preparing' ? 'text-purple-400' :
+                            <span className={`text-xs font-bold uppercase tracking-wider ${currentOrder.status === 'ready' ? 'text-green-400' :
+                                currentOrder.status === 'preparing' ? 'text-purple-400' :
                                     'text-yellow-400'
                                 }`}>
-                                {order.status}
+                                {isUpdating ? 'Actualizando...' : currentOrder.status}
                             </span>
-                            <div className="text-[10px] text-text-muted mt-0.5">{order.created_by_name || 'Staff'}</div>
+                            <div className="text-[10px] text-text-muted mt-0.5">{currentOrder.created_by_name || 'Staff'}</div>
                         </div>
                     </div>
 
                     {/* Cancellation Alert Overlay */}
-                    {isCancellationPending && order.status !== 'cancelled' && (
+                    {isCancellationPending && currentOrder.status !== 'cancelled' && (
                         <div className="mb-4 animate-pulse rounded-lg border border-red-500/30 bg-red-500/10 p-3">
                             <div className="flex items-center gap-2 text-red-400 mb-2">
                                 <AlertTriangle size={16} />
                                 <span className="font-bold">Solicitud de Cancelación</span>
                             </div>
                             <p className="text-sm text-text-secondary mb-3 italic">
-                                "{order.cancellation_reason || 'Sin motivo'}"
+                                "{currentOrder.cancellation_reason || 'Sin motivo'}"
                             </p>
                             <div className="grid grid-cols-2 gap-2">
                                 <button
@@ -141,7 +148,7 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
 
                     {/* Items List */}
                     <div className="space-y-3 overflow-y-auto pr-1 custom-scrollbar max-h-[300px]">
-                        {order.items.map((item) => (
+                        {currentOrder.items.map((item) => (
                             <div key={item.id} className="border-b border-white/5 pb-2 last:border-0 last:pb-0">
                                 <div className="flex items-start justify-between">
                                     <span className="font-medium text-text-primary text-sm">
@@ -180,36 +187,42 @@ export const KitchenOrderCard = ({ order }: KitchenOrderCardProps) => {
                 </div>
 
                 {/* Footer Actions */}
-                {!isCancellationPending && order.status !== 'cancelled' && order.status !== 'delivered' && (
+                {!isCancellationPending && currentOrder.status !== 'cancelled' && currentOrder.status !== 'delivered' && (
                     <div className="mt-4 pt-3 border-t border-white/5">
-                        {order.status === 'pending' && canAcceptOrder && (
+                        {currentOrder.status === 'pending' && canAcceptOrder && (
                             <button
-                                onClick={() => handleStatusUpdate('confirmed')}
-                                className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-500 transition-all active:scale-[0.98] shadow-lg shadow-blue-600/20"
+                                onClick={() => send({ type: 'CONFIRM' })}
+                                disabled={isUpdating}
+                                className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-500 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-blue-600/20"
                             >
-                                <CheckCircle size={16} /> Confirmar Pedido
+                                {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                Confirmar Pedido
                             </button>
                         )}
 
-                        {order.status === 'confirmed' && canAcceptOrder && (
+                        {currentOrder.status === 'confirmed' && canAcceptOrder && (
                             <button
-                                onClick={() => handleStatusUpdate('preparing')}
-                                className="w-full flex items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-3 text-sm font-bold text-white hover:bg-accent-active transition-all active:scale-[0.98] shadow-lg shadow-accent-primary/20"
+                                onClick={() => send({ type: 'PREPARE' })}
+                                disabled={isUpdating}
+                                className="w-full flex items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-3 text-sm font-bold text-white hover:bg-accent-active disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-accent-primary/20"
                             >
-                                <Play size={16} fill="currentColor" /> Empezar Preparación
+                                {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
+                                Empezar Preparación
                             </button>
                         )}
 
-                        {order.status === 'preparing' && canMarkReady && (
+                        {currentOrder.status === 'preparing' && canMarkReady && (
                             <button
-                                onClick={() => handleStatusUpdate('ready')}
-                                className="w-full flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-bold text-white hover:bg-green-500 transition-all active:scale-[0.98] shadow-lg shadow-green-600/20"
+                                onClick={() => send({ type: 'READY' })}
+                                disabled={isUpdating}
+                                className="w-full flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-bold text-white hover:bg-green-500 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-green-600/20"
                             >
-                                <CheckCircle size={16} /> Pedido Listo
+                                {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                Pedido Listo
                             </button>
                         )}
 
-                        {order.status === 'ready' && (
+                        {currentOrder.status === 'ready' && (
                             <div className="text-center p-2 text-sm font-medium text-green-400 animate-pulse bg-green-400/5 rounded-lg border border-green-400/20">
                                 Esperando entrega...
                             </div>
